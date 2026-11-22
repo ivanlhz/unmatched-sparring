@@ -29,7 +29,13 @@
   "flip_dial": {
    "fid": "elektra",
    "name": "Elektra Resurrected"
-  }
+  },
+  "same_token": [
+   "hand1",
+   "hand2",
+   "hand3",
+   "hand4"
+  ]
  },
  "forms": null,
  "counters": {},

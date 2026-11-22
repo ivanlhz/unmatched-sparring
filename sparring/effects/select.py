@@ -54,6 +54,14 @@ def _ref_fighter(game, run, ref):
     return got[0] if got else None
 
 
+def _zones_left(board, used: list[int], free: set[int], n: int) -> bool:
+    """n more fighters can still be put on free spaces, each in a zone that none of those already used (nor each other) shares: a small search, the board has few zones."""
+    if n == 0:
+        return True
+    ok = [s for s in sorted(free) if not any(board.share_zone(u, s) for u in used)]
+    return any(_zones_left(board, used + [s], {f for f in ok if f != s}, n - 1) for s in ok)
+
+
 def space_options(game, run, sel, default_empty: bool = True, mover=None) -> list[int]:
     """SpaceSel -> sorted space ids. `empty` (default true for placing) drops spaces held by a living fighter
     other than `mover`."""
@@ -74,9 +82,14 @@ def space_options(game, run, sel, default_empty: bool = True, mover=None) -> lis
         elif key == "space_of":
             out &= {ref.pos}
     if sel.get("apart_from_own") and mover is not None:      # a zone no other fighter of the mover's owner is in (Elektra's Resurrect)
-        for o in game.own(mover.owner):
-            if o is not mover and o.pos is not None:
-                out -= {s for s in board.spaces if board.share_zone(o.pos, s)}
+        placed = [o.pos for o in game.own(mover.owner) if o is not mover and o.pos is not None]
+        for pos in placed:
+            out -= {s for s in board.spaces if board.share_zone(pos, s)}
+        waiting = sum(1 for o in game.own(mover.owner, alive_only=False) if o is not mover and not o.alive and not o.off_board)     # fighters still to be put down after this one
+        if waiting and out:
+            free = {s for s in board.spaces if all(f.pos != s for f in game.fighters.values() if f.alive and f is not mover)}
+            fits = {s for s in out if _zones_left(board, placed + [s], free, waiting)}
+            out = fits or out          # a space that leaves room for the others first; with none, the best that is left
     if "next_to_nearest_foe" in sel:       # Where's My Money?: next to the nearest opposing fighter (to any of them when tied)
         ref = _ref_fighter(game, run, sel["next_to_nearest_foe"])
         foes = [f for f in game.fighters.values() if ref is not None and ref.pos is not None and f.alive

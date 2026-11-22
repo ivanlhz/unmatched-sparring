@@ -176,7 +176,7 @@ def _title(game, card_id, owner=None) -> str:
 
 def _who(game, f) -> str:
     """How a fighter is named in the line: its id, except for a hero with a reserve (Sun Wukong's Clones come out of the bag): the name of the piece."""
-    reserve = any(s.start_on_board == 0 for s in game.players[f.owner].hero.sidekicks)
+    reserve = any(s.start_on_board == 0 for s in game.players[f.owner].hero.sidekicks) or off_board.is_elektra(game, f.owner)      # (Elektra's four Hand are told apart by their names too)
     return (getattr(game, "nicknames", None) or {}).get(f.fid) or f.name if reserve else f.fid
 
 

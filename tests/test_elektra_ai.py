@@ -32,17 +32,28 @@ def value(g, observer, player):
 def test_a_hero_off_the_board_is_worth_nearly_a_fresh_hero_and_much_more_than_a_dead_one(bprd):
     g, _ = mk(bprd)
     spread(g)
-    whole = value(g, 1, 1)
     remove_elektra(g)
-    away = value(g, 1, 1)
+    away = EngineState(g, observer=1, weights=EvalWeights())
+    assert away._hero_life(g.fighters["elektra"]) > 0.5
     h = mk(bprd)[0]
     spread(h)
+    h.fx.set_counter(0, "life", 2)           # resurrected: a hero at 0 health is simply dead
     h.fighters["elektra"].hp = 0
     h.fighters["elektra"].alive = False
-    dead = value(h, 1, 1)
-    assert dead < away < whole + 0.5, (dead, away, whole)
-    assert away > 0.5 * whole
-    assert EngineState._hero_life(g.fighters["elektra"]) > 0.5 and EngineState._hero_life(h.fighters["elektra"]) == 0
+    assert EngineState(h, observer=1, weights=EvalWeights())._hero_life(h.fighters["elektra"]) == 0
+
+
+def test_removing_her_in_her_first_life_is_not_a_loss_for_the_one_who_does_it(bprd):
+    """Her first life reads as high as the away value (the second life is in it), so the search that attacks a 1 health Elektra sees no drop."""
+    g, _ = mk(bprd, turn=0)
+    spread(g)
+    g.fighters["elektra"].hp = 1
+    before = EngineState(g, observer=0, weights=EvalWeights())
+    assert before._hero_life(g.fighters["elektra"]) >= 0.85
+    mine = EngineState(g, observer=1, weights=EvalWeights()).evaluate(1)       # the remover is player 1 (Hellboy)
+    g.damage(g.fighters["elektra"], 5, "effect")
+    after = EngineState(g, observer=1, weights=EvalWeights()).evaluate(1)
+    assert after >= mine - 0.05, (mine, after)
 
 
 def test_what_the_rival_gains_from_removing_her_is_not_the_value_of_a_kill(bprd):
@@ -107,3 +118,22 @@ def test_the_bot_swaps_a_hand_in_when_the_blow_would_take_her_out(bprd):
 def test_the_scripted_chaser_plays_against_an_elektra_that_goes_off_the_board(seat, seed):
     pair = ("elektra", "hellboy") if seat == "bot" else ("hellboy", "elektra")
     assert sim.play(seed, bot_hero=pair[0], human_hero=pair[1], rival="chaser").winner != "draw"
+
+
+@pytest.mark.parametrize("seat", ["bot", "human"])
+@pytest.mark.parametrize("seed", [21, 22, 23])
+def test_search_games_against_tomoe_gozen_never_fall_back_to_the_heuristic(seat, seed, monkeypatch):
+    FELL_BACK.clear()
+    monkeypatch.setattr(IsmctsMedusa, "_fell_back", lambda self, where: FELL_BACK.append(where))
+    pair = ("elektra", "tomoe-gozen") if seat == "bot" else ("tomoe-gozen", "elektra")
+    ai = make_bot_ai({"ai": "ismcts", "ai_iterations": 12, "ai_seed": seed})
+    sim.play(seed, bot_hero=pair[0], human_hero=pair[1], medusa=ai)
+    assert FELL_BACK == [], FELL_BACK
+
+
+def test_nothing_can_be_hit_while_she_is_away_so_her_threat_is_zero_and_no_kill(bprd):
+    g, _ = mk(bprd, turn=0)
+    spread(g)
+    remove_elektra(g)
+    state = EngineState(g, observer=1, weights=EvalWeights())
+    assert state.threat(0) == (0.0, 0.0) and state._fighters_exposure(0, False) == 0.0

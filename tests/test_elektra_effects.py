@@ -269,3 +269,36 @@ def test_when_the_board_has_fewer_zones_than_fighters_the_rest_go_to_any_empty_s
     resurrect(g, [first] * 12)
     assert all(g.fighters[f].alive for f in ["elektra"] + HANDS)
     assert len({g.fighters[f].pos for f in ["elektra"] + HANDS}) == 5
+
+
+# ---------------------------------------------------------------- removed in the middle of a maneuver
+
+def test_a_maneuver_goes_on_when_the_first_mover_takes_everyone_off_the_board(bprd, monkeypatch):
+    """Tomoe Gozen's opportunity attack (or a hazard edge) removes Elektra while she walks: the Hand still planned to move are away too, not moved."""
+    g = mk(bprd)
+    spread(g)
+    g.fighters["elektra"].hp = 1
+    original = type(g).move_fighter
+    moved = []
+
+    def hurt_on_the_way(self, f, dest, *a, **kw):
+        moved.append(f.fid)
+        original(self, f, dest, *a, **kw)
+        if f.fid == "elektra":
+            self.damage(f, 5, "effect")
+    monkeypatch.setattr(type(g), "move_fighter", hurt_on_the_way)
+    dests = {f: next(iter(sorted(g.board.adj[g.fighters[f].pos] - {o.pos for o in g.fighters.values() if o.pos is not None}))) for f in ["elektra", "hand1", "hand2"]}
+    g.maneuver(0, dests)
+    assert moved == ["elektra"] and life(g) == 1 and g.winner is None and g.fighters["hand1"].pos is None
+
+
+def test_whatever_spaces_her_owner_picks_the_five_still_end_in_five_different_zones(bprd):
+    """A greedy pick can paint the last Hand into a corner (one in 461 Resurrects did): the options always leave room for the fighters still to come."""
+    import random
+    rng = random.Random(7)
+    for _ in range(120):
+        g = mk(bprd, seed=rng.randrange(1000))
+        remove_elektra(g)
+        resurrect(g, [lambda r: [rng.choice(r.options)] if r.kind == "space" else list(r.options)] * 12)
+        spots = [g.fighters[f].pos for f in ["elektra"] + HANDS]
+        assert len(set(spots)) == 5 and all(not g.board.share_zone(a, b) for i, a in enumerate(spots) for b in spots[i + 1:]), spots

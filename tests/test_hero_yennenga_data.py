@@ -150,7 +150,7 @@ def test_an_archer_with_two_life_needs_the_no_dial_flag():
 @pytest.mark.parametrize("other", SAME_SHEET)
 def test_yennenga_shares_the_card_range_but_not_the_images_with_the_other_sheet_176_decks(other):
     mine, theirs = load_hero_table("yennenga"), load_hero_table(other)
-    top = 17621 if other == "daredevil" else 17629                 # Daredevil's deck has 22 cards
+    top = {"daredevil": 17621, "elektra": 17619}.get(other, 17629)      # Daredevil's deck has 22 cards, Elektra's 20
     assert mine.card_ids == (17600, 17629) and theirs.card_ids == (17600, top)
     assert not set(mine.identity) & set(theirs.identity)
     for bot, human in (("yennenga", other), (other, "yennenga")):

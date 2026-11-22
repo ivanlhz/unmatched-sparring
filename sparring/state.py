@@ -827,6 +827,8 @@ class Game:
         placing = boost_card is not None and self.fx.hero_rule(player, "maneuver_boost_places_hero")
         for fid, dest in moves.items():
             f = self.fighters[fid]
+            if not f.alive or f.pos is None:        # taken off the board by an earlier move of this maneuver (an opportunity attack, a hazard: Elektra's first defeat)
+                continue
             if placing and f.hero:
                 self.place_fighter(f, dest)       # ESCAPE ARTIST: boosting, the hero goes to any space instead of moving
             else:

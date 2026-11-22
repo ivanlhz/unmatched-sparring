@@ -139,6 +139,7 @@
        "zone_of": "hero"
       },
       "hp": 1,
+      "interchangeable": true,
       "chooser": "owner"
      }
     ],

@@ -3502,6 +3502,9 @@ class Session:
             self.say(t("hp.bad_delta", delta=repr(delta)), ChatKind.WARNING)
             return
         g = self.game
+        if f.off_board:             # away from the board but not defeated (Elektra): her health and her Hand come back together at the Resurrect, never one by one
+            self.say(t("hp.away", name=self._name(f)), ChatKind.WARNING)
+            return
         if delta < 0:
             if not f.alive:
                 self.say(t("hp.out", name=self._name(f)), ChatKind.WARNING)
@@ -5483,6 +5486,19 @@ class Session:
     def _announce_fall(self, f: Fighter) -> None:
         """Every casualty, wherever it comes from (combat, ability, bot effect, Remove, HP to 0), is announced the same way:
         '<name> falls' and what happens to the miniature. The bot's is set aside by `_bury`; the human's they remove themselves."""
+        if f.off_board:             # Elektra's first defeat takes her AND every Hand away: all five are set aside and said once, whoever reports first
+            said = self.__dict__.setdefault("_away_said", set())
+            if f.fid in said:
+                return
+            for o in self.game.own(f.owner, alive_only=False):
+                if o.off_board and o.fid not in said:
+                    said.add(o.fid)
+                    self._bury(o.fid, self._name(o))
+            if f.owner != self.human and self.unprojected is not None:
+                for o in self.game.own(f.owner, alive_only=False):
+                    if o.off_board and o.fid in self.unprojected:
+                        self.unprojected[o.fid] = (self.unprojected[o.fid][0], False)
+            return
         name = self._name(f)
         self._bury(f.fid, name)
         if f.owner == self.human:
@@ -5620,11 +5636,32 @@ class Session:
                     self.say(line, ChatKind.WARNING)
         return {fid: g for fid, g in self.cfg.dials.items() if fid not in self._dial_unresolved}
 
+    def _check_spread(self) -> None:
+        """Elektra's Resurrect wants each fighter in a zone of its own and the table player puts the miniatures down by hand: once all five stand, two in
+        one zone are said (once). The bot does not refuse the placement."""
+        g = self.game
+        if self.__dict__.get("_spread_said") or not off_board.is_elektra(g, self.human) or off_board.life(g, self.human) != off_board.RESURRECTED or g.placing:
+            return
+        five = g.own(self.human)
+        if len(five) < 5:
+            return
+        self._spread_said = True
+        twins = [(a, b) for i, a in enumerate(five) for b in five[i + 1:] if g.board.share_zone(a.pos, b.pos)]
+        if twins:
+            self.say(t("elektra.spread", names=", ".join(f"{self._name(a)} / {self._name(b)}" for a, b in twins)), ChatKind.WARNING)
+
+    def _forget_away(self) -> None:
+        said = self.__dict__.get("_away_said")
+        if said:
+            said.intersection_update(fid for fid, f in self.game.fighters.items() if f.off_board)
+
     def _sync_flipped_dials(self) -> bool:
         """Elektra's health dial has two objects: the dial of her first life (7) and the Elektra Resurrected dial (9). From her Resurrect on, the engine's life is
         written to the second one (and read from it); the first stays where it is, out of use. A game that goes back before the Resurrect (undo, a save from earlier)
         uses the first again. Said once, when it changes; True when it did."""
         changed = False
+        self._forget_away()
+        self._check_spread()
         for fid, flipped in self.cfg.flip_dials.items():
             owner = self.game.fighters[fid].owner
             now = off_board.life(self.game, owner) == off_board.RESURRECTED

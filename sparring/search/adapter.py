@@ -41,7 +41,7 @@ from dataclasses import dataclass, field, replace
 from functools import lru_cache
 from math import comb, fsum, prod, sqrt
 
-from .. import ai_achilles, ai_double, ai_mary, enraged, pack, tracks, tricks
+from .. import ai_achilles, ai_double, ai_mary, enraged, off_board, pack, tracks, tricks
 from ..ai_hazards import zone_cover_factor, zone_damage, zone_exposed
 from ..ai_medusa import (ATTACKS_PER_TURN, DRAWS_PER_TURN, GAZE, LONG_GAME, MIN_NET, beside_stake, boost_effect_value, bot_may_spend,
                          can_use, discard_cut, exhaustion_owed, held_for_plan, maneuver_may_spend, play_signature, scheme_fighter)
@@ -1142,13 +1142,17 @@ class EngineState:
         return (life + w.sidekicks * side_hp + w.beside * next_to + w.alive * alive + w.hand * hand + w.hand_reserve * reserve + w.pack * self._pack_ready(p)
                 + w.deck * deck + w.ongoing * ongoing.worth(g, p) / hero.max_hp + self._vengeance(p) - self._exposure(p, urgent))
 
-    @staticmethod
-    def _hero_life(hero: Fighter, owed: float = 0) -> float:
+    def _hero_life(self, hero: Fighter, owed: float = 0) -> float:
         """The hero's life term. A hero taken off the board and not defeated (Elektra's first life) comes back next turn with the flipped dial and
-        all her fighters: worth a fresh hero a turn behind, not a dead one."""
+        all her fighters: worth a fresh hero a turn behind, not a dead one. While she is still in her first life the second one is in the value
+        too, so her first life never reads below the away value: removing her is not a loss for the one who does it."""
         if hero.off_board:
             return OFF_BOARD_LIFE
-        return sqrt(max(hero.hp - owed, 0) / hero.max_hp)
+        own = sqrt(max(hero.hp - owed, 0) / hero.max_hp)
+        g = self.game
+        if hero.hero and off_board.is_elektra(g, hero.owner) and off_board.life(g, hero.owner) == off_board.FIRST_LIFE:
+            return max(own, OFF_BOARD_LIFE)
+        return own
 
     def _side_value_normalized(self, p: int, urgent: bool) -> float:
         return sum(self._side_terms(p, urgent).values())

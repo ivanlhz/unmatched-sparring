@@ -873,7 +873,7 @@
  "tr.moved.moves.done": "{name} se mueve a {space}: lo he movido yo (efecto del bot).",
  "tr.moved.returns.done": "{name} vuelve al tablero a {space}: lo he movido yo (efecto del bot).",
  "tr.moved.moves.manual": "{name} se mueve a {space} por un efecto del bot: no he podido mover su miniatura, muevela tu.",
- "tr.moved.swap.done": "{name} pasa a {space}: he intercambiado yo las miniaturas (efecto del bot).",
+ "tr.moved.swap.done": "{name} pasa a {space}: he intercambiado yo las miniaturas.",
  "tr.moved.swap.manual": "{name} pasa a {space} por un intercambio del bot: no he podido mover su miniatura, muevela tu.",
  "tr.moved.returns.manual": "{name} vuelve al tablero a {space} por un efecto del bot: no he podido mover su miniatura, muevela tu.",
  "tr.where.you.shuffle": "en tu mazo y baraja",
@@ -1457,5 +1457,7 @@
  "err.big_ears_basket": "{title} solo se juega como defensa si arriba de tu descarte hay una hacha (o una estrella, o solo esta la Cesta)",
  "choice.prompt.pile_top": "Has puesto dos cartas a la vez en tu descarte: cual esta arriba?",
  "lr.basket_missing": "No encuentro la Cesta de Little Red en la mesa ({side}): ponla en la zona de descarte, aparte de la pila. La partida sigue sin ella.",
- "lr.basket_keep": "Deja la Cesta de Little Red (la carta suelta) en la esquina de tu zona de descarte, aparte de las cartas de tu pila: apilada con ellas no se distingue de una carta al reiniciar."
+ "lr.basket_keep": "Deja la Cesta de Little Red (la carta suelta) en la esquina de tu zona de descarte, aparte de las cartas de tu pila: apilada con ellas no se distingue de una carta al reiniciar.",
+ "hp.away": "{name} esta fuera del tablero, no derrotada: su vida y su Mano vuelven juntas al resucitar, asi que no la cambio de uno en uno.",
+ "elektra.spread": "La resurreccion de Elektra pone cada luchador en una zona distinta, y estos comparten zona: {names}. Mueve uno de cada pareja si quieres cumplir la regla."
 }

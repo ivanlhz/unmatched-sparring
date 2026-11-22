@@ -298,3 +298,150 @@ def test_the_resurrect_tells_the_human_to_shuffle_their_discard_pile_into_their_
     _, msgs = remove_and_pass_the_turn(session, table, game, cfg)
     assert said(msgs, "Meto Sai y Whirlwind en tu mazo y lo barajo"), msgs          # the bot does it: the pile is public and it moves the human's cards
     assert game.players[1].discard == [] and {c.title for c in game.players[1].deck} >= {"Sai", "Whirlwind"}
+
+
+@with_rig("elektra", "hellboy", *ELEKTRA_HAND)
+def test_the_bots_elektra_removed_in_the_middle_of_its_own_maneuver_sets_all_five_pieces_aside(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    game.fighters["elektra"].hp = 1
+    original = type(game).move_fighter
+
+    def hurt_on_the_way(self, f, dest, *a, **kw):
+        original(self, f, dest, *a, **kw)
+        if f.fid == "elektra":
+            self.damage(f, 5, "effect")
+    monkeypatch.setattr(type(game), "move_fighter", hurt_on_the_way)
+    e = game.fighters["elektra"]
+    moves = {"elektra": next(iter(sorted(game.board.adj[e.pos] - {o.pos for o in game.fighters.values() if o.pos is not None}))),
+             "hand1": next(iter(sorted(game.board.adj[game.fighters["hand1"].pos] - {o.pos for o in game.fighters.values() if o.pos is not None})))}
+    from sparring.ai_medusa import Act
+    msgs = bot_turn(session, table, [Act("maneuver", moves=moves)])
+    assert game.winner is None and life(game, 0) == 1 and all(game.fighters[f].off_board for f in ["elektra", *HANDS])
+    assert said(msgs, "The Hand 4 sale del tablero (no esta derrotada)") and said(msgs, "Elektra sale del tablero (no esta derrotada)"), msgs
+
+
+# ---------------------------------------------------------------- Hands of Red: four identical tokens
+
+def hands_of_red(session, table, game, cfg, monkeypatch, fallen=("hand1", "hand3")):
+    """The human's Elektra attacks the bot's Hellboy with Hands of Red while some Hand lie defeated; the combat ends and its AFTER step is open."""
+    from test_e2_human_cards import bot_defends_with_nothing
+    from test_d3_table_effects import human_attack
+    for fid in fallen:
+        game.defeat(game.fighters[fid])
+        table.positions.pop(cfg.nicknames[fid], None)
+    e, h = game.fighters["elektra"], game.fighters["hellboy"]
+    spot = next(s for s in sorted(game.board.adj[h.pos]) if all(f.pos != s for f in game.fighters.values() if f.alive))
+    e.pos = spot
+    table.positions[cfg.nicknames["elektra"]] = spot
+    bot_defends_with_nothing(session, monkeypatch)
+    human_hand(table, game, "Hands of Red", "Sai")
+    human_attack(session, table, game, "elektra", "hellboy", "Hands of Red")
+    return click(session, table, Event.REVEAL)
+
+
+def free_in_zone(game, fid):
+    taken = {f.pos for f in game.fighters.values() if f.alive}
+    pos = game.fighters[fid].pos
+    return [s for s in sorted(game.board.spaces) if s not in taken and game.board.share_zone(pos, s)]
+
+
+@with_rig("hellboy", "elektra", *BOT_HAND)
+def test_hands_of_red_returns_a_hand_without_asking_which_and_any_token_the_human_lays_is_followed(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    msgs = hands_of_red(session, table, game, cfg, monkeypatch)
+    assert session.effect_run is None and game.placing == {"hand1"}, msgs         # the four tokens are the same: no question
+    token1, token3 = session.cfg.pieces["hand1"], session.cfg.pieces["hand3"]
+    spot = free_in_zone(game, "elektra")[0]
+    table.positions[cfg.nicknames["hand3"]] = spot                # the human lays the token of the OTHER fallen Hand
+    table.piece_dist.pop(cfg.nicknames["hand3"], None)
+    after = click(session, table, Event.END_ACTION)
+    h1, h3 = game.fighters["hand1"], game.fighters["hand3"]
+    assert h1.alive and h1.pos == spot and not h3.alive and game.placing == set(), after
+    assert session.cfg.pieces["hand1"] == token3 and session.cfg.pieces["hand3"] == token1
+    assert not said(after, "No encuentro"), after
+
+
+@with_rig("hellboy", "elektra", *BOT_HAND)
+def test_the_hand_still_to_place_survives_a_save_and_another_token_is_still_followed(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    hands_of_red(session, table, game, cfg, monkeypatch, fallen=("hand2", "hand4"))
+    assert game.placing == {"hand2"}
+    other = reload(session, table)
+    assert other.game.placing == {"hand2"}
+    spot = free_in_zone(other.game, "elektra")[0]
+    table.positions[cfg.nicknames["hand4"]] = spot
+    table.piece_dist.pop(cfg.nicknames["hand4"], None)
+    msgs = click(other, table, Event.END_ACTION)
+    assert other.game.fighters["hand2"].alive and other.game.fighters["hand2"].pos == spot and other.game.placing == set(), msgs
+    assert not said(msgs, "No encuentro"), msgs
+
+
+# ---------------------------------------------------------------- removals the engine does not see in combat, and the +1 button
+
+@with_rig("elektra", "hellboy", *ELEKTRA_HAND)
+def test_the_remove_button_on_the_bots_elektra_sets_all_five_pieces_aside_not_only_her(rig):
+    session, table, game, fake, cfg = rig
+    before = len(session.messages)
+    session._remove({"fighter": "elektra"})
+    said_now = session.messages[before:]
+    assert life(game, 0) == 1 and all(game.fighters[f].off_board for f in ["elektra", *HANDS]) and game.winner is None
+    assert all(any(f"{cfg.nicknames[f]} sale del tablero (no esta derrotada)" in m for m in said_now) for f in ["elektra", *HANDS]), said_now
+    assert sum("Elektra sale del tablero" in m for m in said_now) == 1
+
+
+@with_rig("elektra", "hellboy", *ELEKTRA_HAND)
+def test_minus_one_on_a_one_health_elektra_of_the_bot_takes_the_hand_away_with_her(rig):
+    session, table, game, fake, cfg = rig
+    game.fighters["elektra"].hp = 1
+    before = len(session.messages)
+    session._hp({"fighter": "elektra", "delta": -1})
+    said_now = session.messages[before:]
+    assert all(game.fighters[f].off_board for f in HANDS) and any("The Hand 4 sale del tablero" in m for m in said_now), said_now
+
+
+@with_rig("hellboy", "elektra", *BOT_HAND)
+def test_the_remove_button_on_the_humans_elektra_says_the_five_leave_the_board(rig):
+    session, table, game, fake, cfg = rig
+    before = len(session.messages)
+    session._remove({"fighter": "elektra"})
+    said_now = session.messages[before:]
+    assert all(game.fighters[f].off_board for f in ["elektra", *HANDS]) and any("The Hand 2 sale del tablero" in m for m in said_now), said_now
+
+
+@with_rig("hellboy", "elektra", *BOT_HAND)
+def test_plus_one_on_an_elektra_that_is_away_is_refused_and_changes_nothing(rig):
+    session, table, game, fake, cfg = rig
+    session._remove({"fighter": "elektra"})
+    before = len(session.messages)
+    session._hp({"fighter": "elektra", "delta": 1})
+    assert not game.fighters["elektra"].alive and game.fighters["elektra"].off_board and life(game, 1) == 1
+    assert any("fuera del tablero, no derrotada" in m for m in session.messages[before:])
+    assert all(game.fighters[f].off_board for f in HANDS)
+
+
+@with_rig("hellboy", "elektra", *BOT_HAND)
+def test_the_resurrect_line_names_the_pieces_and_two_in_one_zone_are_warned_once(rig):
+    session, table, game, fake, cfg = rig
+    flip_dial_on_the_table(table, cfg)
+    _, msgs = remove_and_pass_the_turn(session, table, game, cfg)
+    assert said(msgs, "The Hand 1 vuelve con 1 PV") and not said(msgs, "hand1 vuelve"), msgs
+    spots = apart_spaces(game, table)
+    twin = next(s for s in sorted(game.board.spaces) if s not in spots and s not in table.positions.values() and game.board.share_zone(s, spots[1]))
+    spots[2] = twin                                                # Hand 2 goes into Hand 1's zone
+    for fid, spot in zip(["elektra", *HANDS], spots):
+        put_down(table, cfg, fid, spot)
+    first = click(session, table, Event.END_ACTION)
+    assert said(first, "comparten zona"), first
+    again = click(session, table, Event.MANEUVER)
+    assert not said(again, "comparten zona")
+
+
+@with_rig("hellboy", "elektra", *BOT_HAND)
+def test_the_swap_of_the_humans_own_snakeroot_is_not_called_an_effect_of_the_bot(rig):
+    session, table, game, fake, cfg = rig
+    next_to_the_human(session, table, game, cfg)
+    human_hand(table, game, "Snakeroot Clan", "Sai")
+    bot_attacks(session, table, game, "Service Pistol", "hellboy", "elektra", "Snakeroot Clan")
+    press(session, table, True)
+    msgs = press(session, table, "hand3")
+    assert said(msgs, "he intercambiado yo las miniaturas") and not said(msgs, "efecto del bot"), msgs

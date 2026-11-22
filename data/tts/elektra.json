@@ -27,16 +27,20 @@
    "dial_flipped_max": 9
   },
   "hand1": {
-   "piece": "b771c8"
+   "piece": "b771c8",
+   "same_token": true
   },
   "hand2": {
-   "piece": "9bdc1d"
+   "piece": "9bdc1d",
+   "same_token": true
   },
   "hand3": {
-   "piece": "8f67bf"
+   "piece": "8f67bf",
+   "same_token": true
   },
   "hand4": {
-   "piece": "d72373"
+   "piece": "d72373",
+   "same_token": true
   }
  },
  "tokens": {},
