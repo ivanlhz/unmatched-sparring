@@ -1,1 +1,10 @@
 # path  agent  task  UTC time   (see BRIEF: short locks only)
+sparring/effects/ops_core.py  robin  review fixes: interchangeable Outlaw tokens, Steal prompt  2026-11-22 13:05Z
+data/heroes/effects/schema.json  robin  review fixes: interchangeable Outlaw tokens, Steal prompt  2026-11-22 13:05Z
+sparring/session.py  robin  review fixes: interchangeable Outlaw tokens, Steal prompt  2026-11-22 13:05Z
+sparring/tts/hero_table.py  robin  review fixes: interchangeable Outlaw tokens, Steal prompt  2026-11-22 13:05Z
+tools/import_save.py  robin  review fixes: interchangeable Outlaw tokens, Steal prompt  2026-11-22 13:05Z
+data/i18n/en.json  robin  review fixes: interchangeable Outlaw tokens, Steal prompt  2026-11-22 13:05Z
+data/i18n/es.json  robin  review fixes: interchangeable Outlaw tokens, Steal prompt  2026-11-22 13:05Z
+sparring/session_choices.py  robin  review fixes: interchangeable Outlaw tokens, Steal prompt  2026-11-22 13:05Z
+docs/effects-dsl.md  robin  review fixes: interchangeable Outlaw tokens, Steal prompt  2026-11-22 13:05Z
