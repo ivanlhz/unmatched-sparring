@@ -17,3 +17,8 @@ sparring/effects/inventions.py  loki  lent TRICK cards, Ctx.card_home, trick cle
 sparring/effects/modifiers.py  loki  lent TRICK cards, Ctx.card_home, trick cleanup  2026-11-22 10:07Z
 sparring/effects/select.py  loki  card_ref by flow side (borrowed TRICK ids)  2026-11-22 10:10Z
 sparring/combat_flow.py  loki  replace_defense_card (Looking For Trouble)  2026-11-22 10:10Z
+sparring/effects/state.py  pandora  register the hero in the shared lists  2026-11-22 10:11Z
+tests/test_heroes.py  pandora  register the hero in the shared lists  2026-11-22 10:11Z
+tests/test_card_identity.py  pandora  register the hero in the shared lists  2026-11-22 10:11Z
+tests/test_d1_bot_cards.py  pandora  register the hero in the shared lists  2026-11-22 10:11Z
+tests/test_effects_schema.py  pandora  register the hero in the shared lists  2026-11-22 10:11Z
