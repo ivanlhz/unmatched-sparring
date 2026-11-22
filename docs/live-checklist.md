@@ -775,3 +775,17 @@ Nothing of Little Red has been seen on a real table. Her deck is sheet 177 (Card
 - [ ] **What Big Ears You Have as a defense**: face down at the Reveal it is accepted while the top of your pile is an axe (or a star, or only the Basket lies there) and refused with a message about the axe otherwise.
 - [ ] **Stones in the Belly**: with an axe the bot names a position of your hand ("la carta N de las M"), you lay it on your pile and the bot adds its BOOST. **Never Leave the Path**: wolf = you place Little Red by hand and gain an action, axe = 2 damage on the dials, rose = the bot deals 3 cards. **A Grimm Tale / Long Have I Sought You** (the Huntsman's cards): heal on her dial 2 or 4; 6 with the Huntsman next to the target.
 - [ ] The numbers as printed (What Big Eyes You Have is versatile 3, Stones in the Belly 2).
+
+### Elektra (Marvel: Hell's Kitchen, four Hand, a Resurrect)
+
+Nothing of Elektra has been seen on a real table. Her deck is sheet 176 (20 cards, CardIDs 17600-17619; the deck object in the bag `85cef8` holds 22: the 20 and the character cards 340 and 341), her four Hand are identical tokens ("Hand Ninja", no dial, the bot numbers them The Hand 1..4) and her health is **two dial objects**: `aace96` (7) and `c32f50` "Elektra Resurrected" (9). The first time she would be defeated the bot says she leaves the board and is NOT defeated, sets the five miniatures aside and the game goes on; at the start of her next turn she comes back with 9 health.
+- [ ] **Detection (auto)**: with her deck at one spot and any other hero's at the other, the start-up line names Elektra.
+- [ ] **Both dials (H/B)**: at the start both dials are on the table (the first at 7, the second at 9); the bot writes the life on the first until she resurrects.
+- [ ] **Removal (H/B)**: an attack, an effect or an empty deck that would defeat her: the chat says "<name> sale del tablero (no esta derrotada)" for her and each Hand, the miniatures are moved to the fallen zone (the human's too when that zone exists), no game over appears, the dial shows 0.
+- [ ] **The bot's turn while she is away (H)**: the bot maneuvers or plays schemes; nothing can be attacked.
+- [ ] **Resurrect, the bot's Elektra (B)**: at the start of its turn the chat says she resurrects and the bot flips her dial (the 9-dial shows 9 and the 7-dial is left alone), and the five miniatures are moved from the fallen zone to spaces one to a zone; the discard pile is shuffled into the deck (the bot moves the cards).
+- [ ] **Resurrect, the human's Elektra (H)**: at the start of your turn the chat lists "put Elektra on the board (any space) with 9 health" and one line per Hand "in a zone none of your other fighters is in", then the discard pile into the deck (shuffle it by hand) and "flip your health dial"; put the five miniatures down, press End action: the bot reads them back; the status line and the dial show 9.
+- [ ] **Own turn (H/B)**: she is taken out in her own turn (Mystic Assassin): the Resurrect waits for the NEXT turn, after the opponent's whole turn.
+- [ ] **Snakeroot Clan (H)**: yes / no, then one button per Hand; the bot swaps the two miniatures and that Hand takes the blow far from the attacker. **(B)**: the bot does it.
+- [ ] **Intercept (H)**: resurrected, a yes / no carrying the card text (show a Sai if you have one; the bot cannot check).
+- [ ] **Resume** in the middle of any of this (off the board, miniatures still to be put down, after the flip): the game comes back in the same state.

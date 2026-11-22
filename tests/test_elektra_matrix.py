@@ -14,6 +14,8 @@ from sparring.heroes import available_heroes
 from sparring.tts.ui import Event
 from test_d3_table_effects import build, set_hand
 from test_donatello_session import SPOTS, AsideTable
+from test_choice_infra import visible_choices
+from test_michelangelo_games import Driver
 from test_tmnt_matrix import HERO_HP, MAX_STEPS, AttackDriver, human_step
 
 OTHERS = [h for h in available_heroes() if h != "elektra"]
@@ -25,6 +27,24 @@ def flip_dial_on_the_table(table, cfg):
     guid = cfg.session_config().flip_dials.get("elektra")
     if guid:
         table.dials[guid] = {"found": True, "name": "Elektra Resurrected", "value": 9, "max": 9}
+
+
+class Confirming(Driver):
+    """The driver presses button 1 for every choice, which toggles a pick of a multi-pick ("any number of fighters") on and off for ever. Elektra has five
+    fighters, so the opponent's AFTER effects that damage any number of them are multi-picks the other heroes' matrices never meet: here the human answers
+    them with the last visible button, Confirm ("None" when nothing is picked)."""
+
+    def press(self, event, payload=None):
+        paused = self.session._paused()
+        if event == Event.CHOICE and paused is not None:
+            req = paused[2].awaiting
+            if req.kind != "space" and not (req.min == 1 and req.max == 1):
+                payload = {"i": len(visible_choices(self.session))}
+        return super().press(event, payload)
+
+
+class ElektraDriver(AttackDriver, Confirming):
+    pass
 
 
 def play_to_the_end(tmp_path, bot: str, human: str):
@@ -70,7 +90,7 @@ def test_a_game_where_the_human_attacks_every_turn_reaches_game_over(tmp_path, b
             hero.hp = min(hero.hp, HERO_HP)
             guid = cfg.session_config().dials[hero.fid]
             table.dials[guid]["value"] = session.dials_written[guid] = hero.hp
-        d = AttackDriver(session, table, game, cfg, attacks=True)
+        d = ElektraDriver(session, table, game, cfg, attacks=True)
         d.play_out()
         assert game.winner is not None
         assert any("Combate" in m for m in d.log), "the human never attacked"

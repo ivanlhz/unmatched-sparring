@@ -1313,6 +1313,22 @@
         "Verified live by Ivan (docs/live-checklist.md, section Little Red Riding Hood)"
       ],
       "note": "Rules decisions and open questions for Ivan: docs/heroes/little-red-riding-hood.md (Pending Ivan). Engine notes: docs/effects-dsl.md, section Little Red Riding Hood. Live test pending."
+    },
+    {
+      "id": "HERO-ELEKTRA",
+      "title": "Elektra (Marvel: Hell's Kitchen, four Hand, removed from the board and not defeated the first time, a Resurrect at the start of her next turn) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/elektra.json, data/heroes/elektra.json, data/heroes/effects/elektra.json and data/tts/elektra.json generated and validated (import_hero, validate_effects, import_save); the 10 titles (20 cards, sheet 176, CardIDs 17600-17619, character cards 340 and 341) read from the card images; bands THE HAND (The Fist), ANY (Ninjitsu) and ELEKTRA (the rest) are a slip of unmatched-memory, which has none",
+        "A new engine state: fighters off the board and not defeated (Fighter.off_board, sparring/off_board.py): Game._fall removes Elektra and every Hand instead of defeating her the first time (combat damage, effect damage, exhaustion), nobody wins, the selectors do not call them defeated, saves and clones keep it, a mover with no fighter on the board has no turn left (tests/test_elektra_effects.py)",
+        "The Resurrect is the trigger 'resurrect' at the start of her next turn (the opponent's whole turn comes first when she fell in her own): flip the dial (9 health), shuffle the discard pile into the deck, place Elektra and all four Hand (also those defeated earlier, Ivan 2026-11-22 E1) one to a zone, the rest on any empty space when the board has fewer zones (E2); RESURRECTED is the counter life >= 2",
+        "All 10 cards on the interpreter for both seats, with The Fist returning even if its damage defeats the Hand (E4), Snakeroot Clan (any Hand, out of range, the combat goes on with it), Intercept (reveal a Sai) and Mesmerize (tests/test_elektra_cards.py)",
+        "At the table in both seats: the removal says she leaves the board and is not defeated, the bot flips and writes the second health dial (c32f50, 9), the human puts the five miniatures down and the bot reads them back, save and resume while she is away, while the pieces wait to be put down and after the flip, Snakeroot Clan and Intercept at the panel (tests/test_elektra_human.py)",
+        "The search evaluates a hero that is off the board as a fresh hero a turn behind, not a dead one (tests/test_elektra_ai.py)",
+        "Elektra against every other hero in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator with the heuristic and the search AI (tests/test_elektra_matrix.py)",
+        "Verified live by Ivan (docs/live-checklist.md, section Elektra)"
+      ],
+      "note": "Rules decisions and open questions for Ivan: docs/heroes/elektra.md (Pending Ivan). Engine notes: docs/effects-dsl.md, section Elektra. Live test pending."
     }
   ]
 }
