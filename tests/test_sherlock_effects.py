@@ -124,13 +124,13 @@ def test_holmes_feint_cancels_the_rivals_card(bprd):
 
 
 def test_an_effect_that_ignores_the_value_is_not_a_cancel_of_the_effects(bprd):
-    """A Holmes card whose value an effect ignores still resolves its effects (ignoring a value is not a cancel)."""
-    g = mk(bprd)
-    h, foe = pair(g, "holmes", "medusa")
-    card = hand_of(g, 0, "Counterpunch")
-    flow = g.begin_attack(h, foe, card, hand_of(g, 1, "Feint"))
+    """Pandora's Celestial Raiments ignore the value of Holmes' Counterpunch (no combat damage) but its AFTER effect still resolves: ignoring a value cancels nothing."""
+    g = mk(bprd, foe="pandora")
+    h, foe = pair(g, "holmes", "pandora")
+    hp = foe.hp
+    flow = g.begin_attack(h, foe, hand_of(g, 0, "Counterpunch"), hand_of(g, 1, "Celestial Raiments"))
     flow.drive(lambda choice: None)
-    assert "atk" not in flow.ctx.cancelled
+    assert flow.result.damage == 0 and foe.hp == hp - 2 and "atk" not in flow.ctx.cancelled
 
 
 # ---------------------------------------------------------------- Elementary
@@ -182,19 +182,24 @@ def test_elementary_cancels_an_uncancelable_card_too(bprd):
     assert is_uncancelable(incinerate)
     g.players[1].deck.remove(incinerate)
     g.players[1].hand.append(incinerate)
+    hand_of(g, 0, "Feint")
+    hand_of(g, 0, "Counterpunch")                            # two cards in hand: the offer "discard 2 to ignore this card's value" is possible
     g.controllers[0].queue = [[incinerate.value]]
     g.attack(foe, h, incinerate, hand_of(g, 0, "Elementary"))
-    assert h.hp == 16 and asked(g, 1, "optional") == []      # Incinerate's DURING effect (the rival's discard offer) never ran
+    assert h.hp == 16 and asked(g, 0, "optional") == []      # Incinerate's DURING effect (the offer made to Holmes) never ran: its effects were canceled
 
 
-def test_elementary_still_adds_a_boost_played_on_top_of_the_ignored_value(bprd):
-    """"Ignore the value" zeroes the total at that moment; a later BOOST still adds (the engine's reading, REGLAS-PENDIENTES-batch4.md)."""
+def test_elementary_cancels_the_free_boost_of_the_card_with_its_effects(bprd):
+    """"Cancel all effects" takes Second Shot's "you may BOOST this attack" away too: the attacker is not offered the BOOST that would have beaten Elementary's 3
+    (its value is ignored, 0, and a 4 from Gaze of Stone would have made 4)."""
     g = mk(bprd, turn=1)
     foe, h = pair(g, "medusa", "holmes")
     g.controllers[0].queue = [[3]]
+    boost = hand_of(g, 1, "Gaze of Stone")
+    offered = []
     flow = g.begin_attack(foe, h, hand_of(g, 1, "Second Shot"), hand_of(g, 0, "Elementary"))
-    flow.drive(lambda choice: None)
-    assert flow.result.damage == 0
+    flow.drive(lambda choice: offered.append(choice) or (boost if choice.kind == "boost" else None))
+    assert offered == [] and flow.result.damage == 0 and h.hp == 16
 
 
 # ---------------------------------------------------------------- Deduce Strategy

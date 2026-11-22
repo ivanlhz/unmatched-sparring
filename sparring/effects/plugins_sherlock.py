@@ -17,13 +17,12 @@ from __future__ import annotations
 
 from . import table
 from .ops_core import OPS, plugin, plugin_condition
-from .ops_combat import PREDICT_OP, PREDICT_VALUES
 from .plugins_strange import _flow, _unplayed
 
 DEDUCE = "holmes:deduce_strategy"
 ELEMENTARY = "holmes:elementary"
 CONFIRM = "holmes:confirm_suspicion"
-VALUES = list(PREDICT_VALUES)           # any printed value can be named (Ivan, 28/10, for every prediction)
+VALUES = list(range(8))                 # any printed value can be named: the numbers of `ops_combat.PREDICT_VALUES` (Ivan, 28/10, for every prediction)
 
 
 def matches(card, named: int) -> bool:
@@ -55,6 +54,7 @@ def _deduce(run, game, spec):
 def _elementary(run, game, spec):
     if "prediction" in run.flags:
         return
+    from .ops_combat import PREDICT_OP          # not at import time: ops_combat imports ops_core, which imports this module
     flow = getattr(run, "flow", None)
     answer = run.ask(game, "effect", run.ctx.owner, VALUES, 1, 1, "predict the printed attack value of the opponent's card",
                      op=PREDICT_OP, elementary=True, attacker=None if flow is None else flow.att.fid)[0]
