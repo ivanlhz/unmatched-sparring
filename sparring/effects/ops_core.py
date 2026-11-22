@@ -591,8 +591,8 @@ def _choice_context(game, run, spec: dict) -> dict:
     Delivery: how many moments of the rival's card have effects to cancel)."""
     ctx = {}
     ops, other = spec.get("ops") or [], spec.get("else") or []
-    from .plugins_blackbeard import action_context, ransom_context
-    ctx.update(ransom_context(game, run, spec) or action_context(game, run, spec))        # Blackbeard's doubloons: a ransom the opponent may pay, or his action
+    from .plugins_blackbeard import choice_context
+    ctx.update(choice_context(game, run, spec))        # Blackbeard's doubloons: a ransom the opponent may pay, his action, a Sea Dog repositioned
     if any(o["op"] == "plugin" and o["id"] in ("houdini:replace_combatant", "luke:replace_combatant", "washington:replace_combatant", "achilles:replace_combatant") for o in ops):      # Smoke And Mirrors: a bot weighs the swap
         ctx["replaces_combatant"] = {"this": run.ctx.this_fid, "role": run.ctx.played_as}
     if len(ops) == 1 and ops[0]["op"] == "return_to_deck" and isinstance(ops[0]["cards"], dict) \
@@ -708,7 +708,8 @@ def _optional(run, game, spec):
     can_pay = _can_pay(game, run, cost)
     yes = can_pay and run.ask(game, "optional", chooser, [True, False], 1, 1, "do it?", **ctx,
                               **_choice_context(game, run, spec))[0]
-    if cost and chooser != run.ctx.owner and chooser == game.bot_player:
+    from .plugins_blackbeard import treasury_cost
+    if cost and chooser != run.ctx.owner and chooser == game.bot_player and not treasury_cost(cost):      # a ransom is paid in doubloons, not cards: the chat says it with the coins
         run.flags["bot_priced"] = {"paid": bool(yes), "can_pay": can_pay, "cards": ctx.get("cost_cards", 0),
                                    "stake": ctx.get("at_stake", 0), "hp": ctx.get("hp"),
                                    # Incinerate's price ignores the card's value; Shield Formation's stops its effect (an Archer's return)

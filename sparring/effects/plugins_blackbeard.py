@@ -87,6 +87,22 @@ def ransom_context(game, run, spec: dict) -> dict:
     return {"ransom": n, "effect": describe_effect(game, run, spec.get("else") or []), "treasury": stock(game, run.ctx.owner, TREASURY)}
 
 
+def choice_context(game, run, spec: dict) -> dict:
+    """The extra of any question of Blackbeard's (`ops_core._choice_context` asks): a ransom, his action, or a Sea Dog repositioned."""
+    return ransom_context(game, run, spec) or action_context(game, run, spec) or reposition_context(spec)
+
+
+def reposition_context(spec: dict) -> dict:
+    """"Summon a Sea Dog" with none defeated: the owner may move one of the living (Ivan 2026-11-22, BB2): `reposition` is where."""
+    ops = spec.get("ops") or []
+    if len(ops) != 1 or ops[0]["op"] != "place":
+        return {}
+    target, where = ops[0].get("target"), ops[0].get("where")
+    if isinstance(target, dict) and target.get("name") == "Sea Dog" and isinstance(where, dict):
+        return {"reposition": "zone" if "zone_of" in where else "any"}
+    return {}
+
+
 def action_context(game, run, spec: dict) -> dict:
     """The extra of the start-of-turn question: pay 1 doubloon to the Treasury for an action."""
     n = hand_cost(spec.get("cost") or [])

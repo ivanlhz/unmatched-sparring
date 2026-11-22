@@ -629,3 +629,24 @@ def test_the_three_doubloons_always_add_up_to_three_through_a_whole_game_of_rans
         g.actions_left = 2
         g.attack(b, foe, give(g, 0, "Give No Quarter"), None)
         assert sum(coins(g)) == 3
+
+
+# ---------------------------------------------------------------- save, resume and the search's clones
+
+def test_the_doubloons_survive_a_save_and_resume(bprd):
+    import json
+    from sparring.persist import apply_game, game_to_dict
+    g = mk(bprd)
+    set_coins(g, 1, 2)
+    saved = json.loads(json.dumps(game_to_dict(g)))
+    fresh = mk(bprd)
+    assert coins(fresh) == (2, 1)
+    apply_game(fresh, saved)
+    assert coins(fresh) == (1, 2)
+
+
+def test_a_clone_of_the_game_has_its_own_doubloons(bprd):
+    g = mk(bprd)
+    c = g.clone()
+    set_coins(c, 0, 3)
+    assert coins(c) == (0, 3) and coins(g) == (2, 1)

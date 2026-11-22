@@ -1,5 +1,10 @@
 {
  "slug": "blackbeard",
+ "_notes": [
+  "Read from the tournament savegame: infinite bag af6cfa > bag 541533. Blackbeard's deck is sheet 2 (CardIDs 200-229, 8x4), a sheet of its own; the deck object holds 32 cards: the 30 playing cards, the loose rules card 500 (sheet 5, one image: `tts.extra_card_ids` in the overlay makes tools/import_save.py skip it) and the character card 362 (sheet 3, index 62). The bag also holds a loose CardCustom d0e886 (CardID 17600 of a one-image sheet 176): the same rules card, not a playing card; nothing uses it.",
+  "The Sea Dogs are the Custom_Tokens nicknamed Hands (e815fe) and Caesar (265d90): 1 life, no dial. The Treasury is a Custom_Token (442da0) and the doubloons a Custom_Token_Stack (a3b09d, Number 3: three coins in one stack). The session does NOT read coins from the table: the engine keeps the count (counters doubloons and treasury) and the chat says every change; the human moves the tokens by hand (docs/heroes/blackbeard.md, Table).",
+  "token_slots: where the Treasury and the doubloon stack rest on each side. Blackbeard has no sidekick dial nor counter dial, so the column the sidekick dials use is free; the spots are the ones measured live for Abe Sapien's Intuition tokens on that same column (x -3.1 / 1.7, z 18.0 / 20.4). verify_live: not yet seen with these tokens."
+ ],
  "bag": {
   "guid": "af6cfa",
   "inner": "541533"
@@ -36,6 +41,68 @@
  "tokens": {
   "treasury": "442da0",
   "doubloon": "a3b09d"
+ },
+ "token_slots": {
+  "treasury": {
+   "human": [
+    {
+     "pos": [
+      -3.12,
+      1.76,
+      17.99
+     ],
+     "rot": [
+      0,
+      90,
+      0
+     ]
+    }
+   ],
+   "bot": [
+    {
+     "pos": [
+      1.75,
+      1.64,
+      18.0
+     ],
+     "rot": [
+      0,
+      270,
+      0
+     ]
+    }
+   ]
+  },
+  "doubloon": {
+   "human": [
+    {
+     "pos": [
+      -3.11,
+      1.76,
+      20.62
+     ],
+     "rot": [
+      0,
+      90,
+      0
+     ]
+    }
+   ],
+   "bot": [
+    {
+     "pos": [
+      1.67,
+      1.64,
+      20.37
+     ],
+     "rot": [
+      0,
+      270,
+      0
+     ]
+    }
+   ]
+  }
  },
  "counter_dials": {}
 }

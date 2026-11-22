@@ -137,7 +137,7 @@ def options_text(game, req: ChoiceRequest, limit: int = 6) -> str:
 
 def card_text_hint(game, req: ChoiceRequest) -> str:
     """' Card: <printed text>' for a plain yes/no (Pyrotechnics: the question alone did not say what the card does), else ''."""
-    if req.kind != "optional" or req.extra.get("discards") or "ransom" in req.extra or "doubloon_action" in req.extra or "to" in req.extra or "shield" in req.extra or "bury_rival" in req.extra:
+    if req.kind != "optional" or req.extra.get("discards") or "reposition" in req.extra or "ransom" in req.extra or "doubloon_action" in req.extra or "to" in req.extra or "shield" in req.extra or "bury_rival" in req.extra:
         return ""
     card = request_card(game, req)
     text = getattr(card, "text", "") if card is not None else ""
@@ -170,6 +170,9 @@ def prompt_text(game, req: ChoiceRequest) -> str:
         card = request_card(game, req)
         return t("choice.prompt.ransom", n=req.extra["ransom"], treasury=req.extra["treasury"], what=ransom_what(game, req),
                  title=card.title if card is not None else "Blackbeard")
+    if req.kind == "optional" and "reposition" in req.extra:       # "Summon a Sea Dog" with none defeated: move one instead
+        card = request_card(game, req)
+        return t("choice.prompt.reposition_" + req.extra["reposition"], title=card.title if card is not None else "Blackbeard")
     if req.kind == "optional" and "doubloon_action" in req.extra:  # his action at the start of the turn
         return t("choice.prompt.doubloon_action", held=req.extra["held"], treasury=req.extra["treasury"])
     if req.kind == "amount" and req.extra.get("queens"):           # Queen Anne's Revenge: how many doubloons to pay

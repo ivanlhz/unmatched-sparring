@@ -178,3 +178,131 @@ def test_the_bot_blackbeard_taking_a_blow_pays_a_doubloon_and_says_so(rig, monke
     msgs = click(session, table, Event.REVEAL)
     assert game.fighters["blackbeard"].hp < 13 and coins(game, 0) == (1, 2)
     assert said(msgs, "Blackbeard paga 1 doblon al Tesoro (tiene 1, el Tesoro 2)"), msgs
+
+
+@with_rig("blackbeard", "hellboy", *BOT_HAND)
+def test_avast_ye_names_the_position_of_the_random_card_before_the_ransom(rig, monkeypatch):
+    session, table, game, fake, cfg = bot_blackbeard(rig, monkeypatch, held=2, treasury=1)
+    msgs = bot_attacks(session, table, game, "Avast Ye!", "blackbeard", "hellboy", None)
+    req = session.effect_run.awaiting
+    assert req.kind == "optional" and req.extra["ransom"] == 1 and req.extra["effect"]["what"] == "random_discard"
+    assert "which" in req.extra["effect"] and "contando desde la izquierda" in req.extra["effect"]["which"]
+    assert said(msgs, "RESCATE") and said(msgs, "al azar"), msgs
+
+
+@with_rig("blackbeard", "hellboy", *BOT_HAND)
+def test_avast_ye_paying_keeps_the_card_and_the_hand_untouched(rig, monkeypatch):
+    session, table, game, fake, cfg = bot_blackbeard(rig, monkeypatch, held=2, treasury=1)
+    bot_attacks(session, table, game, "Avast Ye!", "blackbeard", "hellboy", None)
+    hand = len(table.human_hand)
+    msgs = press(session, table, True)
+    assert coins(game, 0) == (3, 0) and len(table.human_hand) == hand and not game.players[1].discard
+    assert said(msgs, "Blackbeard recibe 1 doblon del Tesoro (tiene 3, el Tesoro 0)"), msgs
+
+
+@with_rig("blackbeard", "hellboy", *BOT_HAND)
+def test_avast_ye_declining_owes_the_named_card_to_the_discard_pile(rig, monkeypatch):
+    session, table, game, fake, cfg = bot_blackbeard(rig, monkeypatch, held=2, treasury=1)
+    bot_attacks(session, table, game, "Avast Ye!", "blackbeard", "hellboy", None)
+    msgs = press(session, table, False)
+    assert coins(game, 0) == (2, 1)
+    assert said(msgs, "Descarta 1 carta(s) (Avast Ye!, al azar: la carta ") and said(msgs, "contando desde la izquierda"), msgs
+    assert said(msgs, "DESCARTE AL AZAR"), msgs
+    assert session.pending_discard == {"n": 1, "baseline": 0, "kind": "cards", "hand": True}
+
+
+@with_rig("blackbeard", "hellboy", *BOT_HAND)
+def test_fearsome_and_calculating_reads_the_hand_and_the_ransom_names_the_card(rig, monkeypatch):
+    session, table, game, fake, cfg = bot_blackbeard(rig, monkeypatch, held=2, treasury=1)
+    msgs = bot_attacks(session, table, game, "Fearsome and Calculating", "blackbeard", "hellboy", None)
+    req = session.effect_run.awaiting
+    assert req.kind == "optional" and req.extra["ransom"] == 1 and req.extra["effect"]["what"] == "discard"
+    named, = req.extra["effect"]["cards"]
+    title = next(c.title for c in game.players[1].full_set if c.card_id == named)
+    assert said(msgs, f"descartas {title}"), msgs
+    msgs = press(session, table, False)
+    assert said(msgs, f"Pon {title} de tu mano en tu descarte"), msgs
+    assert coins(game, 0) == (2, 1)
+
+
+@with_rig("blackbeard", "hellboy", *BOT_HAND)
+def test_fearsome_and_calculating_paying_keeps_the_named_card_in_the_hand(rig, monkeypatch):
+    session, table, game, fake, cfg = bot_blackbeard(rig, monkeypatch, held=2, treasury=1)
+    bot_attacks(session, table, game, "Fearsome and Calculating", "blackbeard", "hellboy", None)
+    msgs = press(session, table, True)
+    assert coins(game, 0) == (3, 0) and session.effect_run is None and not game.players[1].discard, msgs
+
+
+@with_rig("blackbeard", "hellboy", *BOT_HAND)
+def test_parley_asks_the_human_two_doubloons_to_keep_the_effects_of_their_card(rig, monkeypatch):
+    session, table, game, fake, cfg = bot_blackbeard(rig, monkeypatch, held=1, treasury=2)
+    human_hand(table, game, "Excalibur", "B.P.R.D. Training", "Service Pistol", "Glimpse Of Hell", "Right Hand Of Doom")
+    bot_attacks(session, table, game, "Parley", "blackbeard", "hellboy", "B.P.R.D. Training")
+    req = session.effect_run.awaiting
+    assert req.kind == "optional" and req.extra["ransom"] == 2 and req.extra["effect"]["what"] == "cancel"
+    press(session, table, True)
+    assert coins(game, 0) == (3, 0)
+
+
+# ---------------------------------------------------------------- the human's own cards
+
+def own_turn(rig, monkeypatch, held=1, treasury=2):
+    """The human's Blackbeard next to Hellboy, the start-of-turn question declined, the bot defending with nothing."""
+    session, table, game, fake, cfg = rig
+    press(session, table, False)
+    put_adjacent(game, table, cfg, "blackbeard", "hellboy")
+    bot_defends_with_nothing(session, monkeypatch)
+    set_coins(game, 1, held, treasury)
+    return rig
+
+
+@with_rig("hellboy", "blackbeard", *HELLBOY_HAND)
+def test_the_humans_show_a_leg_brings_a_defeated_sea_dog_back_and_asks_to_place_it(rig, monkeypatch):
+    session, table, game, fake, cfg = own_turn(rig, monkeypatch)
+    human_hand(table, game, "Show a Leg!", "Give No Quarter")
+    game.defeat(game.fighters["seadog2"])
+    table.positions.pop(cfg.nicknames["seadog2"], None)
+    human_attack(session, table, game, "blackbeard", "hellboy", "Show a Leg!")
+    msgs = click(session, table, Event.REVEAL)
+    assert said(msgs, "seadog2 vuelve al tablero") and said(msgs, "pon a Caesar en el tablero (la zona de tu heroe"), msgs
+    assert game.placing == {"seadog2"} and game.fighters["seadog2"].alive and game.fighters["seadog2"].hp == 1
+
+
+@with_rig("hellboy", "blackbeard", *HELLBOY_HAND)
+def test_the_bot_ransoms_the_humans_brace_and_the_chat_says_it_in_doubloons_not_cards(rig, monkeypatch):
+    from sparring import ai_blackbeard
+    session, table, game, fake, cfg = own_turn(rig, monkeypatch)
+    monkeypatch.setattr(ai_blackbeard, "ransom_pays", lambda ai, g, req: True)
+    human_hand(table, game, "A Brace of Primed Pistols", "Give No Quarter")
+    human_attack(session, table, game, "blackbeard", "hellboy", "A Brace of Primed Pistols")
+    msgs = click(session, table, Event.REVEAL)
+    assert coins(game, 1) == (3, 0) and game.fighters["lobster"].hp == 6 and game.fighters["hellboy"].hp == 18 - 2, msgs
+    assert said(msgs, "Blackbeard recibe 2 doblones del Tesoro (tiene 3, el Tesoro 0)"), msgs
+    assert not said(msgs, "paga 0 cartas") and not said(msgs, "0 carta"), msgs
+
+
+@with_rig("hellboy", "blackbeard", *HELLBOY_HAND)
+def test_the_bot_declining_the_ransom_lets_the_humans_brace_hurt_the_chosen_fighter(rig, monkeypatch):
+    from sparring import ai_blackbeard
+    session, table, game, fake, cfg = own_turn(rig, monkeypatch)
+    monkeypatch.setattr(ai_blackbeard, "ransom_pays", lambda ai, g, req: False)
+    human_hand(table, game, "A Brace of Primed Pistols", "Give No Quarter")
+    human_attack(session, table, game, "blackbeard", "hellboy", "A Brace of Primed Pistols")
+    msgs = click(session, table, Event.REVEAL)
+    assert coins(game, 1) == (1, 2)
+    assert game.fighters["hellboy"].hp == 18 - 2 - 3 or game.fighters["lobster"].hp == 6 - 3, msgs
+    assert not said(msgs, "paga 0 cartas"), msgs
+
+
+@with_rig("hellboy", "blackbeard", *HELLBOY_HAND)
+def test_scourge_with_no_sea_dog_defeated_asks_whether_to_move_one_and_says_what_it_is_for(rig, monkeypatch):
+    from sparring import ai_blackbeard
+    from test_e2_human_cards import human_scheme
+    session, table, game, fake, cfg = own_turn(rig, monkeypatch, held=0, treasury=3)
+    monkeypatch.setattr(ai_blackbeard, "ransom_pays", lambda ai, g, req: False)
+    human_hand(table, game, "Scourge of the Seven Seas", "Give No Quarter")
+    msgs = human_scheme(session, table, game, "Scourge of the Seven Seas")
+    req = session.effect_run.awaiting
+    assert req.kind == "optional" and req.extra == {"reposition": "any"}
+    assert said(msgs, "no hay ningun Sea Dog derrotado") and said(msgs, "cualquier casilla vacia"), msgs
+    assert game.hero(1).hp == 13 and coins(game, 1) == (0, 3)

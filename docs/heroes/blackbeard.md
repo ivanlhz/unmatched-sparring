@@ -43,5 +43,40 @@ The Sea Dogs start on the board like any sidekick, so the engine's `summon` (a f
 - Titles are spelled as printed ("A Brace of Primed Pistols", "Avast Ye!"), memory writes them in sentence case (`memory_title`). The sidekick is "Seadog" in memory and SEA DOGS on the card; the HeroDef says "Sea Dog".
 - Everything else (values, boosts, copies, 30 cards, 13 health, move 2) agrees with the images.
 
+## Table (what the bot does, what the chat asks, what the bot reads back)
+- **Pieces**: the miniature, dial and the two Sea Dog tokens come out of the bag like any hero's; the Treasury tile `442da0` and the doubloon stack `a3b09d` come out with them and rest where `token_slots` of `data/tts/blackbeard.json` say (the column the sidekick dials use, which he does not need: the spots measured live for Abe Sapien's tokens; verify live).
+- **Coins are not read back from the table.** The engine keeps the count; every change is said in the chat with who holds how many ("Blackbeard paga 1 doblon al Tesoro (tiene 1, el Tesoro 2)", "Blackbeard recibe 2 doblones del Tesoro (tiene 3, el Tesoro 0)"), for the bot's Blackbeard and for the human's. The bot does not move the tokens (that would be a Lua split of a three-coin stack nobody has tried on a real table): the human moves them, or follows the count. The count in the chat is the truth if they disagree. Pending Ivan 1.
+- **Human as Blackbeard**: the start of the turn asks Yes / No on the panel ("Pagas 1 doblon al Tesoro por 1 accion mas?"); the payment for combat damage needs no answer and is said. His cards are resolved as any interpreted hero's: the damage and heals on the dials by the bot, the Sea Dog that returns is put on the table by hand (the chat names the zone), Plunder's moves by hand, the bot answers the ransom with its own policy and the chat says it in doubloons.
+- **Human as the opponent**: a ransom is a yes/no on the panel naming the effect ("RESCATE. Pagas 2 doblon(es) del Tesoro (tiene 2) para ignorar esto: 3 de dano a Hellboy?", buttons "Pagar 2 del Tesoro" / "Que pase"); Avast Ye! adds the position of the random card ("la carta 5 de las 7 de tu mano, contando desde la izquierda"), which the human lays on their discard pile if they do not pay; Fearsome and Calculating names the card the bot chose; Queen Anne's Revenge is an amount (0 to the Treasury) on the panel. The panel never offers a ransom the Treasury cannot cover.
+- The Sea Dog the bot brings back is placed by GUID; a Sea Dog that falls goes to the dead spot like any sidekick.
+
+## AI (`sparring/ai_blackbeard.py`)
+- Ransom (the bot is the opponent): `ransom_pays` compares what the line would cost the bot, in the evaluation's units (damage by `blow_value`, the keep value of the card it would discard, 0.9 per cancellable moment, the heal Blackbeard needs, an action 1.4, a Sea Dog back 1.8 or a reposition 0.4), with the doubloons it would give up (`COIN` 1.0 each plus a margin of 0.25). The discarded card is one of the bot's own hand: nothing of the rival's hidden hand is read.
+- Queen Anne's Revenge: `queens_amount` takes the number of doubloons that leaves the bot best off, reading the totals of the combat (an attacking Queen Anne: each doubloon takes 2 off the blow; a defending one: each takes 2 off the wall the bot's attack meets).
+- The action at the start of the turn (the bot is Blackbeard): `action_pays` buys it only with two attacks or schemes in hand that someone can play and with at most two doubloons in the Treasury afterwards: a doubloon in the Treasury is a ransom the opponent can pay later and a coin off Queen Anne's Revenge.
+- The search plays the real engine (ransoms, payments and damage included), so these three decisions are what its simulated opponents and its own turns answer with (`EffectAI._optional` / `_amount`); `tests/test_blackbeard_ai.py` plays whole games with `make_bot_ai({"ai": "ismcts"})` on both seats of the table.
+- The numbers (`COIN`, `PAY_MARGIN`, the caps) are a first estimate: they have not been tuned against games (Pending Ivan 5).
+
+## Tests
+`tests/test_blackbeard_effects.py` (bot side: the doubloons, the action, the payment for damage, every card and ransom, Queen Anne's Revenge, the Sea Dogs, save/resume and clones), `tests/test_blackbeard_human.py` (the panel, both seats), `tests/test_blackbeard_ai.py` (the three policies and whole games), `tests/test_blackbeard_matrix.py` (full games against every other hero in both seats, FakeTTS and simulator), `tests/test_hero_blackbeard_data.py` (data, deck identity, the importer's extra card, token slots).
+
+## Decided (Ivan 2026-11-22)
+- **BB1**: the ransom is decided after the target or the random card is known, and can be paid against an uncancelable card (it ignores the line, it does not cancel it).
+- **BB2**: "Summon a Sea Dog" returns a defeated Sea Dog; if none is defeated Blackbeard may reposition one of his Sea Dogs instead (like Sun Wukong's Sly Monkey).
+- Applied as written in `REGLAS-PENDIENTES-batch4` section 2: the ransom is paid with doubloons of the Treasury (they go to Blackbeard) and only if the Treasury holds enough; each line of Scourge of the Seven Seas is paid apart, when it resolves; only Blackbeard pays for combat damage (not the Sea Dogs), once per combat, nothing with no doubloon; Queen Anne's Revenge takes 0 to the Treasury's stock at -2 each; the start-of-turn action is once per turn; Plunder with the Treasury empty steals nothing.
+
+## Rule decisions (taken without a ruling: the most literal reading, applied)
+1. **Light the Fuse** damages EVERY fighter adjacent to the Sea Dog after it moves, friends and Blackbeard included ("each fighter").
+2. **Intimidating Visage** heals when Blackbeard is next to ANY opposing fighter, not only the one in the combat.
+3. **Where the repositioned Sea Dog goes** (BB2): into the same place the summon names, Blackbeard's zone for Show a Leg! and any empty space for Scourge of the Seven Seas.
+4. **Parley** is asked only when the opponent played a card; **Fearsome and Calculating** only when the opponent holds a card; **Avast Ye!**'s discard only when they hold a card; the ransom of a line is offered even if the line would turn out to do nothing (a cancel of a card with no effects), because the opponent may not know.
+5. **The action at the start of the turn** is offered at the very first turn too.
+6. **Queen Anne's Revenge** offers the payment whether or not the opponent played a card, and works whichever side she plays.
+7. **A Brace of Primed Pistols**: the victim is chosen by Blackbeard's owner among the opposing fighters in his zone at the time the line resolves; if the attack just defeated the only one, nothing happens and no ransom is asked.
+
 ## Pending Ivan
-(none yet; see the end of the page for what the final report lists)
+1. **Coins on the table**: the engine keeps them and the chat says every change; the bot does not move the tokens (the human does). Do you want the bot to move the stack (a Lua split of the three-coin stack, not tried live), or read the table back?
+2. **A ransom the Treasury cannot cover** simply is not offered (the line happens). Confirm it is not the opponent's right to "pay what is there".
+3. **Where a repositioned Sea Dog may go** (rule decision 3): the printed words are "Summon a Sea Dog in Blackbeard's zone / in any space"; the alternative is any empty space for both.
+4. **A ransom against a line that would do nothing** (Parley against a card with no effects, a heal at full health) is still offered to the human; the alternative is to skip the question when the line is plainly empty.
+5. **AI numbers** (`ai_blackbeard`): untuned first estimates; a doubloon is worth 1.0 hit point to the bot and the action is bought with two cards to play and a Treasury of two at most.

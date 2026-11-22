@@ -1387,5 +1387,7 @@
  "narr.coins.out": "Blackbeard paga {n} al Tesoro (tiene {held}, el Tesoro {treasury})",
  "narr.coins.in": "Blackbeard recibe {n} del Tesoro (tiene {held}, el Tesoro {treasury})",
  "trigger.title.doubloon_action": "El doblon de Blackbeard por una accion",
- "trigger.title.doubloon_damage": "Blackbeard paga un doblon por el golpe"
+ "trigger.title.doubloon_damage": "Blackbeard paga un doblon por el golpe",
+ "choice.prompt.reposition_zone": "{title}: no hay ningun Sea Dog derrotado. Mueves uno de tus Sea Dogs a la zona de Blackbeard?",
+ "choice.prompt.reposition_any": "{title}: no hay ningun Sea Dog derrotado. Mueves uno de tus Sea Dogs a cualquier casilla vacia?"
 }

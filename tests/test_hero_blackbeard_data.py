@@ -225,3 +225,16 @@ def test_blackbeard_shares_no_guid_with_any_other_hero():
     assert len(mine) == 7
     for slug in [p.stem for p in HEROES_DIR.parent.joinpath("tts").glob("*.json") if p.stem != "blackbeard"]:
         assert not mine & set(load_hero_table(slug).all_guids()), slug
+
+
+def test_the_treasury_and_the_doubloon_stack_have_a_resting_place_on_each_side_and_nothing_is_left_unplaced():
+    """Blackbeard has no sidekick or counter dial, so the layout would only lend one borrowed token slot to two tokens: the data names both places."""
+    from sparring import table_layout
+    config = json.loads((HEROES_DIR.parent.parent / "config" / "table.json").read_text(encoding="utf-8"))
+    table = load_hero_table("blackbeard")
+    assert set(table.token_slots) == {"treasury", "doubloon"}
+    for side in ("bot", "human"):
+        plan = table_layout.plan(config, side, table)
+        assert plan.unplaced == [], side
+        placed = {guids[0]: slot for _, guids, slot in ((p.role, p.guids, p.slot) for p in plan.placements)}
+        assert placed[table.tokens["treasury"]] != placed[table.tokens["doubloon"]]
