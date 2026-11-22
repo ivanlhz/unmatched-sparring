@@ -77,3 +77,25 @@ def test_games_with_the_search_ai_reach_the_end_without_falling_back_to_the_heur
     outcome = sim.play(5, bot_hero=pair[0], human_hero=pair[1], medusa=ai)
     assert outcome.winner != "draw"
     assert FELL_BACK == [], FELL_BACK
+
+
+# ---------------------------------------------------------------- the bot's own choices
+
+def test_the_bot_swaps_a_hand_in_when_the_blow_would_take_her_out(bprd):
+    from sparring.ai_medusa import MedusaAI
+    from conftest import give
+    from test_effects_combat import pair
+    for hp in (2, 1):
+        ctl = {0: MedusaAI(0), 1: Answers()}
+        g = Game.new(bprd, 3, controllers=ctl, heroes=("elektra", "leonardo"), bot_player=0)
+        g.turn, g.turn_no = 1, 2
+        g.begin_turn()
+        for p in g.players:
+            p.hand.clear()
+        foe, e = pair(g, "leonardo", "elektra")
+        spread_far = [s for s in sorted(g.board.spaces, reverse=True) if not g.board.share_zone(s, e.pos) and all(f.pos != s for f in g.fighters.values() if f.alive)]
+        for h, s in zip(HANDS, spread_far):
+            g.fighters[h].pos = s
+        e.hp = hp
+        res = g.attack(foe, e, give(g, 1, "Katana"), give(g, 0, "Snakeroot Clan"))
+        assert res.target in HANDS and e.alive and g.fx.counter_value(0, "life") == 0, (hp, res.target)       # a Hand takes the blow: she is not removed

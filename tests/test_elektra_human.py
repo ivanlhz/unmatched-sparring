@@ -282,3 +282,19 @@ def test_intercept_before_the_resurrect_asks_nothing_and_is_3(rig):
     human_hand(table, game, "Intercept", "Sai")
     msgs = bot_attacks(session, table, game, "Service Pistol", "hellboy", "elektra", "Intercept")
     assert session.effect_run is None and said(msgs, "Intercept (3)"), msgs
+
+
+@with_rig("hellboy", "elektra", *BOT_HAND)
+def test_the_resurrect_tells_the_human_to_shuffle_their_discard_pile_into_their_deck(rig):
+    session, table, game, fake, cfg = rig
+    flip_dial_on_the_table(table, cfg)
+    cids = card_ids(game, 1, "Sai", "Whirlwind")
+    for cid in cids:
+        card = next(c for c in game.players[1].full_set if c.card_id == cid)
+        if card in game.players[1].deck:
+            game.players[1].deck.remove(card)
+        game.players[1].discard.append(card)
+        table.human_discard.append(cid)
+    _, msgs = remove_and_pass_the_turn(session, table, game, cfg)
+    assert said(msgs, "Meto Sai y Whirlwind en tu mazo y lo barajo"), msgs          # the bot does it: the pile is public and it moves the human's cards
+    assert game.players[1].discard == [] and {c.title for c in game.players[1].deck} >= {"Sai", "Whirlwind"}
