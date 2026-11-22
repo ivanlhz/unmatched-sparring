@@ -21,3 +21,4 @@ docs/live-checklist.md  sherlock  docs, features and lists for the hero  2026-11
 features.json  sherlock  docs, features and lists for the hero  2026-11-22 12:10Z
 README.md  sherlock  docs, features and lists for the hero  2026-11-22 12:10Z
 config/table.json  sherlock  docs, features and lists for the hero  2026-11-22 12:10Z
+tests/test_piece_identity.py  little-red  the dial ca8e35 is Little Reds too  2026-11-22 12:11Z
