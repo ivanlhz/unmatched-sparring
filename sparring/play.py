@@ -992,6 +992,10 @@ def unpack_plan(cfg: PlayConfig) -> list[tuple]:
                 continue
             out.append((kind, guids, table.inner_bag, tuple(float(o) + n * d for o, d in zip(origin, step)), None))
             n += 1
+        if side == "human":                 # what only the human plays with (Pandora's Misery deck: the real Box), in the same row
+            for g in table.human_extras:
+                out.append(("token", (g,), table.inner_bag, tuple(float(o) + n * d for o, d in zip(origin, step)), None))
+                n += 1
     return out
 
 

@@ -1885,7 +1885,7 @@ MAX_CLEAR_MAPS = 64
 
 @_registered
 def clear_setup(heroes: list[tuple], guids: list[str], names: list[str], map_keys: list[str],
-                limits: tuple[float, float]) -> str:
+                limits: tuple[float, float], extras: tuple[str, ...] = ()) -> str:
     """Destroys what a previous game left of its heroes and its map, and nothing else ("Clean table" of the pre-game gate).
 
     `heroes` = (CardID range, identity, CardID of the character card) of every hero the bot can play; `guids` = every GUID
@@ -1897,7 +1897,9 @@ def clear_setup(heroes: list[tuple], guids: list[str], names: list[str], map_key
       - a loose Bag inside the limits that holds only hero GUIDs (a copy of a hero's bag the player dropped), or that is empty
         and unnamed (what an unpacked copy leaves; a named bag, e.g. the roster's or the player's, is never touched);
       - any other loose object inside the limits and not an infinite bag whose GUID is a hero's or whose name is one of
-        `names` (an object spawned from a copy may have a GUID of its own).
+        `names` (an object spawned from a copy may have a GUID of its own);
+      - a Deck whose GUID is in `extras` (a hero's deck the bot never reads, Pandora's Miseries), whatever its cards: their
+        CardIDs may collide with another hero's character card (Houdini's 17700 is the first Misery's).
     Answers `{cards, boards, bags, objects, mixed}` (counts; `mixed` = GUIDs of piles left alone)."""
     if not isinstance(heroes, (list, tuple)) or not 1 <= len(heroes) <= MAX_CLEAR_HEROES:
         raise ValueError(f"between 1 and {MAX_CLEAR_HEROES} heroes expected")
@@ -1908,11 +1910,13 @@ def clear_setup(heroes: list[tuple], guids: list[str], names: list[str], map_key
         raise TypeError("limits: (|x|, |z|) expected")
     rows = ", ".join("{" + ", ".join(_range(rng)) + f", {_identity(identity)}, {_i(card)}}}" for rng, identity, card in heroes)
     mine = "{" + ", ".join(f"[{_guid(g)}] = true" for g in guids) + "}"
+    extra = "{" + ", ".join(f"[{_guid(g)}] = true" for g in extras) + "}"
     wanted = "{" + ", ".join(f"[{lua_str(n)}] = true" for n in names) + "}"
     keys = "{" + ", ".join(lua_str(k.upper()) for k in map_keys) + "}"
     return f"""-- sparring:clear_setup
 {_IMAGE_LUA}local HEROES = {{{rows}}}
 local MINE, NAMES, MAPS = {mine}, {wanted}, {keys}
+local EXTRA = {extra}
 local LIMIT_X, LIMIT_Z = {_f(limits[0])}, {_f(limits[1])}
 local function heroCard(c, fallback)
   local id = c.CardID
@@ -1948,7 +1952,7 @@ for _, o in ipairs(getObjects()) do
     for _, c in ipairs(cards) do
       if heroCard(c, data.CustomDeck) then hero = hero + 1 else other = other + 1 end
     end
-    if hero > 0 and other == 0 then
+    if EXTRA[o.getGUID()] or (hero > 0 and other == 0) then
       table.insert(doomed, {{o, "cards"}})
     elseif hero > 0 then
       table.insert(out.mixed, o.getGUID())
