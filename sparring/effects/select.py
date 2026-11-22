@@ -73,6 +73,10 @@ def space_options(game, run, sel, default_empty: bool = True, mover=None) -> lis
             out &= set(board.adj[ref.pos])
         elif key == "space_of":
             out &= {ref.pos}
+    if sel.get("apart_from_own") and mover is not None:      # a zone no other fighter of the mover's owner is in (Elektra's Resurrect)
+        for o in game.own(mover.owner):
+            if o is not mover and o.pos is not None:
+                out -= {s for s in board.spaces if board.share_zone(o.pos, s)}
     if "next_to_nearest_foe" in sel:       # Where's My Money?: next to the nearest opposing fighter (to any of them when tied)
         ref = _ref_fighter(game, run, sel["next_to_nearest_foe"])
         foes = [f for f in game.fighters.values() if ref is not None and ref.pos is not None and f.alive
@@ -126,7 +130,7 @@ def _role_fighters(game, run, role) -> list:
 def defeated(game, f) -> bool:
     """Dead on the board, as opposed to waiting in the reserve: it fell somewhere (`died_at`) or it is a fighter that
     starts on the board and so was never in reserve (a Harpy dead in a save from before `died_at` existed)."""
-    if f.alive:
+    if f.alive or f.off_board:       # taken off the board by an effect (Elektra's first life) is not defeated
         return False
     if f.died_at is not None:
         return True

@@ -7,7 +7,7 @@ from typing import Callable
 from .board import Board
 from .cards import Card, can_be_boost
 from .controller import Controller
-from . import enraged, pack, tracks, tricks, vengeance
+from . import enraged, off_board, pack, tracks, tricks, vengeance
 from .effects import inventions, ongoing, table
 from .effects.state import EffectState, default_dsl_heroes
 from .heroes import DEFAULT_HAND_LIMIT, DEFAULT_START_HAND, HeroDef, load_hero
@@ -39,6 +39,7 @@ class Fighter:
     alive: bool = True
     died_at: int | None = None     # space where it fell: an HP mistake is undone by putting it back there
     reach: int = 0                 # attacks anyone up to this many spaces away, zones ignored (Bullseye: 5); 0 = the usual rule
+    off_board: bool = False        # taken off the board by an effect but NOT defeated (Elektra's first life, sparring/off_board.py): alive False, pos None
 
 
 @dataclass
@@ -625,6 +626,8 @@ class Game:
             self._fall(fighter)
 
     def _fall(self, fighter: Fighter) -> None:
+        if off_board.intercept_defeat(self, fighter):      # Elektra's first defeat: removed from the board, not defeated, no winner
+            return
         fighter.died_at = fighter.pos if fighter.pos is not None else fighter.died_at
         fighter.alive, fighter.pos = False, None
         enraged.sync_move(self, fighter.owner)

@@ -22,6 +22,11 @@ class StateError(Exception):
     """The save file cannot be resumed (version, format or a different game)."""
 
 
+def _spec_hp(g: Game, f) -> int:
+    """The maximum health the HeroDef gives the fighter: a save only keeps one that changed (Elektra's flipped dial, 9)."""
+    return next((s.hp for s in g.players[f.owner].hero.fighters() if s.fid == f.fid), f.max_hp)
+
+
 def game_to_dict(g: Game) -> dict:
     legacy = [ongoing.legacy_parts(g, p) for p in (0, 1)]       # pre-DSL ONGOING bonuses keep their old key
     fx = g.fx.to_dict()
@@ -38,7 +43,8 @@ def game_to_dict(g: Game) -> dict:
         **({"hand_moves": g.hand_moves} if g.hand_moves else {}),
         **({"combat_bonus": [[list(b) for b in side] for side in legacy]} if any(legacy) else {}),
         **({"fx": fx} if fx else {}),
-        "fighters": {fid: {"hp": f.hp, "pos": f.pos, "alive": f.alive, "died_at": f.died_at} for fid, f in g.fighters.items()},
+        "fighters": {fid: {"hp": f.hp, "pos": f.pos, "alive": f.alive, "died_at": f.died_at,
+                                **({"off_board": True} if f.off_board else {}), **({"max_hp": f.max_hp} if f.max_hp != _spec_hp(g, f) else {})} for fid, f in g.fighters.items()},
         "players": [{"deck": [tricks.zone_id(p, c) for c in p.deck], "hand": [tricks.zone_id(p, c) for c in p.hand],      # a TRICK of Loki's in the other player's pile by its qualified id
                      "discard": [tricks.zone_id(p, c) for c in p.discard],
                      **({"tucked": [tricks.zone_id(p, c) for c in p.tucked]} if p.tucked else {}),
@@ -72,6 +78,8 @@ def apply_game(g: Game, d: dict) -> None:
             f = g.fighters[fid]
             f.hp, f.pos, f.alive = st["hp"], st["pos"], st["alive"]
             f.died_at = st.get("died_at")
+            f.off_board = bool(st.get("off_board", False))
+            f.max_hp = int(st.get("max_hp", _spec_hp(g, f)))
         enraged.sync_move(g)
         upgrades.sync(g)
         for i, (p, saved) in enumerate(zip(g.players, d["players"])):
