@@ -107,6 +107,8 @@ def _close(run, game, spec):
         return
     if feathers(mask) >= STOP_AT or game.winner is not None:
         fx.set_counter(owner, "box_done", 1)
+        if feathers(mask) >= STOP_AT:
+            run.flags.setdefault("notices", []).append("pandora_three_feathers")       # the human's line for the trigger says why she stopped
         n = len(revealed(mask))
         hero = game.hero(owner)
         if hero.alive and game.winner is None:

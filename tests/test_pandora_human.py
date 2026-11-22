@@ -79,7 +79,8 @@ def test_three_feathers_stop_the_human_and_the_damage_is_written_on_the_dial(rig
     msgs = reveal(session, table, "Misfortune")                      # 1 + 1 + 2 feathers
     assert session.effect_run is None, msgs                          # nothing more is asked
     assert game.fighters["pandora"].hp == 14 - 3 and dial(session, cfg, table, "pandora") == 11
-    assert said(msgs, "Pandora -3 PV (11)"), msgs
+    assert said(msgs, "Pandora -3 PV (11)") and said(msgs, t("narr.notice.pandora_three_feathers")), msgs
+    assert said(msgs, t("trigger.title.pandora_box")), msgs
 
 
 @with_rig("hellboy", "pandora", *HAND)

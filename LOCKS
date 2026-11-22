@@ -3,8 +3,6 @@ docs/effects-dsl.md  blackbeard  hero docs: DSL section, live checklist, feature
 docs/live-checklist.md  blackbeard  hero docs: DSL section, live checklist, features, README  2026-11-22 10:48Z
 features.json  blackbeard  hero docs: DSL section, live checklist, features, README  2026-11-22 10:48Z
 README.md  blackbeard  hero docs: DSL section, live checklist, features, README  2026-11-22 10:48Z
-data/i18n/en.json  pandora  human stop notice and trigger title tags, drop an unused tag  2026-11-22 10:50Z
-data/i18n/es.json  pandora  human stop notice and trigger title tags, drop an unused tag  2026-11-22 10:50Z
 sparring/session_bot_effects.py  loki  look_hand reads the ledger, Looking For Trouble at the table  2026-11-22 10:50Z
 sparring/session_rage.py  loki  look_hand reads the ledger, Looking For Trouble at the table  2026-11-22 10:50Z
 sparring/state.py  loki  observe_hand keeps the TRICKs apart  2026-11-22 10:50Z
