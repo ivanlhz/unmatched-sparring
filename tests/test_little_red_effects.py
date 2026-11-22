@@ -465,3 +465,14 @@ def test_big_ears_is_still_an_attack_with_any_basket(bprd):
     g.attack(red, foe, give(g, 0, "What Big Ears You Have"), None)
     assert before - foe.hp == 4
 
+
+
+def test_a_card_with_no_symbol_on_top_of_the_pile_matches_nothing_and_asks_nothing(bprd):
+    """A card of another deck on her pile (it cannot happen by the rules; the engine must not call it wild)."""
+    g = mk(bprd, turn=1)
+    st = g.players[0]
+    st.discard.append(next(c for c in g.players[1].full_set if c.title == "Katana"))
+    assert basket(g, 0) == "none"
+    hand = len(st.hand)
+    foe_attacks(g, "The Wolf's Skin")
+    assert len(st.hand) == hand and not wild_asked(g)

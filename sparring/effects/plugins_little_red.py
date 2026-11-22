@@ -6,7 +6,8 @@ the pile is part of the game state: it is saved, cloned and part of the search's
 
   * no card in the pile: the starting Basket, a component that is never a card (it is never drawn, counted or returned). It is wild;
   * a card whose tag is `symbol:wolf|rose|axe`: that symbol;
-  * a card whose tag is `symbol:wild` (What's That In My Basket?): wild.
+  * a card whose tag is `symbol:wild` (What's That In My Basket?): wild;
+  * a card with no symbol at all (a card of another deck that found its way onto her pile): `none`, which matches nothing.
 
 A wild basket counts as ONE symbol its player chooses (Ivan 2026-11-22, LR1). The choice is asked the first time a line with a symbol needs
 it in a card's play and is kept in the flags of that run (saved with it), so Never Leave the Path, whose three lines are three tests of one run, asks
@@ -25,6 +26,7 @@ from .random_discard import discard_random_known
 
 SYMBOLS = ("wolf", "rose", "axe")
 WILD = "wild"
+NONE = "none"
 TAG = "symbol:"
 FLAG = "basket_symbol"
 TAG_NAME = "basket"                    # `extra["tag"]` of the request that asks the player which symbol a wild basket counts as
@@ -39,11 +41,11 @@ def symbol_of(card) -> str | None:
 
 
 def basket(game, player: int) -> str:
-    """What `player`'s basket shows: a symbol, or `wild` (the starting Basket with nothing in the pile, or a star card on top)."""
+    """What `player`'s basket shows: a symbol, `wild` (the starting Basket with nothing in the pile, or a star card on top) or `none`."""
     pile = game.players[player].discard
     if not pile:
         return WILD
-    return symbol_of(pile[-1]) or WILD
+    return symbol_of(pile[-1]) or NONE
 
 
 def top_card(game, player: int):
@@ -82,10 +84,11 @@ def _basket_shows(game, run, key: str) -> bool:
     wild = shown == WILD
     if wild:
         shown = _choose_symbol(game, run, owner)
-    notices = run.flags.setdefault("notices", [])
-    note = f"basket_{'wild_' if wild else ''}{shown}"        # the line of the card says what the basket was, once per run
-    if note not in notices:
-        notices.append(note)
+    if shown in SYMBOLS:
+        notices = run.flags.setdefault("notices", [])
+        note = f"basket_{'wild_' if wild else ''}{shown}"        # the line of the card says what the basket was, once per run
+        if note not in notices:
+            notices.append(note)
     return shown == key
 
 
