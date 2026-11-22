@@ -370,7 +370,7 @@ class PlayConfig:
         lua.zone_overlaps([cfg.bot_discard_zone, cfg.human_discard_zone])
 
 
-HERO_KEYS = ("nicknames", "pieces", "dials")       # by fighter id: the configuration refines what the data gives
+HERO_KEYS = ("nicknames", "pieces", "dials", "flip_dials")       # by fighter id: the configuration refines what the data gives
 HERO_SCALARS = ("bot_deck_guid", "human_deck_guid", "destiny_dial", "counter_dials", "bot_card_ids", "human_card_ids",
                 "bot_identity", "human_identity")
 
@@ -388,7 +388,7 @@ def with_hero_data(raw: dict) -> dict:
     out = dict(raw)
     for key in HERO_KEYS:
         given = raw.get(key) if isinstance(raw.get(key), dict) else {}
-        out[key] = {**derived[key], **{k: v for k, v in given.items() if k in fids}}
+        out[key] = {**derived.get(key, {}), **{k: v for k, v in given.items() if k in fids}}
     for key in HERO_SCALARS:
         if key in derived and is_todo(raw.get(key)):
             out[key] = derived[key]

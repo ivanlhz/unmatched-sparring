@@ -4267,7 +4267,7 @@ class Session:
             fin_fx = self._project_effects(fx_before, cause=t("cause.expired"))   # the bot's form, your ONGOING that expired
             self._flush_table()
             fin_fx()
-            if self._track_destiny() or hurt_at_end:      # a hand-limit discard may hold a destiny card
+            if self._track_destiny() or hurt_at_end or self._sync_flipped_dials():      # a hand-limit discard may hold a destiny card; Elektra's Resurrect flips her dial
                 self._write_dials()
         except TABLE_ERRORS as e:
             self.say(t("turn.late", err=e), ChatKind.WARNING)
@@ -5615,10 +5615,11 @@ class Session:
                     self.say(line, ChatKind.WARNING)
         return {fid: g for fid, g in self.cfg.dials.items() if fid not in self._dial_unresolved}
 
-    def _sync_flipped_dials(self) -> None:
+    def _sync_flipped_dials(self) -> bool:
         """Elektra's health dial has two objects: the dial of her first life (7) and the Elektra Resurrected dial (9). From her Resurrect on, the engine's life is
         written to the second one (and read from it); the first stays where it is, out of use. A game that goes back before the Resurrect (undo, a save from earlier)
-        uses the first again. Said once, when it changes."""
+        uses the first again. Said once, when it changes; True when it did."""
+        changed = False
         for fid, flipped in self.cfg.flip_dials.items():
             owner = self.game.fighters[fid].owner
             now = off_board.life(self.game, owner) == off_board.RESURRECTED
@@ -5626,8 +5627,11 @@ class Session:
                 self._dial_origin.setdefault(fid, self.cfg.dials[fid])
                 self.cfg.dials[fid] = flipped
                 self.say(t("elektra.flip.bot" if owner == self.bot else "elektra.flip.human", name=self._name(self.game.fighters[fid])), ChatKind.ABILITY)
+                changed = True
             elif not now and self.cfg.dials.get(fid) == flipped:
                 self.cfg.dials[fid] = self._dial_origin.pop(fid, self.cfg.dials[fid])
+                changed = True
+        return changed
 
     def _tell_piece_notes(self) -> None:
         notes, self._piece_notes = self._piece_notes, []
