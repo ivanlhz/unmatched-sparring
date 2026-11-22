@@ -179,6 +179,12 @@ class Knowledge:
                    {rival: tuple(known.top(st))})
 
 
+def first_life(hp: float) -> float:
+    """The life term of Elektra with `hp` hit points of her first life left: one pool with the nine she comes back with, in the unit of the
+    resurrected hero (nine of nine is 1.0). 1.0 at 0, 4/3 at 7: every point counts and none reads below the hero she returns as."""
+    return sqrt((off_board.RESURRECTED_HEALTH + hp) / off_board.RESURRECTED_HEALTH)
+
+
 def squash(x: float) -> float:
     """Advantage (in hero lives) to reward in (0, 1), with heavy tails. With the sigmoid, a badly
     lost position (Medusa at 3 HP against a full Hellboy) was worth ~0.04 whatever she did, and a 10 % chance of dying now
@@ -1144,15 +1150,19 @@ class EngineState:
 
     def _hero_life(self, hero: Fighter, owed: float = 0) -> float:
         """The hero's life term. A hero taken off the board and not defeated (Elektra's first life) comes back next turn with the flipped dial and
-        all her fighters: worth a fresh hero a turn behind, not a dead one. While she is still in her first life the second one is in the value
-        too, so her first life never reads below the away value: removing her is not a loss for the one who does it."""
+        all her fighters: worth a fresh hero a turn behind, not a dead one. While she is still in her first life the second one stands behind it:
+        one pool of her hit points and the nine she returns with, in the unit of the resurrected hero (nine of nine is 1.0). So every point she
+        loses counts, and her first life at 1 reads above the away value and above the hero she comes back as: removing her is never a loss
+        for the one who does it."""
         if hero.off_board:
             return OFF_BOARD_LIFE
-        own = sqrt(max(hero.hp - owed, 0) / hero.max_hp)
+        left = max(hero.hp - owed, 0)
+        return first_life(left) if self._first_life(hero) else sqrt(left / hero.max_hp)
+
+    def _first_life(self, hero: Fighter) -> bool:
+        """Elektra's hero on the board with her second life still to come: her defeat removes her (`off_board.intercept_defeat`), it ends nothing."""
         g = self.game
-        if hero.hero and off_board.is_elektra(g, hero.owner) and off_board.life(g, hero.owner) == off_board.FIRST_LIFE:
-            return max(own, OFF_BOARD_LIFE)
-        return own
+        return hero.hero and hero.alive and off_board.is_elektra(g, hero.owner) and off_board.life(g, hero.owner) == off_board.FIRST_LIFE
 
     def _side_value_normalized(self, p: int, urgent: bool) -> float:
         return sum(self._side_terms(p, urgent).values())
@@ -1295,10 +1305,27 @@ class EngineState:
         """What the threat on `p`'s hero subtracts from their side (weighted `threat`)."""
         w = self.weights
         expected, lethal = self.threat(p, urgent)
+        hero = self.game.hero(p)
+        if self._first_life(hero):
+            return self._first_life_exposure(hero, expected, lethal)
         if w.lethal_mix and not urgent and getattr(self, "_lethal", None) is not None:
             self._lethal[p] = min(1.0, w.lethal_mix * lethal)      # `_mixed_value` turns it into the chance the game ends
             lethal = 0.0
         return w.threat * expected + w.lethal * lethal + (w.fighter_threat * self._fighters_exposure(p, urgent) if w.fighter_threat else 0.0)
+
+    def _first_life_exposure(self, hero: Fighter, expected: float, lethal: float) -> float:
+        """The threat on Elektra in her first life. The blow that takes her out removes her, it does not kill her: the expected damage costs
+        what `_hero_life` says those hit points are worth, and the removal on top costs the turn she is away (the step from a fresh hero down to
+        `OFF_BOARD_LIFE`), never the game, so nothing is recorded for `_mixed_value`. Her threatened first life therefore never reads below
+        being away, at any health. With `normalize` it is scaled like her life is, by her share of the side's hit points. The Hand are left
+        out: every one of them is back at the Resurrect, also those defeated before it."""
+        w = self.weights
+        loss = first_life(hero.hp) - first_life(hero.hp * (1.0 - min(1.0, expected)))
+        share = 1.0
+        if w.normalize:
+            side_max = sum(f.max_hp for f in self.game.own(hero.owner, alive_only=False) if not f.hero)
+            share = hero.max_hp / (side_max + hero.max_hp)
+        return share * (w.threat * loss + w.lethal * lethal * (1.0 - OFF_BOARD_LIFE))
 
     def _fighters_exposure(self, victim: int, urgent: bool) -> float:
         """The loss, in lives, of the sidekick the rival's next turn hurts most: the hit points it would lose (up to the ones it has) and the

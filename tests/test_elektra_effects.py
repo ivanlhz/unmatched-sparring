@@ -311,6 +311,26 @@ def test_whatever_spaces_her_owner_picks_the_five_still_end_in_five_different_zo
     assert len(set(spots)) == 5 and all(not board.share_zone(a, b) for i, a in enumerate(spots) for b in spots[i + 1:]), spots
 
 
+def test_a_space_that_would_leave_a_later_hand_without_a_zone_is_not_offered(bprd):
+    """The position of a whole game (Elektra against Triss and Yennefer, the chaser, seed 13): she is back on space 1 with the rivals on 15 and
+    16, and the first Hand is offered a space while three more wait. Spaces 7 and 14 are free and outside her zones, but with a Hand there the
+    last one finds no zone of its own: `space_options` looks ahead and leaves them out."""
+    from sparring import off_board
+    from sparring.effects.select import _zones_left, space_options
+    g = mk(bprd, foe="triss-yennefer")
+    remove_elektra(g)
+    off_board.release(g, 0)
+    g.fighters["triss"].pos, g.fighters["yennefer"].pos = 15, 16
+    elektra, hand = g.fighters["elektra"], g.fighters["hand1"]
+    elektra.pos, elektra.alive = 1, True
+    free = {s for s in g.board.spaces if s not in (1, 15, 16)}
+    for dead_end in (7, 14):
+        assert not g.board.share_zone(1, dead_end) and not _zones_left(g.board, [1, dead_end], free, 3)
+    offered = space_options(g, None, {"apart_from_own": True}, mover=hand)
+    assert offered and not {7, 14} & set(offered), offered
+    assert all(_zones_left(g.board, [1, s], free, 3) for s in offered)
+
+
 class ToyBoard:
     """Six spaces; space 0 shares a zone with 1-4, and 1-4 with nobody else: starting with 0 leaves one zone-free space, starting with 1 leaves four."""
     spaces = range(6)

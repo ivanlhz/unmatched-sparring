@@ -6,9 +6,11 @@ from __future__ import annotations
 import pytest
 
 from sparring import sim
-from sparring.search.adapter import EngineState, EvalWeights
+from sparring.search.adapter import RESOLUTION, EngineState, EvalWeights
 from sparring.search.controller import IsmctsMedusa, make_bot_ai
+from sparring.search.ismcts import SearchConfig
 from sparring.state import Game
+from conftest import give
 from test_bigfoot_effects import Answers
 from test_elektra_effects import HANDS, first, remove_elektra, spread
 
@@ -44,7 +46,7 @@ def test_a_hero_off_the_board_is_worth_nearly_a_fresh_hero_and_much_more_than_a_
 
 
 def test_removing_her_in_her_first_life_is_not_a_loss_for_the_one_who_does_it(bprd):
-    """Her first life reads as high as the away value (the second life is in it), so the search that attacks a 1 health Elektra sees no drop."""
+    """Her first life reads above the away value (the second life is in it), so the search that attacks a 1 health Elektra sees no drop."""
     g, _ = mk(bprd, turn=0)
     spread(g)
     g.fighters["elektra"].hp = 1
@@ -137,3 +139,110 @@ def test_nothing_can_be_hit_while_she_is_away_so_her_threat_is_zero_and_no_kill(
     remove_elektra(g)
     state = EngineState(g, observer=1, weights=EvalWeights())
     assert state.threat(0) == (0.0, 0.0) and state._fighters_exposure(0, False) == 0.0
+
+
+# ---------------------------------------------------------------- a rival next to her first life (review of the first-life value)
+
+WEIGHTS = {"default": EvalWeights(), "resolution": EvalWeights(**RESOLUTION)}
+PROBE_SEEDS = range(8)
+
+
+def beside(bprd, hp, foe="elektra", resurrected=False):
+    """The reviewer's probe: Hellboy (the bot, player 0, his turn) holds Service Pistol and Excalibur and stands next to `foe`'s hero at `hp`;
+    every other fighter is out of his zone."""
+    g = Game.new(bprd, 3, controllers={0: Answers(), 1: Answers()}, heroes=("hellboy", foe), bot_player=0)
+    g.turn, g.turn_no = 0, 2
+    g.begin_turn()
+    for p in g.players:
+        p.hand.clear()
+    hellboy, rival = g.hero(0), g.hero(1)
+    hellboy.pos = min(g.board.spaces)
+    rival.pos = min(g.board.adj[hellboy.pos])
+    taken = {hellboy.pos, rival.pos}
+    for f in g.fighters.values():
+        if f is not hellboy and f is not rival:
+            f.pos = next(s for s in sorted(g.board.spaces, reverse=True) if s not in taken and not g.board.share_zone(s, hellboy.pos))
+            taken.add(f.pos)
+    if resurrected:
+        g.fx.set_counter(1, "life", 2)
+        rival.max_hp = 9
+    rival.hp = hp
+    give(g, 0, "Service Pistol")
+    give(g, 0, "Excalibur")
+    return g
+
+
+def remover_value(g, weights):
+    return EngineState(g, observer=0, weights=weights).evaluate(0)
+
+
+@pytest.mark.parametrize("profile", WEIGHTS)
+def test_next_to_her_every_point_of_her_first_life_is_worth_something_and_removing_her_the_most(bprd, profile):
+    """Her first life read a flat 0.85 from 5 health down and the threat on her vanished with her, so the rival beside her valued the position
+    at +0.75 with her at 1 and +0.41 once she was gone, and did not attack. One pool with her second life: each point lost raises the
+    remover's value and the removal raises it again."""
+    w = WEIGHTS[profile]
+    values = [remover_value(beside(bprd, hp), w) for hp in range(7, 0, -1)]
+    assert all(b > a + 0.002 for a, b in zip(values, values[1:])), values
+    g = beside(bprd, 1)
+    g.damage(g.fighters["elektra"], 1, "effect")
+    assert g.fighters["elektra"].off_board and g.winner is None
+    assert remover_value(g, w) > values[-1] + 0.01, (values[-1], remover_value(g, w))
+
+
+@pytest.mark.parametrize("profile", WEIGHTS)
+def test_her_side_never_reads_better_away_than_on_the_board_however_threatened(bprd, profile):
+    w = WEIGHTS[profile]
+    away = beside(bprd, 1)
+    away.damage(away.fighters["elektra"], 1, "effect")
+    gone = EngineState(away, observer=0, weights=w)._side_value(1)
+    for hp in range(1, 8):
+        for urgent in (False, True):
+            assert EngineState(beside(bprd, hp), observer=0, weights=w)._side_value(1, urgent) > gone, (hp, urgent)
+
+
+def test_the_blow_that_removes_her_is_not_a_chance_of_winning_the_game(bprd):
+    """With `lethal_mix` the leaf is won with the chance the rival's hero is killed next: her removal ends nothing, so it stays out of it."""
+    w = EvalWeights(**{**RESOLUTION, "lethal_mix": 1.0})
+    first = EngineState(beside(bprd, 1), observer=0, weights=w)
+    assert first.threat(1)[1] > 0.5                       # the blow that takes her out is likely...
+    first._lethal = {}
+    first._exposure(1, False)
+    assert first._lethal == {}                           # ...and nothing says the game ends with it
+    second = EngineState(beside(bprd, 1, resurrected=True), observer=0, weights=w)
+    second._lethal = {}
+    second._exposure(1, False)
+    assert second._lethal[1] > 0.5                       # her second defeat is a real one
+
+
+@pytest.mark.parametrize("hp", [1, 2, 5])
+def test_hellboy_next_to_a_first_life_elektra_attacks_her(bprd, hp):
+    """The reviewer's probe (ISMCTS, 200 iterations, 8 seeds): he attacked her in 0, 0 and 2 of 8 at 1, 2 and 5 health, and in 8 of 8 once resurrected."""
+    attacks = 0
+    for seed in PROBE_SEEDS:
+        act = IsmctsMedusa(0, SearchConfig(iterations=200, seed=seed)).plan(beside(bprd, hp))
+        attacks += act.kind == "attack" and act.target == "elektra"
+    assert attacks >= 7, attacks
+
+
+# (hero, resurrected, health) -> the remover's value before this change, default and resolution weights: nobody else's evaluation moved
+UNCHANGED = {
+    ("elektra", True, 9): (0.665372, 0.729021),
+    ("elektra", True, 5): (0.782056, 0.802323),
+    ("elektra", True, 2): (0.848738, 0.86059),
+    ("elektra", True, 1): (0.857656, 0.865949),
+    ("medusa", False, 16): (0.689434, 0.603849),
+    ("medusa", False, 5): (0.831409, 0.79287),
+    ("medusa", False, 1): (0.875921, 0.860217),
+    ("bullseye", False, 3): (0.879347, 0.845581),
+}
+
+
+@pytest.mark.parametrize("case", sorted(UNCHANGED))
+def test_a_resurrected_elektra_and_any_other_hero_evaluate_as_before(bprd, case):
+    foe, resurrected, hp = case
+    g = beside(bprd, hp, foe, resurrected)
+    got = tuple(round(remover_value(g, w), 6) for w in WEIGHTS.values())
+    assert got == pytest.approx(UNCHANGED[case], abs=2e-6), got
+    rival = g.hero(1)
+    assert EngineState(g, observer=0, weights=EvalWeights())._hero_life(rival) == pytest.approx((hp / rival.max_hp) ** 0.5)
