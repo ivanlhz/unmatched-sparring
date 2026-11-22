@@ -14,3 +14,10 @@ sparring/session_choices.py  pandora  engine hooks for the Box (plugin import, e
 sparring/ai_effects.py  pandora  engine hooks for the Box (plugin import, engine-run trigger, prompts, AI hook)  2026-11-22 10:04Z
 data/i18n/en.json  pandora  engine hooks for the Box (plugin import, engine-run trigger, prompts, AI hook)  2026-11-22 10:04Z
 data/i18n/es.json  pandora  engine hooks for the Box (plugin import, engine-run trigger, prompts, AI hook)  2026-11-22 10:04Z
+data/heroes/effects/schema.json  loki  lent TRICK cards, Ctx.card_home, trick cleanup  2026-11-22 10:07Z
+sparring/effects/model.py  loki  lent TRICK cards, Ctx.card_home, trick cleanup  2026-11-22 10:07Z
+sparring/effects/run.py  loki  lent TRICK cards, Ctx.card_home, trick cleanup  2026-11-22 10:07Z
+sparring/effects/ops_combat.py  loki  lent TRICK cards, Ctx.card_home, trick cleanup  2026-11-22 10:07Z
+sparring/effects/ongoing.py  loki  lent TRICK cards, Ctx.card_home, trick cleanup  2026-11-22 10:07Z
+sparring/effects/inventions.py  loki  lent TRICK cards, Ctx.card_home, trick cleanup  2026-11-22 10:07Z
+sparring/effects/modifiers.py  loki  lent TRICK cards, Ctx.card_home, trick cleanup  2026-11-22 10:07Z
