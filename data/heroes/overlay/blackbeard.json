@@ -238,8 +238,8 @@
   ]
  },
  "token_names": {
-  "442da0": "treasury",
-  "a3b09d": "doubloon"
+  "442da0": "treasury_tile",
+  "a3b09d": "doubloon_stack"
  },
  "tts": {
   "extra_card_ids": [

@@ -173,7 +173,7 @@ def test_table_data_names_the_pieces_the_dial_the_deck_range_the_tokens_and_its_
         "af6cfa", "2bfd21", "8841d2", "81e2ff")
     assert {k: v["piece"] for k, v in tts["fighters"].items() if k != "blackbeard"} == {"seadog1": "e815fe", "seadog2": "265d90"}
     assert all("dial" not in v for k, v in tts["fighters"].items() if k != "blackbeard")        # a Sea Dog has 1 hit point: no dial
-    assert tts["tokens"] == {"treasury": "442da0", "doubloon": "a3b09d"} and tts["counter_dials"] == {}
+    assert tts["tokens"] == {"treasury_tile": "442da0", "doubloon_stack": "a3b09d"} and tts["counter_dials"] == {}
 
 
 def test_the_importer_skips_the_loose_rules_card_that_rides_in_the_deck():
@@ -232,9 +232,9 @@ def test_the_treasury_and_the_doubloon_stack_have_a_resting_place_on_each_side_a
     from sparring import table_layout
     config = json.loads((HEROES_DIR.parent.parent / "config" / "table.json").read_text(encoding="utf-8"))
     table = load_hero_table("blackbeard")
-    assert set(table.token_slots) == {"treasury", "doubloon"}
+    assert set(table.token_slots) == {"treasury_tile", "doubloon_stack"}
     for side in ("bot", "human"):
         plan = table_layout.plan(config, side, table)
         assert plan.unplaced == [], side
         placed = {guids[0]: slot for _, guids, slot in ((p.role, p.guids, p.slot) for p in plan.placements)}
-        assert placed[table.tokens["treasury"]] != placed[table.tokens["doubloon"]]
+        assert placed[table.tokens["treasury_tile"]] != placed[table.tokens["doubloon_stack"]]
