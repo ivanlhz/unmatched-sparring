@@ -188,3 +188,97 @@ def test_at_the_start_of_the_bots_next_turn_the_bot_flips_the_dial_and_places_th
     assert all(table.positions[cfg.nicknames[f]] == game.fighters[f].pos for f in ["elektra", *HANDS]), "the bot moved every miniature to the space the engine chose"
     assert dial(session, cfg, table, "elektra") == 9 and session.cfg.dials["elektra"] == "c32f50"
     assert said(msgs, "vuelve al juego: la he colocado yo"), msgs
+
+
+# ---------------------------------------------------------------- save and resume
+
+def reload(session, table):
+    """The session as a save brings it back, with a configuration as the launcher reads it again (the dials as the data gives them: the flip is the session's, not the file's)."""
+    from test_sun_wukong_human import reload as resume
+    session.cfg.dials.update(session._dial_origin)
+    return resume(session, table)
+
+@with_rig("hellboy", "elektra", *BOT_HAND)
+def test_resume_while_she_is_off_the_board_keeps_her_away_and_the_game_going(rig):
+    session, table, game, fake, cfg = rig
+    flip_dial_on_the_table(table, cfg)
+    game.fighters["elektra"].hp = 1
+    next_to_the_human(session, table, game, cfg)
+    bot_attacks(session, table, game, "Service Pistol", "hellboy", "elektra", None)
+    other = reload(session, table)
+    g = other.game
+    assert g.winner is None and life(g, 1) == 1
+    assert all(g.fighters[f].off_board and not g.fighters[f].alive and g.fighters[f].pos is None for f in ["elektra", *HANDS])
+    assert not any("Fin de la partida" in m or "cae" in m.split() for m in other.messages), other.messages
+    msgs = click(other, table, Event.END_ACTION)
+    assert life(g, 1) == 2 and g.placing == {"elektra", *HANDS}, msgs
+
+
+@with_rig("hellboy", "elektra", *BOT_HAND)
+def test_resume_while_the_five_pieces_wait_to_be_put_down_does_not_call_them_missing_and_still_adopts_them(rig):
+    session, table, game, fake, cfg = rig
+    flip_dial_on_the_table(table, cfg)
+    remove_and_pass_the_turn(session, table, game, cfg)
+    assert game.placing == {"elektra", *HANDS}
+    other = reload(session, table)
+    assert other.game.placing == {"elektra", *HANDS} and life(other.game, 1) == 2
+    assert other.cfg.dials["elektra"] == "c32f50" and other.game.fighters["elektra"].max_hp == 9
+    spots = apart_spaces(other.game, table)
+    for fid, spot in zip(["elektra", *HANDS], spots):
+        put_down(table, cfg, fid, spot)
+    click(other, table, Event.END_ACTION)
+    assert {f: other.game.fighters[f].pos for f in ["elektra", *HANDS]} == dict(zip(["elektra", *HANDS], spots)) and other.game.placing == set()
+
+
+@with_rig("elektra", "hellboy", *ELEKTRA_HAND)
+def test_resume_after_the_bots_resurrect_keeps_the_flipped_dial_and_the_nine_health(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    flip_dial_on_the_table(table, cfg)
+    human_hits_bots_elektra(session, table, game, cfg, monkeypatch)
+    end_the_humans_turn(session, table)
+    other = reload(session, table)
+    assert life(other.game, 0) == 2 and other.game.fighters["elektra"].hp == 9 and other.cfg.dials["elektra"] == "c32f50"
+    assert not any("marca" in m and "motor" in m for m in other.messages), other.messages
+
+
+# ---------------------------------------------------------------- the human's cards
+
+@with_rig("hellboy", "elektra", *BOT_HAND)
+def test_snakeroot_clan_asks_yes_no_then_which_hand_and_that_hand_takes_the_blow_far_away(rig):
+    session, table, game, fake, cfg = rig
+    next_to_the_human(session, table, game, cfg)
+    human_hand(table, game, "Snakeroot Clan", "Sai")
+    e, far = game.fighters["elektra"], game.fighters["hand3"]
+    e_pos, far_pos = e.pos, far.pos
+    bot_attacks(session, table, game, "Service Pistol", "hellboy", "elektra", "Snakeroot Clan")
+    assert session.effect_run.awaiting.kind == "optional" and labels(session) == ["Si", "No"]
+    press(session, table, True)
+    assert session.effect_run.awaiting.kind == "fighter" and labels(session) == ["The Hand 1", "The Hand 2", "The Hand 3", "The Hand 4"]
+    msgs = press(session, table, "hand3")
+    assert e.pos == far_pos and far.died_at == e_pos and not far.alive and e.alive and e.hp == 7, (e.pos, far.pos, far.alive, e.hp)
+    assert game.winner is None
+
+
+@with_rig("hellboy", "elektra", *BOT_HAND)
+def test_intercept_resurrected_asks_the_human_whether_they_reveal_a_sai_and_yes_makes_it_5(rig):
+    from sparring import off_board
+    session, table, game, fake, cfg = rig
+    off_board.release(game, 1)                                            # she is already resurrected (the dial flip is the session's, tested above)
+    game.fx.set_counter(1, "life", off_board.RESURRECTED)
+    next_to_the_human(session, table, game, cfg)
+    human_hand(table, game, "Intercept", "Sai")
+    msgs = bot_attacks(session, table, game, "Service Pistol", "hellboy", "elektra", "Intercept")
+    req = session.effect_run.awaiting
+    assert req.kind == "optional" and said(msgs, "Usas el efecto de Intercept") and said(msgs, 'reveal a card named "Sai"'), msgs
+    msgs = press(session, table, True)
+    assert said(msgs, "Elektra defiende con Intercept (5)") or said(msgs, "defiende con Intercept (5)"), msgs
+    assert game.fighters["elektra"].hp == 7 - 0 and game.winner is None
+
+
+@with_rig("hellboy", "elektra", *BOT_HAND)
+def test_intercept_before_the_resurrect_asks_nothing_and_is_3(rig):
+    session, table, game, fake, cfg = rig
+    next_to_the_human(session, table, game, cfg)
+    human_hand(table, game, "Intercept", "Sai")
+    msgs = bot_attacks(session, table, game, "Service Pistol", "hellboy", "elektra", "Intercept")
+    assert session.effect_run is None and said(msgs, "Intercept (3)"), msgs
