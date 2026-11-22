@@ -70,6 +70,7 @@ ROLLOUT_APPROACH_PROB = 0.5   # in the rollout, the hero maneuvering looks for a
 PLACEMENT_KEEP = 6            # maneuver placements in the tree: the best by static evaluation...
 PLACEMENT_STRIKE_KEEP = 2     # ...plus the best ones from which the hero strikes, plus staying still
 LOOKAHEAD_KEEP = 3            # ...plus, with `EvalWeights.lookahead`, the best waypoints of a two-maneuver turn (`EngineState._lookahead`)
+OFF_BOARD_LIFE = 0.85         # the life term of a hero that is off the board but not defeated (Elektra): a fresh hero, a turn behind
 HAND_RESERVE = 3              # the cards of a hand that are its reserve (`EvalWeights.hand_reserve`): two blows to answer next turn and one card to play
 REFERENCE_HP = 16               # the hero hit points that one life is measured in when a card or a deck is priced in hit points (`card_hp`, `deck_hp`), whoever the side is
 GAME_TURNS = 15               # turns of its own that a game can last, for the exhaustion race (`EngineState._exhaustion`): the live games and the duels went 8 to 13
@@ -815,6 +816,11 @@ class EngineState:
                 self.apply(("defend", None))
                 return
             p = g.turn
+            if not g.own(p):            # every fighter of the mover is off the board (Elektra removed in her own turn): nothing to do, the turn is over
+                g.end_turn()
+                g.begin_turn()
+                self.phase = "start"
+                continue
             if self.phase == "start":
                 hero = g.hero(p)
                 if hero.name == "Medusa":
@@ -1121,9 +1127,9 @@ class EngineState:
             side_hp = 0.0
         else:
             # square root: the first HP are worth more than the last; staying alive at 3 HP is not almost the same as dying
-            life = sqrt(max(hero.hp, 0) / hero.max_hp)
-            side_hp = sum(f.hp for f in side if f.alive) / hero.max_hp      # in hero HP: a Harpy is worth less than Lobster
-        alive = sum(1 for f in side if f.alive) / len(side) if side else 0.0
+            life = self._hero_life(hero)
+            side_hp = sum(f.hp for f in side if f.alive or f.off_board) / hero.max_hp      # in hero HP: a Harpy is worth less than Lobster
+        alive = sum(1 for f in side if f.alive or f.off_board) / len(side) if side else 0.0
         cap = g.hand_cap(p)                                  # a 3-card hero (Michelangelo) is full at 3, not at 7
         held = len(g.players[p].hand)
         hand = min(held, cap) / cap
@@ -1135,6 +1141,14 @@ class EngineState:
         hand += ai_mary.kept_cards_bonus(g, p) / cap       # Bloody Mary: a hand of exactly 3 cards is a third action next turn, worth cards of hand
         return (life + w.sidekicks * side_hp + w.beside * next_to + w.alive * alive + w.hand * hand + w.hand_reserve * reserve + w.pack * self._pack_ready(p)
                 + w.deck * deck + w.ongoing * ongoing.worth(g, p) / hero.max_hp + self._vengeance(p) - self._exposure(p, urgent))
+
+    @staticmethod
+    def _hero_life(hero: Fighter, owed: float = 0) -> float:
+        """The hero's life term. A hero taken off the board and not defeated (Elektra's first life) comes back next turn with the flipped dial and
+        all her fighters: worth a fresh hero a turn behind, not a dead one."""
+        if hero.off_board:
+            return OFF_BOARD_LIFE
+        return sqrt(max(hero.hp - owed, 0) / hero.max_hp)
 
     def _side_value_normalized(self, p: int, urgent: bool) -> float:
         return sum(self._side_terms(p, urgent).values())
@@ -1196,12 +1210,12 @@ class EngineState:
             life_hp = sum(f.max_hp for f in everyone)
             life = sqrt(sum(max(f.hp - owed, 0) for f in everyone if f.alive) / life_hp)
         else:
-            life = sqrt(max(hero.hp - owed, 0) / hero.max_hp)
+            life = self._hero_life(hero, owed)
             if side:
                 side_max = sum(f.max_hp for f in side)
                 share = side_max / (side_max + hero.max_hp)
-                life = (1 - share) * life + share * sum(max(f.hp - owed, 0) for f in side if f.alive) / side_max
-        alive = sum(1 for f in side if f.alive) / len(side) if side else 1.0
+                life = (1 - share) * life + share * sum(max(f.hp - owed, 0) for f in side if f.alive or f.off_board) / side_max
+        alive = sum(1 for f in side if f.alive or f.off_board) / len(side) if side else 1.0
         cap = g.hand_cap(p)
         held = len(g.players[p].hand)
         hp_life = 1.0 / (2.0 * REFERENCE_HP)             # a hit point in lives at full health (the slope of the square root there), on one scale for every side: a card is worth the same to a team and to a hero
@@ -1318,6 +1332,8 @@ class EngineState:
         them kills while another stands."""
         g, w = self.game, self.weights
         hero = g.hero(victim)
+        if hero.off_board:
+            return 0.0, 0.0              # nothing can be hit while she is away
         if not hero.alive:
             return 0.0, 1.0
         pool = self._life_pool(victim)
