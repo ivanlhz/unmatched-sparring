@@ -83,9 +83,7 @@ def _confirm(run, game, spec):
     if spec.get("args", {}).get("phase") == "recheck":
         _recheck(run, game, owner, rival)
         return
-    if "named" not in run.flags:
-        run.flags["named"] = run.ask(game, "amount", owner, VALUES, 1, 1, "name a value", confirm=True)[0]
-    named = run.flags["named"]
+    named = run.flags["named"] = run.ask(game, "amount", owner, VALUES, 1, 1, "name a value", confirm=True)[0]      # asked on every rerun: the answers are keyed by the order of the asks
     if not game.fx.can_force_discard(rival, owner):      # a rule that forbids forced discards: nothing is discarded, nothing is revealed
         run.flags["blocked"] = True
         return
