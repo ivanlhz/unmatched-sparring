@@ -245,7 +245,8 @@ def settle_discards(session) -> None:
         if card is None or card not in g.players[human].hand:
             continue
         if session.scheme_baseline is not None and card.is_scheme:      # Scheme was pressed: the card on their pile IS the scheme played (it lands in the engine's
-            g.players[human].hand.remove(card)                          # pile, `recognize_scheme` finds it, and its ops send it to Loki's discard when they are done)
+            g.take_from_hand(human, card)                               # pile, `recognize_scheme` finds it, and its ops send it to Loki's discard when they are done);
+                                                                        # `take_from_hand` also makes Loki forget it lies in their hand
             g.players[human].discard.append(card)
             continue
         g.discard_card(human, card, cause="table")

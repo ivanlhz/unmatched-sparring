@@ -345,6 +345,7 @@ def test_the_human_plays_the_borrowed_lure_as_a_scheme_and_it_goes_to_lokis_disc
     table._put(trick.card_id, "human_discard")
     click(session, table, Event.END_ACTION)
     assert trick in game.players[0].discard and trick not in game.players[0].hand and trick not in game.players[1].hand
+    assert game.players[0].known.foreign == []                                     # Loki no longer counts it in their hand
     assert session.pending_discard is not None                                     # NOT LOKI ran: a random card of their hand is owed to the pile
     assert session.trick_guids == {} and trick.card_id in table.bot_discard and trick.card_id not in table.human_discard
 
