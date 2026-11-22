@@ -10,3 +10,4 @@ sparring/session.py  blackbeard  the bot moves Blackbeard's coins: session hook,
 data/i18n/en.json  blackbeard  the bot moves Blackbeard's coins: session hook, i18n  2026-11-22 10:52Z
 data/i18n/es.json  blackbeard  the bot moves Blackbeard's coins: session hook, i18n  2026-11-22 10:52Z
 sparring/combat_flow.py  loki  flow save/load of a borrowed TRICK  2026-11-22 10:52Z
+sparring/search/adapter.py  loki  search caches key a borrowed TRICK apart  2026-11-22 10:55Z
