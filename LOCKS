@@ -4,3 +4,14 @@ sparring/effects/ops_combat.py  sherlock  cancel_effects force (Elementary)  202
 sparring/state.py  elektra  off-board state (Fighter.off_board, _fall hook, selectors)  2026-11-22 12:01Z
 sparring/persist.py  elektra  off-board state (Fighter.off_board, _fall hook, selectors)  2026-11-22 12:01Z
 sparring/effects/select.py  elektra  off-board state (Fighter.off_board, _fall hook, selectors)  2026-11-22 12:01Z
+sparring/effects/ops_core.py  little-red  registration and basket-choice hooks  2026-11-22 12:02Z
+sparring/effects/state.py  little-red  registration and basket-choice hooks  2026-11-22 12:02Z
+sparring/effects/choose.py  little-red  registration and basket-choice hooks  2026-11-22 12:02Z
+sparring/ai_effects.py  little-red  registration and basket-choice hooks  2026-11-22 12:02Z
+sparring/session_choices.py  little-red  registration and basket-choice hooks  2026-11-22 12:02Z
+data/i18n/en.json  little-red  registration and basket-choice hooks  2026-11-22 12:02Z
+data/i18n/es.json  little-red  registration and basket-choice hooks  2026-11-22 12:02Z
+tests/test_d1_bot_cards.py  little-red  registration and basket-choice hooks  2026-11-22 12:02Z
+tests/test_effects_schema.py  little-red  registration and basket-choice hooks  2026-11-22 12:02Z
+tests/test_heroes.py  little-red  registration and basket-choice hooks  2026-11-22 12:02Z
+tests/test_card_identity.py  little-red  registration and basket-choice hooks  2026-11-22 12:02Z
