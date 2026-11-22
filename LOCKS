@@ -8,3 +8,6 @@ tests/test_heroes.py  robin  register hero (plugin import, hero lists)  2026-11-
 tests/test_piece_identity.py  robin  register hero (plugin import, hero lists)  2026-11-22 11:59Z
 data/heroes/effects/schema.json  sherlock  cancel_effects force  2026-11-22 12:00Z
 sparring/effects/ops_combat.py  sherlock  cancel_effects force (Elementary)  2026-11-22 12:00Z
+sparring/state.py  elektra  off-board state (Fighter.off_board, _fall hook, selectors)  2026-11-22 12:01Z
+sparring/persist.py  elektra  off-board state (Fighter.off_board, _fall hook, selectors)  2026-11-22 12:01Z
+sparring/effects/select.py  elektra  off-board state (Fighter.off_board, _fall hook, selectors)  2026-11-22 12:01Z
