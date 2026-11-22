@@ -1442,7 +1442,7 @@ Everything is in docs/heroes/loki.md; the engine additions are small and additiv
 - **Plugins** (`effects/plugins_loki.py`): `loki:swap_values` (Freyja's Rescue), `loki:laevateinn`, `loki:looking_for_trouble` (the look and the pool are taken once: the op runs again after each answer, when the table has moved) and `loki:return_trick` (the trigger of the second sentence of MISCHIEF-MONGER). An id that may name a card of either deck is written `tricks.QUALIFIED + id` in an option list (`tricks.card_from_option`, `tricks.card_of_option`).
 - **Routing** is not DSL: `sparring/tricks.py` is called from `inventions.settle_played` (a TRICK Loki plays goes to the opponent's hand, the opponent's goes to LOKI's discard) and from `Game.discard_card` (a TRICK discarded from a hand goes to Loki's hand; the trigger `mischief_return` lets him put it on top of his deck). Every move reports a table intent (`trick_given`, `trick_to_discard`, `trick_returned`, `trick_to_deck`, `trick_taken`); `session_tricks` translates them.
 
-## Sherlock Holmes (batch 4): a cancel that forces its way, a prediction made at play time, a value named and matched
+## 52. Sherlock Holmes: a cancel that forces its way, a prediction made at play time, a value named and matched
 
 - **`uncancelable` as the hero's ability** (HOLMES and DR. WATSON cards cannot be canceled by an opponent): the card flag of section 1 on every card of those two bands, not a passive: `modifiers.is_uncancelable`, `cancel_effects`, `settle_win_cancels`, the legacy `_cancel_rival` and the bot's `_cancellable_moments` all read it, so nothing else changed. An ANY card (Feint, Education Never Ends, Study Methods) has no flag and is canceled as always.
 - **`cancel_effects.force`** (`true`): the cancel works on an `uncancelable` card too (Elementary, guessed right, "cancel all effects on your opponent's card" also against Incinerate or a HOLMES card of a Sherlock on the other side; REGLAS-PENDIENTES-batch4.md section 2). It is the one place `uncancelable` is skipped.
@@ -1452,7 +1452,7 @@ Everything is in docs/heroes/loki.md; the engine additions are small and additiv
 - **Pile mode `reveal` with `extra.confirm`** (`session_rage`): zero or one card, each of the named value; a wrong card is named in the chat (`confirm.wrong`) and the question stays.
 - Two things the prediction needed from the session: `Pending.prediction` may now carry `defense` next to the attacker's `value` (Abe's Perfect Shot and Elementary can be in the same combat), and the human's Elementary is asked at the Reveal of the bot's attack (`Pending.predict`, saved), not of their own.
 
-## Elektra (batch 4): fighters off the board but not defeated, a counter-driven Resurrect, a zone each
+## 53. Elektra: fighters off the board but not defeated, a counter-driven Resurrect, a zone each
 
 - **Fighter state `off_board`** (`Fighter.off_board`, `sparring/off_board.py`, saved by `persist` together with the maximum health when it changed): `alive` False, `pos` None, NOT defeated. `Game._fall` (every defeat: combat, effect, exhaustion, `defeat`) asks `off_board.intercept_defeat` first; for Elektra's hero in her first life it removes her and every Hand on the board, sets the ability counter `life` to 1, fires no `fighter_defeated` and sets no winner. Everything that already means "not on the board" (`alive`, `pos`, `own()`) treats it right; `select.defeated` is False for it, so no `state: defeated` selector can return a removed fighter.
 - **Ability counter `life`** (0 first life, 1 off the board, 2 resurrected): the RESURRECTED symbol of a card line is `{"test": "counter", "name": "life", "min": 2}`.
@@ -1460,7 +1460,7 @@ Everything is in docs/heroes/loki.md; the engine additions are small and additiv
 - **SpaceSel `apart_from_own`** (`true`): spaces that share no zone with any other fighter of the mover's owner standing on the board; `_plan_spots` places one fighter after another, so each placed fighter closes its zone for the next.
 - Plugin `elektra:replace_combatant` is Smoke And Mirrors' machinery for Snakeroot Clan (any Hand takes Elektra's place in the combat).
 
-## Robin Hood (batch 4): a move after every attack, damage dealt as an amount, an Ambush under another id
+## 54. Robin Hood: a move after every attack, damage dealt as an amount, an Ambush under another id
 
 Everything is in docs/heroes/robin-hood.md; no new op, no new schema field.
 
@@ -1469,7 +1469,7 @@ Everything is in docs/heroes/robin-hood.md; no new op, no new schema field.
 - **`robin:ambush`** is `blue:ambush` (the Raptors') registered under his own id (`plugins_robin.py`): a plugin id carries the fid of its hero.
 - **The rival's price in cards with no combat in sight** (Steal From the Rich, an `optional` with a hand-discard `cost` and an `else`): `EffectAI._optional` asks `ai_robin.is_steal` before the generic `worth_paying`, which never pays outside a combat. The table player gets the generic "use the effect?" with the card text.
 
-## Little Red Riding Hood (batch 4): a test on the order of a pile, a wild symbol chosen by the player, an attack that may defend
+## 55. Little Red Riding Hood: a test on the order of a pile, a wild symbol chosen by the player, an attack that may defend
 
 No new op and no new schema field (docs/heroes/little-red-riding-hood.md). One test plugin, one op plugin, an ordered pile and a small hook in the defense check.
 
