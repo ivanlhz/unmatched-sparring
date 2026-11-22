@@ -476,6 +476,11 @@ def test_the_human_little_red_is_told_where_to_keep_the_basket_when_the_game_sta
 
 # ---------------------------------------------------------------- two cards laid on her pile in one step
 
+def msgs_of_request(session, req):
+    from sparring.session_choices import prompt_text
+    return [prompt_text(session.game, req)]
+
+
 @with_rig(TRAINING)
 def test_two_cards_laid_on_the_pile_together_make_the_next_line_ask_which_is_on_top(rig, monkeypatch):
     session, table, game, fake, cfg = rig
@@ -492,6 +497,7 @@ def test_two_cards_laid_on_the_pile_together_make_the_next_line_ask_which_is_on_
     req = session.effect_run.awaiting
     assert req.kind == "cards" and req.extra["purpose"] == "top" and sorted(req.options) == sorted(game.fx.pile_unsure[1])
     assert sorted(labels(session)) == ["Never Leave the Path", "The Wolf's Skin"]
+    assert said(msgs_of_request(session, req), "Has puesto dos cartas a la vez en tu descarte: cual esta arriba?")
     press(session, table, ids["The Wolf's Skin"])                                         # the axe is on top
     assert game.fighters["hellboy"].hp == hp - 2 - 3 and not game.fx.pile_unsure[1]
     assert [c.title for c in game.players[1].discard] == ["Never Leave the Path", "The Wolf's Skin", "Once Upon a Time"]

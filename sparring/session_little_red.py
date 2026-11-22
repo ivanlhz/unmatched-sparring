@@ -8,6 +8,8 @@
     is on top (`plugins_little_red.ambiguous_top`)."""
 from __future__ import annotations
 
+import functools
+
 from .effects.plugins_little_red import symbol_of
 from .i18n import t
 from .tts import lua_little_red
@@ -24,8 +26,13 @@ def _sides(session) -> list[tuple[str, str]]:
     return [("bot" if p == session.bot else "human", g.players[p].hero.slug) for p in (0, 1) if g.players[p].hero.slug == SLUG]
 
 
+@functools.cache
+def _guids(slugs: tuple[str, ...]) -> frozenset[str]:
+    return frozenset(load_hero_table(slug).tokens[TOKEN] for slug in slugs)
+
+
 def basket_guids(session) -> frozenset[str]:
-    return frozenset(load_hero_table(slug).tokens[TOKEN] for _, slug in _sides(session))
+    return _guids(tuple(slug for _, slug in _sides(session)))
 
 
 def strip(session, rows):

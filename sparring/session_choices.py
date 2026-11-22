@@ -197,6 +197,9 @@ def prompt_text(game, req: ChoiceRequest) -> str:
                  name=getattr(game, "nicknames", {}).get(archer.fid, archer.name))
     elif req.kind == "amount" and req.extra.get("top_discard"):      # Take A Knee: one button, the bot moves the card
         base = t("choice.prompt.top_discard_rival" if req.extra.get("rival_deck") else "choice.prompt.top_discard")
+    elif req.kind == "cards" and req.extra.get("purpose") == "top":          # Little Red: two cards landed on the pile together, which is on top?
+        card = request_card(game, req)
+        return t("choice.prompt.pile_top") + (f" - {card.title}" if card is not None else "")
     elif req.kind == "cards" and req.extra.get("purpose") == "bottom":      # Insightful Deduction: which one goes to the bottom
         base = _prompt("bottom")
     elif req.kind == "cards" and req.max == 1:        # no "card(s)": the panel status drops the parentheses (live 29/10)
@@ -208,8 +211,6 @@ def prompt_text(game, req: ChoiceRequest) -> str:
     elif req.kind == "optional" and "returns_top" in req.extra:           # What Large Hands You Have: the top card of the pile comes back
         card = request_card(game, req)
         return t("choice.prompt.returns_top", title=card.title if card is not None else "?", top=card_titles(game, [req.extra["returns_top"]], req.card_owner if req.card_owner is not None else req.player))
-    elif req.kind == "cards" and req.extra.get("purpose") == "top":          # Little Red: two cards landed on the pile together, which is on top?
-        return t("choice.prompt.pile_top") + (f" - {request_card(game, req).title}" if request_card(game, req) is not None else "")
     elif req.kind == "effect" and req.extra.get("tag") == "basket":      # Little Red: the wild basket counts as one symbol
         base = _prompt("basket")
     elif req.kind == "effect" and req.extra.get("tag") == "showdown":    # Wyatt Earp: one of the effects not used yet this turn
