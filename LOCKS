@@ -6,3 +6,4 @@ data/i18n/en.json  loki  review fixes: scheme TRICKs, Looking For Trouble enforc
 data/i18n/es.json  loki  review fixes: scheme TRICKs, Looking For Trouble enforcement, persistence  2026-11-22 11:27Z
 sparring/session_effects.py  loki  review fixes: scheme TRICKs, Looking For Trouble enforcement, persistence  2026-11-22 11:27Z
 sparring/session_bot_effects.py  loki  review fixes: scheme TRICKs, Looking For Trouble enforcement, persistence  2026-11-22 11:27Z
+sparring/effects/narrate.py  loki  narrate by_id knows a borrowed TRICK  2026-11-22 11:28Z
