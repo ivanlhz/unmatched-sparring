@@ -70,7 +70,7 @@ from .guard import guard_dest, hero_shielded, path_steps
 from .effects.model import walk_ops
 from .effects.modifiers import boost_limit, card_effects, defers_defeat, is_uncancelable
 from .ai_profile import FINISHER_BOOSTS, STYLE_HIT_AND_RUN, derive_style
-from . import ai_achilles, ai_chupacabra as chupa_ai, ai_double, ai_mary, ai_philippa, ai_rosie, ai_sinbad, ai_washington, ai_wyatt, tracks
+from . import ai_achilles, ai_chupacabra as chupa_ai, ai_double, ai_loki, ai_mary, ai_philippa, ai_rosie, ai_sinbad, ai_washington, ai_wyatt, tracks
 from .ai_sinbad import own_value as sinbad_own_value, voyage_count, voyage_extra
 from .effects.select import defeated
 from .state import ANUNG, EXHAUST_DAMAGE, Fighter, Game
@@ -1087,6 +1087,8 @@ class MedusaAI(Controller):
             return doom                 # Achilles: The Day of Your Doom is 5 when Patroclus can pay its 2 damage
         if (chupa_value := chupa_ai.attack_value(game, f.owner, c)) is not None:
             return chupa_value        # Chupacabra: The More They Struggle, Ambush, Wounded Beast
+        if (loki_value := ai_loki.attack_value(game, f.owner, c)) is not None:
+            return loki_value         # Loki: Ragnarök per TRICK in their hand, Shapeshifter per card, Underhanded's 6, Laevateinn's revealed BOOST
         if (mary_value := ai_mary.attack_value(game, f.owner, c, f)) is not None:
             return mary_value         # Bloody Mary: Speak Three Times as the third action, Jump Scare away from her start, Out Of The Mirror's BOOST
         own = own_value(game, f, c)
@@ -1203,6 +1205,7 @@ class MedusaAI(Controller):
         value += ciri_ai.after_value(game, self.me, c, p_win, w, CARD_VALUE)
         value += ai_sinbad.after_value(game, self.me, c, p_win, w, CARD_VALUE, W_MEDUSA_HP, self.room_after_play(game), t.hp)
         value += chupa_ai.after_value(game, self.me, c, p_win, w, CARD_VALUE, W_MEDUSA_HP, ACTION_VALUE)
+        value += ai_loki.after_value(game, self.me, c, p_win, w, CARD_VALUE, W_MEDUSA_HP)
         value += ai_mary.after_value(game, self.me, c, CARD_VALUE, W_MEDUSA_HP)
         value += ai_rosie.after_value(game, self.me, c, p_win, w, CARD_VALUE, W_MEDUSA_HP, t.hp)
         value += ai_washington.after_value(game, self.me, c, p_win, w, CARD_VALUE, W_MEDUSA_HP, t.hp, ACTION_VALUE, HARPY_VALUE)
@@ -2033,6 +2036,8 @@ class MedusaAI(Controller):
             dv = own_value(game, target, c)        # Sinbad's Momentous Shift defending
         if c is not None and (chupa_dv := chupa_ai.defense_value(game, target.owner, c)) is not None:
             dv = chupa_dv                          # Chupacabra's Wounded Beast defending
+        if c is not None and (loki_dv := ai_loki.defense_value(game, target.owner, c)) is not None:
+            dv = loki_dv                           # Loki's Sindri's Bet: a 3 that also takes 3 from the card it meets
         if c is not None and ai_washington.own_value(game, target, c) is not None:
             dv = ai_washington.own_value(game, target, c)       # Washington's Make A Stand standing still
         if c is not None and c.title == DAUGHTER and attacker is not None and target.pos is not None and attacker.pos in game.board.adj[target.pos]:
@@ -2085,6 +2090,7 @@ class MedusaAI(Controller):
         if attacker is not None:
             v += ai_sinbad.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE, W_MEDUSA_HP, None, attacker.hp)
             v += chupa_ai.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE, W_MEDUSA_HP, ACTION_VALUE)
+            v += ai_loki.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE, W_MEDUSA_HP)
             v += ai_mary.after_value(game, self.me, c, CARD_VALUE, W_MEDUSA_HP)
             v += ai_rosie.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE, W_MEDUSA_HP, attacker.hp)
             v += ai_washington.after_value(game, self.me, c, p_block, weight(attacker), CARD_VALUE, W_MEDUSA_HP, attacker.hp, ACTION_VALUE, HARPY_VALUE)

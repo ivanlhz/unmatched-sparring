@@ -41,7 +41,7 @@ from dataclasses import dataclass, field, replace
 from functools import lru_cache
 from math import comb, fsum, prod, sqrt
 
-from .. import ai_achilles, ai_double, ai_mary, enraged, pack, tracks
+from .. import ai_achilles, ai_double, ai_mary, enraged, pack, tracks, tricks
 from ..ai_hazards import zone_cover_factor, zone_damage, zone_exposed
 from ..ai_medusa import (ATTACKS_PER_TURN, DRAWS_PER_TURN, GAZE, LONG_GAME, MIN_NET, beside_stake, boost_effect_value, bot_may_spend,
                          can_use, discard_cut, exhaustion_owed, held_for_plan, maneuver_may_spend, play_signature, scheme_fighter)
@@ -173,7 +173,7 @@ class Knowledge:
         known, rival = game.players[observer].known, 1 - observer
         st = game.players[rival]
         poss = tuple(known.possible_cards(st))
-        return cls({rival: tuple(known.cards(st))}, {rival: poss},
+        return cls({rival: (*known.cards(st), *known.foreign_cards(game.players[observer]))}, {rival: poss},       # Loki's own TRICKs that lie in the rival's hand are known cards too
                    {rival: (min(known.possible_lo, len(poss)), min(known.possible_hi, len(poss)))},
                    {rival: tuple(known.top(st))})
 
@@ -725,7 +725,8 @@ class EngineState:
                     and self.pending[2] not in known:
                 known.append(self.pending[2])         # an attack played face up (Witness My Last Battle) is in the hand the defense answers
             top = [c for c in self.knowledge.top_of_deck.get(p, ()) if c not in gone and c not in known]
-            pool = sorted((c for c in st.full_set if c not in gone and c not in known and c not in top),
+            away = [c for c in g.players[observer].hand if c in st.full_set] if tricks.in_game(g) else []     # a TRICK of this deck lies in the observer's hand: it is not in this one
+            pool = sorted((c for c in st.full_set if c not in gone and c not in known and c not in top and c not in away),
                           key=lambda c: c.card_id)
             face_down = self.pending is not None and self.pending[2] is None and g.fighters[self.pending[0]].owner == p
             if face_down and not self.weights.hidden_attack:

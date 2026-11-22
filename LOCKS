@@ -1,28 +1,7 @@
 # path  agent  task  UTC time   (see BRIEF: short locks only)
-sparring/heroes.py  loki  counter pile rival_hand  2026-11-22 10:02Z
-sparring/state.py  loki  counter pile rival_hand + trick movement hooks  2026-11-22 10:02Z
-data/heroes/effects/schema.json  loki  lent TRICK cards, Ctx.card_home, trick cleanup  2026-11-22 10:07Z
-sparring/effects/model.py  loki  lent TRICK cards, Ctx.card_home, trick cleanup  2026-11-22 10:07Z
-sparring/effects/run.py  loki  lent TRICK cards, Ctx.card_home, trick cleanup  2026-11-22 10:07Z
-sparring/effects/ops_combat.py  loki  lent TRICK cards, Ctx.card_home, trick cleanup  2026-11-22 10:07Z
-sparring/effects/ongoing.py  loki  lent TRICK cards, Ctx.card_home, trick cleanup  2026-11-22 10:07Z
-sparring/effects/inventions.py  loki  lent TRICK cards, Ctx.card_home, trick cleanup  2026-11-22 10:07Z
-sparring/effects/modifiers.py  loki  lent TRICK cards, Ctx.card_home, trick cleanup  2026-11-22 10:07Z
-sparring/effects/select.py  loki  card_ref by flow side (borrowed TRICK ids)  2026-11-22 10:10Z
-sparring/combat_flow.py  loki  replace_defense_card (Looking For Trouble)  2026-11-22 10:10Z
-sparring/effects/choose.py  loki  OWN_JUDGEMENT_PURPOSES trouble  2026-11-22 10:15Z
 sparring/effects/ops_core.py  blackbeard  ransom/doubloon hooks: can_pay, prompts, AI, narration  2026-11-22 10:18Z
 sparring/session_choices.py  blackbeard  ransom/doubloon hooks: can_pay, prompts, AI, narration  2026-11-22 10:18Z
 sparring/ai_effects.py  blackbeard  ransom/doubloon hooks: can_pay, prompts, AI, narration  2026-11-22 10:18Z
 data/i18n/en.json  blackbeard  ransom/doubloon hooks: can_pay, prompts, AI, narration  2026-11-22 10:18Z
 data/i18n/es.json  blackbeard  ransom/doubloon hooks: can_pay, prompts, AI, narration  2026-11-22 10:18Z
 sparring/effects/narrate.py  blackbeard  ransom/doubloon hooks: can_pay, prompts, AI, narration  2026-11-22 10:18Z
-sparring/search/adapter.py  loki  Loki AI: foreign TRICKs in the determinization  2026-11-22 10:19Z
-sparring/ai_medusa.py  loki  Loki AI: ai_loki pricing hooks  2026-11-22 10:19Z
-sparring/effects/state.py  loki  register the hero in the shared lists  2026-11-22 10:22Z
-tests/test_heroes.py  loki  register the hero in the shared lists  2026-11-22 10:22Z
-tests/test_card_identity.py  loki  register the hero in the shared lists  2026-11-22 10:22Z
-tests/test_d1_bot_cards.py  loki  register the hero in the shared lists  2026-11-22 10:22Z
-tests/test_effects_schema.py  loki  register the hero in the shared lists  2026-11-22 10:22Z
-tools/import_save.py  loki  register the hero in the shared lists  2026-11-22 10:22Z
-tests/test_piece_identity.py  loki  register the hero in the shared lists  2026-11-22 10:22Z

@@ -224,6 +224,8 @@ def extract_hero(objects: list[dict], hero: HeroDef, raw_hero: dict, report: Rep
     dials = [o for o in contents if dial_max(o) is not None]
     counter_dials: dict[str, str] = {}
     for counter in hero.counters:
+        if hero.counters[counter].pile == "rival_hand":
+            continue                    # counted in the other player's hand (Loki's TRICKs): no dial shows it
         hits = [d for d in dials if d["GUID"] not in claimed and counter.casefold() in _nick(d).casefold()]
         if len(hits) == 1:
             counter_dials[counter] = hits[0]["GUID"]

@@ -12,9 +12,6 @@ from sparring.state import Game
 from test_bigfoot_effects import Answers
 from test_effects_combat import hand_filler, pair, put_adjacent
 
-import sparring.effects.plugins_loki  # noqa: F401  (registers loki:*)
-import sparring.effects.state as _fxstate
-_fxstate.INTERPRETED_HEROES = _fxstate.INTERPRETED_HEROES | {'loki'}   # TEMPORARY: until the hero is registered
 
 BALDR, FREYJA, SINDRI, LURE = "Trick: Baldr's Downfall", "Trick: Freyja's Rescue", "Trick: Sindri's Bet", "Trick: Svadilfari's Lure"
 TRAINING = "B.P.R.D. Training"        # Hellboy's defense of value 3

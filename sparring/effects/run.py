@@ -20,6 +20,7 @@ from dataclasses import asdict, dataclass, field
 from .choose import Await, Chooser, ChoiceRequest, Suspend
 from .model import EffectError, load_effects, walk_ops
 from .ops_core import OPS, check_op
+from . import plugins_loki  # noqa: E402,F401  (registers loki:*; moves to ops_core's list when that file is free)
 
 
 @dataclass
