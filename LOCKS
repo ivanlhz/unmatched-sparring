@@ -1,9 +1,3 @@
 # path  agent  task  UTC time   (see BRIEF: short locks only)
-docs/effects-dsl.md  sherlock  docs, features and lists for the hero  2026-11-22 12:10Z
-docs/card-identity.md  sherlock  docs, features and lists for the hero  2026-11-22 12:10Z
-docs/live-checklist.md  sherlock  docs, features and lists for the hero  2026-11-22 12:10Z
-features.json  sherlock  docs, features and lists for the hero  2026-11-22 12:10Z
-README.md  sherlock  docs, features and lists for the hero  2026-11-22 12:10Z
-config/table.json  sherlock  docs, features and lists for the hero  2026-11-22 12:10Z
 data/i18n/en.json  robin  trigger title of the ability  2026-11-22 12:32Z
 data/i18n/es.json  robin  trigger title of the ability  2026-11-22 12:32Z

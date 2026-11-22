@@ -1267,6 +1267,22 @@
         "Verified live by Iván (docs/live-checklist.md, section Blackbeard)"
       ],
       "note": "Rules decisions and open questions for Iván: docs/heroes/blackbeard.md (Pending Ivan). Engine notes: docs/effects-dsl.md, section Blackbeard. Live test pending."
+    },
+    {
+      "id": "HERO-SHERLOCK",
+      "title": "Sherlock Holmes (Cobble & Fog, Dr. Watson, cards that cannot be canceled, Elementary's prediction) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/sherlock-holmes.json, data/heroes/sherlock-holmes.json, data/heroes/effects/sherlock-holmes.json and data/tts/sherlock-holmes.json generated and validated (import_hero, validate_effects, import_save); the 13 titles (30 cards, sheet 176, character card 304, bands SHERLOCK HOLMES / DR. WATSON / ANY) read from the card images; Feint reads IMMEDIATELY (unmatched-memory says DURING)",
+        "His deck shares CardIDs 17600-17629 with Medusa and the rest of sheet 176: told apart by deck image and owner, never by a bare CardID (tests/test_hero_sherlock_holmes_data.py, tests/test_card_identity.py); his Feints carry the tag sherlock; his two dials share a GUID with Achilles' and Patroclus' (tests/test_piece_identity.py)",
+        "Every HOLMES and DR. WATSON card is uncancelable (the engine's flag) and the ANY cards are not; 'ignore the value' is not a cancel (tests/test_sherlock_effects.py, mutation-checked)",
+        "Elementary: the defender says the printed attack value of the attacker's card BEFORE it is revealed (a panel question for the human, saved; public information only for the bot), a right number cancels the effects (also of an uncancelable card, cancel_effects force) and ignores the value (tests/test_sherlock_effects.py, tests/test_sherlock_human.py, tests/test_sherlock_ai.py)",
+        "Confirm Suspicion: a value named, the rival discards a card of it (a human lays it on their discard pile and the bot reads it; a human who says none has their hand read and a match found there is demanded) or shows their hand (tests/test_sherlock_cards.py, tests/test_sherlock_confirm_human.py)",
+        "All 13 cards on the interpreter for both seats: Master of Disguise (no damage when the swap cannot happen), Administer Aid, Eliminate the Impossible, Study Methods, Deduce Strategy, Counterpunch, Fixed Point, Education Never Ends, The Game is Afoot (tests/test_sherlock_cards.py, tests/test_sherlock_schemes_human.py)",
+        "Sherlock Holmes against every other hero in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator with the heuristic and the search AI (tests/test_sherlock_matrix.py, tests/test_sherlock_ai.py)",
+        "Verified live by Ivan (docs/live-checklist.md, section Sherlock Holmes)"
+      ],
+      "note": "Rules decisions and open questions for Ivan: docs/heroes/sherlock-holmes.md (Pending Ivan). Engine notes: docs/effects-dsl.md, section Sherlock Holmes. Live test pending."
     }
   ]
 }
