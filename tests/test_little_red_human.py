@@ -302,3 +302,69 @@ def test_the_bots_stones_in_the_belly_makes_the_human_discard_the_card_the_bot_n
     req = session.effect_run.awaiting if session.effect_run is not None else None
     assert req is not None and req.extra.get("ambush"), msgs
     assert said(msgs, "carta"), msgs
+
+
+@with_rig(TRAINING)
+def test_large_hands_with_a_wolf_returns_itself_to_the_hand_when_the_human_says_yes(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    bot_defends_with_training(session, monkeypatch)
+    human_hand(table, game, "What Large Hands You Have", "The Wolf's Skin")
+    human_pile(table, game, "The Wolf's Skin", "Never Leave the Path")              # a wolf: the line without a symbol
+    attack(session, table, game, "What Large Hands You Have")
+    assert "returns_top" not in session.effect_run.awaiting.extra
+    msgs = press(session, table, True)
+    hands = next(c for c in game.players[1].full_set if c.title == "What Large Hands You Have")
+    assert hands in game.players[1].hand and hands not in game.players[1].discard, msgs
+    assert [c.title for c in game.players[1].discard] == ["The Wolf's Skin", "Never Leave the Path"]
+    assert said(msgs, "cesta: lobo"), msgs
+
+
+# ---------------------------------------------------------------- the schemes
+
+def human_scheme(session, table, game, title):
+    from test_e2_human_cards import human_scheme as play
+    return play(session, table, game, title)
+
+
+@with_rig(TRAINING)
+def test_never_leave_the_path_with_a_wild_basket_chosen_as_a_rose_draws_three_cards_for_the_human(rig):
+    session, table, game, fake, cfg = rig
+    human_hand(table, game, "Never Leave the Path", "The Wolf's Skin")
+    human_scheme(session, table, game, "Never Leave the Path")
+    assert session.effect_run.awaiting.extra["tag"] == "basket"
+    msgs = press(session, table, 1)
+    assert said(msgs, "cesta comodin contada como rosa") and table.human_deals == [3], msgs
+
+
+@with_rig(TRAINING)
+def test_never_leave_the_path_with_the_wolf_leaves_the_placing_to_the_human_and_gives_the_action_back(rig):
+    session, table, game, fake, cfg = rig
+    human_hand(table, game, "Never Leave the Path", "The Wolf's Skin")
+    human_scheme(session, table, game, "Never Leave the Path")
+    msgs = press(session, table, 0)
+    assert said(msgs, "cesta comodin contada como lobo") and said(msgs, "en cualquier casilla"), msgs
+    assert game.actions_left == 2
+
+
+@with_rig(TRAINING)
+def test_never_leave_the_path_with_the_axe_hurts_the_bots_fighters_in_her_zone(rig):
+    session, table, game, fake, cfg = rig
+    human_hand(table, game, "Never Leave the Path", "The Wolf's Skin")
+    hp = game.fighters["hellboy"].hp
+    human_scheme(session, table, game, "Never Leave the Path")
+    press(session, table, 2)
+    assert game.fighters["hellboy"].hp == hp - 2
+    assert dial(cfg, table, "hellboy") == hp - 2
+
+
+
+@pytest.mark.parametrize("under,healed", [("The Wolf's Skin", 2), ("Never Leave the Path", 4)])
+@with_rig(TRAINING)
+def test_a_grimm_tale_for_the_human_heals_her_dial_two_or_four_by_the_basket(rig, under, healed):
+    session, table, game, fake, cfg = rig
+    human_hand(table, game, "A Grimm Tale", "The Wolf's Skin")
+    human_pile(table, game, under)
+    game.fighters["red"].hp = 5
+    msgs = human_scheme(session, table, game, "A Grimm Tale")
+    assert game.fighters["red"].hp == 5 + healed and session.effect_run is None, msgs
+    assert dial(cfg, table, "red") == 5 + healed
