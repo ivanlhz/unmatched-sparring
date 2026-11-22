@@ -4,12 +4,6 @@ sparring/session_translators.py  loki  Loki TRICKs at the table (session ledger,
 sparring/session_bot_effects.py  loki  Loki TRICKs at the table (session ledger, translators)  2026-11-22 10:29Z
 sparring/state.py  loki  Loki TRICKs at the table (session ledger, translators)  2026-11-22 10:29Z
 sparring/tricks.py  loki  Loki TRICKs at the table (session ledger, translators)  2026-11-22 10:29Z
-docs/effects-dsl.md  pandora  hero docs: DSL section, live checklist, identity, README, features  2026-11-22 10:25Z
-docs/live-checklist.md  pandora  hero docs: DSL section, live checklist, identity, README, features  2026-11-22 10:25Z
-docs/card-identity.md  pandora  hero docs: DSL section, live checklist, identity, README, features  2026-11-22 10:25Z
-README.md  pandora  hero docs: DSL section, live checklist, identity, README, features  2026-11-22 10:25Z
-features.json  pandora  hero docs: DSL section, live checklist, identity, README, features  2026-11-22 10:25Z
-config/table.json  pandora  hero docs: DSL section, live checklist, identity, README, features  2026-11-22 10:25Z
 sparring/effects/ops_core.py  loki  Loki: plugin import, i18n, AI hook, prompts, make_known guard  2026-11-22 10:42Z
 data/i18n/en.json  loki  Loki: plugin import, i18n, AI hook, prompts, make_known guard  2026-11-22 10:42Z
 data/i18n/es.json  loki  Loki: plugin import, i18n, AI hook, prompts, make_known guard  2026-11-22 10:42Z
