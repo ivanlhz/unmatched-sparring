@@ -197,7 +197,9 @@ def test_the_catalog_names_achilles_and_his_deck_is_his_own():
     assert catalog.identify([f"{f}|{b}" for f, b in load_hero_table("achilles").identity]).slug == "achilles"
 
 
-def test_no_guid_of_achilles_is_shared_with_another_hero():
+def test_only_the_two_dials_of_achilles_are_shared_with_sherlock_holmes():
+    """`feaa22` (Achilles) and `ec605e` (Patroclus) are also the life dials of Sherlock Holmes and Dr. Watson (Custom_Models named after their fighter,
+    told apart by name: tests/test_sherlock_dials.py); no other GUID of his is shared."""
     mine = set(load_hero_table("achilles").all_guids())
     for slug in [p.stem for p in TTS_DIR.glob("*.json") if p.stem != "achilles"]:
-        assert not mine & set(load_hero_table(slug).all_guids()), slug
+        assert mine & set(load_hero_table(slug).all_guids()) == ({"feaa22", "ec605e"} if slug == "sherlock-holmes" else set()), slug
