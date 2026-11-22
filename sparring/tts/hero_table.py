@@ -35,6 +35,8 @@ class FighterTable:
     nickname: str | None           # own name of the token (Abe's agents); otherwise the HeroDef's
     no_dial: bool = False          # more than 1 HP and the save gives the piece no dial (Yennenga's Archers): its life is told by the face of the piece
     faces: dict | None = None      # life -> Z rotation of the piece that shows it ({"2": 0, "1": 180}: the Archer token is flipped as it is hurt; verify live)
+    dial_flipped: str | None = None    # the other side of the life dial when it is a separate object (Elektra Resurrected: 9), written once the hero is flipped
+    dial_flipped_max: int | None = None
 
 
 @dataclass(frozen=True)
@@ -62,6 +64,8 @@ class HeroTable:
             items.append(("piece", f.pieces))
             if f.dial:
                 items.append(("dial", (f.dial,)))
+            if f.dial_flipped:
+                items.append(("dial", (f.dial_flipped,)))
         items += [("token", (g,)) for g in self.tokens.values()]
         items += [("dial", (g,)) for g in self.counter_dials.values()]
         return items
@@ -69,7 +73,7 @@ class HeroTable:
     def all_guids(self) -> list[str]:
         out = [self.deck_guid]
         for f in self.fighters.values():
-            out += [*f.pieces, *([f.dial] if f.dial else [])]
+            out += [*f.pieces, *([f.dial] if f.dial else []), *([f.dial_flipped] if f.dial_flipped else [])]
         return out + [*self.tokens.values(), *self.counter_dials.values()]
 
 
@@ -97,7 +101,8 @@ def parse_hero_table(raw: dict, hero: HeroDef, where: str = "tts") -> HeroTable:
         fighters = {fid: FighterTable(fid, _guid_list(v["piece"], f"{where}: {fid}"), v.get("dial"),
                                       None if v.get("dial") is None else int(v["dial_max"]), v.get("nickname"),
                                       bool(v.get("no_dial", False)),
-                                      None if v.get("faces") is None else {str(k): float(r) for k, r in v["faces"].items()})
+                                      None if v.get("faces") is None else {str(k): float(r) for k, r in v["faces"].items()},
+                                      v.get("dial_flipped"), None if v.get("dial_flipped") is None else int(v["dial_flipped_max"]))
                     for fid, v in raw["fighters"].items()}
         table = HeroTable(raw["slug"], raw["bag"]["guid"], raw["bag"]["inner"], deck["guid"], (int(ids[0]), int(ids[1])),
                           int(deck["character_card_id"]),
@@ -203,16 +208,18 @@ def table_defaults(bot_slug: str, human_slug: str, shifts: tuple[int, int] = (0,
     # decks that overlap in range AND in image could not be told apart.
     if first[1] >= second[0] and set(tb.identity) & set(th.identity):
         raise HeroTableError(f"the CardID ranges of {bot_slug} and {human_slug} overlap")
-    pieces, dials, nicknames = {}, {}, {}
+    pieces, dials, nicknames, flip_dials = {}, {}, {}, {}
     for hero, table in ((bot, tb), (human, th)):
         nicknames.update(nicknames_for(hero, table))
         for fid, f in table.fighters.items():
             pieces[fid] = f.pieces[0] if len(f.pieces) == 1 else list(f.pieces)
             if f.dial:
                 dials[fid] = f.dial
+            if f.dial_flipped:
+                flip_dials[fid] = f.dial_flipped
     if len(set(nicknames.values())) != len(nicknames):
         raise HeroTableError("two fighters with the same name: " + ", ".join(sorted(nicknames.values())))
-    out = {"nicknames": nicknames, "pieces": pieces, "dials": dials,
+    out = {"nicknames": nicknames, "pieces": pieces, "dials": dials, **({"flip_dials": flip_dials} if flip_dials else {}),
            "bot_deck_guid": tb.deck_guid, "human_deck_guid": th.deck_guid,
            "bot_card_ids": list(shifted(tb.card_ids, shifts[0])), "human_card_ids": list(shifted(th.card_ids, shifts[1])),
            "bot_identity": [list(p) for p in tb.identity], "human_identity": [list(p) for p in th.identity]}

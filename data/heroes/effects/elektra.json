@@ -1,0 +1,470 @@
+{
+ "schema": 1,
+ "hero": "elektra",
+ "notes": [
+  "Texts read from sheet 176 of the tournament savegame (card images) on 2026-11-22. Design of the off-board state: docs/heroes/elektra.md. The RESURRECTED symbol is the condition `counter life >= 2`.",
+  "Her first defeat never reaches the DSL: Game._fall asks sparring/effects/plugins_elektra.intercept_defeat first, which removes Elektra and every Hand on the board (Fighter.off_board) and sets the counter `life` to 1. The trigger `resurrect` then fires at the start of her next turn."
+ ],
+ "ability": {
+  "text": "The first time Elektra would be defeated, remove her and all Hand from the board. She is not defeated. At the start of your next turn, Resurrect her. (Ignore effects with the RESURRECTED symbol.)\nWhen Elektra Resurrects: Flip your health dial. Shuffle your discard pile into your deck.\nPlace Elektra and all Hand back onto the board with each fighter in a different zone. (You must resolve effects with the RESURRECTED symbol.)",
+  "counters": {
+   "life": {
+    "min": 0,
+    "max": 2,
+    "start": 0
+   }
+  },
+  "triggers": [
+   {
+    "id": "resurrect",
+    "when": {
+     "event": "start_of_turn",
+     "player": "owner"
+    },
+    "condition": {
+     "test": "counter",
+     "name": "life",
+     "min": 1,
+     "max": 1
+    },
+    "ops": [
+     {
+      "op": "plugin",
+      "id": "elektra:flip"
+     },
+     {
+      "op": "return_to_deck",
+      "cards": {
+       "zone": "discard",
+       "player": "owner",
+       "pick": "all"
+      },
+      "position": "shuffle"
+     },
+     {
+      "op": "revive",
+      "target": {
+       "role": "hero",
+       "state": "defeated"
+      },
+      "where": {
+       "any": true
+      },
+      "hp": 9,
+      "chooser": "owner"
+     },
+     {
+      "op": "revive",
+      "target": {
+       "side": "own",
+       "name": "The Hand",
+       "state": "defeated",
+       "pick": "all"
+      },
+      "where": {
+       "any": true,
+       "apart_from_own": true
+      },
+      "hp": 1,
+      "chooser": "owner"
+     },
+     {
+      "op": "revive",
+      "target": {
+       "side": "own",
+       "name": "The Hand",
+       "state": "defeated",
+       "pick": "all"
+      },
+      "where": {
+       "any": true
+      },
+      "hp": 1,
+      "chooser": "owner"
+     }
+    ]
+   }
+  ],
+  "passives": [],
+  "notes": "`life`: 0 first life, 1 off the board (removed, not defeated), 2 resurrected. The Resurrect is, in order: flip the dial (plugin: counter to 2, 9 health, the removed fighters become returnable), shuffle the discard pile into the deck, place Elektra (her owner chooses), the four Hand each in a zone no other fighter of hers is in (also those defeated earlier: Ivan 2026-11-22, E1), then the ones left over on any empty space when the board has fewer zones (E2)."
+ },
+ "cards": [
+  {
+   "title": "Mystic Assassin",
+   "copies": 2,
+   "text": "AFTER COMBAT: Elektra takes 3 damage. RESURRECTED: Elektra takes no damage instead.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "not": {
+        "test": "counter",
+        "name": "life",
+        "min": 2
+       }
+      },
+      "then": [
+       {
+        "op": "damage",
+        "target": "hero",
+        "amount": 3
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 6 / boost 1, ELEKTRA only. Effect damage to her (stopped by an immunity like any). If it takes her out (her first life) she is removed, not defeated, and the Resurrect waits for her NEXT turn (the trigger fires only at a start of turn). Resurrected the line does nothing."
+  },
+  {
+   "title": "Hands of Red",
+   "copies": 2,
+   "text": "AFTER COMBAT: Return a defeated Hand to a space in Elektra's zone.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "revive",
+      "target": {
+       "side": "own",
+       "name": "The Hand",
+       "state": "defeated"
+      },
+      "where": {
+       "zone_of": "hero"
+      },
+      "hp": 1,
+      "chooser": "owner"
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 4 / boost 2, ELEKTRA only. 1 health, an empty space of her zone. A Hand removed with her is not defeated, so it is never offered (she is off the board while they are)."
+  },
+  {
+   "title": "The Fist",
+   "copies": 2,
+   "text": "AFTER COMBAT: You may deal 1 damage to your attacking fighter. If you do, return this card to your hand and gain 1 action.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "optional",
+      "chooser": "owner",
+      "cost": [
+       {
+        "op": "damage",
+        "target": "attacker",
+        "amount": 1
+       }
+      ],
+      "ops": [
+       {
+        "op": "put_in_hand",
+        "cards": "this"
+       },
+       {
+        "op": "gain_action",
+        "amount": 1
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 3 / boost 3, THE HAND only (the band on the card is 'THE HAND': Elektra cannot play it). The damage is the cost; the card returns and the action is gained even if that damage defeats the attacking Hand (Ivan 2026-11-22, E4)."
+  },
+  {
+   "title": "Cloaked In Shadow",
+   "copies": 2,
+   "text": "IMMEDIATELY: Cancel all effects on your opponent's card. AFTER COMBAT: RESURRECTED: Move Elektra up to 3 spaces.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "cancel_effects",
+      "card": "opponent_card"
+     }
+    ],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "counter",
+       "name": "life",
+       "min": 2
+      },
+      "then": [
+       {
+        "op": "move",
+        "target": "hero",
+        "amount": 3,
+        "up_to": true
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 2 / boost 1, ELEKTRA only. 'Elektra' is the hero, wherever the fighter that played the card stands."
+  },
+  {
+   "title": "Sai",
+   "copies": 2,
+   "text": "",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 4 / boost 3, ELEKTRA only. No text."
+  },
+  {
+   "title": "Whirlwind",
+   "copies": 2,
+   "text": "AFTER COMBAT: RESURRECTED: Deal 1 damage to each adjacent opposing fighter.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "counter",
+       "name": "life",
+       "min": 2
+      },
+      "then": [
+       {
+        "op": "damage",
+        "target": {
+         "side": "enemy",
+         "where": {
+          "adjacent_to": "this"
+         },
+         "pick": "all"
+        },
+        "amount": 1
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 2 / boost 1, ELEKTRA only. 'Adjacent' is measured from the fighter that played the card."
+  },
+  {
+   "title": "Ninjitsu",
+   "copies": 2,
+   "text": "AFTER COMBAT: Place your fighter in any space.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "place",
+      "target": "this",
+      "where": {
+       "any": true
+      },
+      "chooser": "owner"
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 3 / boost 2, ANY. 'Your fighter' is the one that played it (a fighter that is off the board plays nothing: it cannot bring Elektra back early)."
+  },
+  {
+   "title": "Intercept",
+   "copies": 2,
+   "text": "DURING COMBAT: RESURRECTED: You may reveal a card named \"Sai\" from your hand. If you do, the value of this card is 5 instead.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "counter",
+       "name": "life",
+       "min": 2
+      },
+      "then": [
+       {
+        "op": "optional",
+        "chooser": "owner",
+        "cost": [
+         {
+          "op": "reveal",
+          "cards": {
+           "zone": "hand",
+           "player": "owner",
+           "filter": {
+            "title": "Sai"
+           },
+           "pick": "chosen"
+          },
+          "to": "opponent"
+         }
+        ],
+        "ops": [
+         {
+          "op": "set_value",
+          "card": "this",
+          "amount": 5
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense 3 / boost 4, ELEKTRA only. The reveal is the cost: with no Sai in hand there is no option. The Sai stays in the hand (it is only shown)."
+  },
+  {
+   "title": "Snakeroot Clan",
+   "copies": 2,
+   "text": "IMMEDIATELY: Elektra may swap spaces with a Hand. If she does, that Hand is now the defender.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "exists",
+       "fighters": {
+        "side": "own",
+        "name": "The Hand"
+       }
+      },
+      "then": [
+       {
+        "op": "optional",
+        "chooser": "owner",
+        "ops": [
+         {
+          "op": "swap",
+          "target": "hero",
+          "with": {
+           "side": "own",
+           "name": "The Hand"
+          },
+          "as": "swapped"
+         },
+         {
+          "op": "plugin",
+          "id": "elektra:replace_combatant",
+          "args": {
+           "swapped": "$swapped"
+          }
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense 1 / boost 2, ELEKTRA only. Any Hand on the board, at any distance; the Hand takes Elektra's place in the combat (CombatFlow.replace_combatant, no range check, the card stays in play for the Hand)."
+  },
+  {
+   "title": "Mesmerize",
+   "copies": 2,
+   "text": "Choose an opponent and look at their hand. Gain 1 action. RESURRECTED: Choose 1 card for them to discard.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "look_hand",
+      "player": "opponent"
+     },
+     {
+      "op": "gain_action",
+      "amount": 1
+     },
+     {
+      "op": "if",
+      "condition": {
+       "test": "counter",
+       "name": "life",
+       "min": 2
+      },
+      "then": [
+       {
+        "op": "if",
+        "condition": {
+         "test": "compare",
+         "left": {
+          "stat": "hand_size",
+          "player": "opponent"
+         },
+         "op": ">",
+         "right": 0
+        },
+        "then": [
+         {
+          "op": "discard",
+          "cards": {
+           "zone": "hand",
+           "player": "opponent",
+           "chooser": "owner",
+           "pick": "chosen"
+          }
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme, boost 2, ELEKTRA only. 'Choose an opponent' is the only opponent. The look comes first (the bot reads the human's hand only now), the action is gained, then once resurrected she chooses the card to discard."
+  }
+ ],
+ "plugins": [
+  {
+   "id": "elektra:flip",
+   "why": "Resurrect, first step: the health dial flips (the counter `life` to 2, the hero's maximum health to 9) and every fighter that was removed from the board becomes returnable by `revive`; no op changes a fighter's maximum health or the state of the removed fighters."
+  },
+  {
+   "id": "elektra:replace_combatant",
+   "why": "Snakeroot Clan: after the swap the Hand takes Elektra's place IN the running combat (Smoke And Mirrors' machinery), which no op can do."
+  }
+ ],
+ "hidden_info": [
+  {
+   "card": "Mesmerize",
+   "what": "look_hand on the opponent's hand, then (resurrected) a card of it chosen to be discarded.",
+   "bot_plays_it": "The bot reads the human's hand only when the scheme resolves and chooses the card to discard from what it saw.",
+   "human_plays_it": "The bot lays its hand out and the human picks the card it discards, as with Fearsome and Calculating."
+  },
+  {
+   "card": "Intercept",
+   "what": "RESURRECTED: reveal a card named Sai from the hand to make the value 5.",
+   "bot_plays_it": "The bot reveals a Sai only if its (engine) hand holds one; it never looks at the human's hand.",
+   "human_plays_it": "The panel asks whether the human reveals a Sai; the bot cannot read their hand, so it trusts the answer and the chat asks them to show the card."
+  }
+ ],
+ "open_questions": [
+  "Hands: by the bands only Elektra plays her ELEKTRA cards, so 'a card a Hand plays' (REGLAS-PENDIENTES section 2) can only be Ninjitsu or The Fist, neither of which has a RESURRECTED line."
+ ]
+}

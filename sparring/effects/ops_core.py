@@ -557,7 +557,7 @@ def _counters_payable(game, run, cost: list[dict]) -> bool:
 def _can_pay(game, run, cost: list[dict]) -> bool:
     """Conservative: a discard (or a card put back in the deck) cost needs enough cards (of the table player's hand, those not
     already owed to their discard pile: `table.discards_owed`), an action cost enough actions left on the owner's own turn; any
-    other cost is assumed payable; a counter cost needs the counter to hold that much (Blackbeard's ransom: the Treasury)."""
+    other cost is assumed payable (a reveal needs a card to show); a counter cost needs the counter to hold that much (Blackbeard's ransom: the Treasury)."""
     if not _counters_payable(game, run, cost):
         return False
     for c in cost:
@@ -565,6 +565,10 @@ def _can_pay(game, run, cost: list[dict]) -> bool:
             return False
         if c["op"] == "defeat" and not fighter_candidates(game, run, c["target"])[0]:
             return False                                         # nobody to give up (no Red Rider left)
+        if c["op"] == "reveal" and isinstance(c["cards"], dict) and c["cards"]["zone"] == "hand":
+            who = player_of(game, run, c["cards"]["player"])
+            if not table.physical(game, who) and not card_candidates(game, run, c["cards"]):
+                return False                                     # nothing to show (Intercept: no Sai in hand); the table player's real hand is theirs to tell
         if c["op"] in ("discard", "return_to_deck") and isinstance(c["cards"], dict):
             sel = c["cards"]
             need = 0 if sel.get("up_to") else min(int(amount(game, run, sel.get("amount", 1))), 1 << 30)
@@ -608,7 +612,7 @@ def _choice_context(game, run, spec: dict) -> dict:
     ctx = {}
     ops, other = spec.get("ops") or [], spec.get("else") or []
     ctx.update(plugins_blackbeard.choice_context(game, run, spec))        # Blackbeard's doubloons: a ransom the opponent may pay, his action, a Sea Dog repositioned
-    if any(o["op"] == "plugin" and o["id"] in ("houdini:replace_combatant", "luke:replace_combatant", "washington:replace_combatant", "achilles:replace_combatant") for o in ops):      # Smoke And Mirrors: a bot weighs the swap
+    if any(o["op"] == "plugin" and o["id"] in ("houdini:replace_combatant", "luke:replace_combatant", "washington:replace_combatant", "achilles:replace_combatant", "elektra:replace_combatant") for o in ops):      # Smoke And Mirrors: a bot weighs the swap
         ctx["replaces_combatant"] = {"this": run.ctx.this_fid, "role": run.ctx.played_as}
     if len(ops) == 1 and ops[0]["op"] == "return_to_deck" and isinstance(ops[0]["cards"], dict) \
             and ops[0]["cards"]["zone"] == "deck" and ops[0]["cards"].get("pick") == "top":
@@ -781,6 +785,7 @@ from . import plugins_raptors  # noqa: E402,F401  (registers blue:ambush)
 from . import plugins_robin  # noqa: E402,F401  (registers robin:ambush)
 from . import plugins_achilles  # noqa: E402,F401  (registers achilles:replace_combatant)
 from . import plugins_mary  # noqa: E402,F401  (registers mary:out_of_the_mirror)
+from . import plugins_elektra  # noqa: E402,F401  (registers elektra:flip, elektra:replace_combatant)
 from . import plugins_pandora  # noqa: E402,F401  (registers pandora:reveal, pandora:look, pandora:close)
 from . import plugins_blackbeard  # noqa: E402,F401  (registers blackbeard:random_discard, blackbeard:queens_revenge)
 from . import plugins_little_red  # noqa: E402,F401  (registers the test red:basket and red:stones)

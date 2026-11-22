@@ -1,0 +1,44 @@
+{
+ "slug": "elektra",
+ "bag": {
+  "guid": "85cef8",
+  "inner": "070893"
+ },
+ "deck": {
+  "guid": "7d538d",
+  "card_ids": [
+   17600,
+   17619
+  ],
+  "character_card_id": 340,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/15049252513649841748/D10D7B51DA344730A3AF3E0F5079A1598FF06D31/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/11703659389764463953/0628D1EC3331374AD00A60BE1CFEAE1412D0B333/"
+   }
+  ]
+ },
+ "fighters": {
+  "elektra": {
+   "piece": "e5bac5",
+   "dial": "aace96",
+   "dial_max": 7,
+   "dial_flipped": "c32f50",
+   "dial_flipped_max": 9
+  },
+  "hand1": {
+   "piece": "b771c8"
+  },
+  "hand2": {
+   "piece": "9bdc1d"
+  },
+  "hand3": {
+   "piece": "8f67bf"
+  },
+  "hand4": {
+   "piece": "d72373"
+  }
+ },
+ "tokens": {},
+ "counter_dials": {}
+}

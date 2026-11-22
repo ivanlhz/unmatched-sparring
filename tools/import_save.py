@@ -268,6 +268,19 @@ def extract_hero(objects: list[dict], hero: HeroDef, raw_hero: dict, report: Rep
         if not _same(_nick(piece), spec.name):
             entry["nickname"] = _nick(piece)
         fighters[spec.fid] = entry
+    names = [e["nickname"] for e in fighters.values() if "nickname" in e]
+    for entry in fighters.values():
+        if "nickname" in entry and names.count(entry["nickname"]) > 1:
+            del entry["nickname"]        # one name on several tokens (Elektra's four Hand Ninja): the bot numbers them (The Hand 1..4)
+    flip = hero.tts.get("flip_dial")
+    if flip:                             # the other side of a health dial that is a separate object (Elektra Resurrected, 9)
+        hits = [d for d in dials if d["GUID"] not in claimed and _plain(flip["name"]) in _plain(_nick(d))]
+        if len(hits) == 1 and flip["fid"] in fighters:
+            fighters[flip["fid"]]["dial_flipped"] = hits[0]["GUID"]
+            fighters[flip["fid"]]["dial_flipped_max"] = dial_max(hits[0])
+            claimed.add(hits[0]["GUID"])
+        else:
+            report.problems.append(f"flip dial {flip['name']!r}: {len(hits)} dials named so")
     out["fighters"] = fighters
     report.derived.append("fighters")
 
