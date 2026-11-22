@@ -54,7 +54,7 @@ def test_the_turn_opens_by_asking_which_misery_the_human_revealed(rig):
     session, table, game, fake, cfg = rig
     req = session.effect_run.awaiting
     assert game.turn == 1 and req.kind == "effect" and req.extra["tag"] == "misery" and req.options == list(range(7))
-    assert labels(session)[:5] == ["Woe", "Toil", "Pain", "Misfortune", "Hope"]          # six buttons: the last two on a second page
+    assert labels(session)[:5] == ["Woe", "Toil", "Pain", "Misfortune", "Hope"]          # seven buttons: six on the first page, the last on a second
     assert dial(session, cfg, table, "pandora") == 14 and not any(game.fighters[k].alive for k in KAKO)
 
 
