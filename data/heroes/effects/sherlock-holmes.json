@@ -1,0 +1,504 @@
+{
+ "schema": 1,
+ "hero": "sherlock-holmes",
+ "notes": [
+  "Texts read from sheet 176 of the tournament savegame (card images) on 2026-11-22; the hero card is 304 on sheet 3. Restrictions: SHERLOCK HOLMES, DR. WATSON or ANY.",
+  "Ability: effects on HOLMES and DR. WATSON cards cannot be canceled by an opponent, effects on ANY cards can: every HOLMES / WATSON card carries `uncancelable` (the engine's flag: `cancel_effects` skips it). 'Ignore the value' is not a cancel, so an ignore still works. Elementary's cancel carries `force` and works anyway (Discord ruling in REGLAS-PENDIENTES-batch4.md).",
+  "Rulings: Ivan 2026-11-22 left the Sherlock readings at the defaults of REGLAS-PENDIENTES-batch4.md section 2 (designers on BGG via RulesPal, Discord via the rulings archive)."
+ ],
+ "ability": {
+  "text": "Effects on HOLMES and DR. WATSON cards cannot be canceled by an opponent. (Effects on ANY cards can be canceled.)",
+  "counters": {},
+  "triggers": [],
+  "passives": [],
+  "during": [],
+  "after": []
+ },
+ "cards": [
+  {
+   "title": "Counterpunch",
+   "copies": 3,
+   "text": "AFTER COMBAT: If Holmes is adjacent to the opposing fighter, deal 2 damage to that fighter.",
+   "uncancelable": true,
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "exists",
+       "fighters": {
+        "role": "opposing",
+        "where": {
+         "adjacent_to": "this"
+        }
+       }
+      },
+      "then": [
+       {
+        "op": "damage",
+        "target": "opposing",
+        "amount": 2
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "HOLMES, versatile 3 / boost 1. Adjacency is measured after the combat; an opposing fighter that fell in it is not hit (effect damage on a defeated fighter does nothing)."
+  },
+  {
+   "title": "Eliminate the Impossible",
+   "copies": 2,
+   "text": "Choose an opponent. Look at their hand and choose 1 card for them to discard.",
+   "uncancelable": true,
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "look_hand",
+      "player": "opponent"
+     },
+     {
+      "op": "discard",
+      "cards": {
+       "zone": "hand",
+       "player": "opponent",
+       "amount": 1,
+       "chooser": "owner"
+      }
+     }
+    ],
+    "boost": []
+   },
+   "notes": "HOLMES scheme, boost 2. The owner looks at the rival's hand (the only moment the bot reads the human's hand: look_hand) and names a card to discard. Two players: the opponent is the other one."
+  },
+  {
+   "title": "Fixed Point in a Changing Age",
+   "copies": 2,
+   "text": "AFTER COMBAT: If Dr. Watson is adjacent to Holmes, they each recover 1 health.",
+   "uncancelable": true,
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "exists",
+       "fighters": {
+        "side": "own",
+        "name": "Dr. Watson",
+        "where": {
+         "adjacent_to": "hero"
+        }
+       }
+      },
+      "then": [
+       {
+        "op": "heal",
+        "target": "hero",
+        "amount": 1
+       },
+       {
+        "op": "heal",
+        "target": {
+         "side": "own",
+         "name": "Dr. Watson"
+        },
+        "amount": 1
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "DR. WATSON, versatile 3 / boost 1. A defeated Watson is not adjacent to anybody."
+  },
+  {
+   "title": "Confirm Suspicion",
+   "copies": 3,
+   "text": "Choose an opponent and name a value. Your opponent must choose and discard one card matching that attack or defense value. Their hero takes damage equal to the BOOST value of the discarded card. If they do not have a card of the named value, they must reveal their hand instead.",
+   "uncancelable": true,
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "plugin",
+      "id": "holmes:confirm_suspicion",
+      "args": {
+       "as": "confirmed"
+      }
+     },
+     {
+      "op": "if",
+      "condition": {
+       "test": "plugin",
+       "id": "holmes:confirm_suspicion",
+       "key": "reveal"
+      },
+      "then": [
+       {
+        "op": "look_hand",
+        "player": "opponent"
+       },
+       {
+        "op": "plugin",
+        "id": "holmes:confirm_suspicion",
+        "args": {
+         "phase": "recheck"
+        }
+       }
+      ]
+     },
+     {
+      "op": "if",
+      "condition": {
+       "test": "plugin",
+       "id": "holmes:confirm_suspicion",
+       "key": "discarded"
+      },
+      "then": [
+       {
+        "op": "damage",
+        "target": {
+         "side": "enemy",
+         "kind": "hero"
+        },
+        "amount": {
+         "attr": "boost",
+         "of": "$confirmed"
+        }
+       }
+      ]
+     }
+    ],
+    "boost": []
+   },
+   "notes": "HOLMES scheme, boost 1. Plugin `holmes:confirm_suspicion`: the owner names any value; the rival chooses and discards a card whose printed value is that number (a versatile card matches by its value, a scheme never matches; no value counts 0); the damage is the BOOST of that card, effect damage on the rival's HERO; with no matching card the rival reveals their hand (`look_hand`: the owner sees it, known-hand). Table: the human rival lays a matching card on their discard pile (or none) and the bot reads it back; a human who says there is none has their hand read, and a matching card found there must be discarded."
+  },
+  {
+   "title": "Elementary",
+   "copies": 2,
+   "text": "Play this card face up. Predict the printed attack value of the opponent's card. DURING COMBAT: If you predicted the correct value, cancel all effects on your opponent's card and ignore its attack value.",
+   "uncancelable": true,
+   "effects": {
+    "immediately": [
+     {
+      "op": "plugin",
+      "id": "holmes:elementary"
+     }
+    ],
+    "during": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "plugin",
+       "id": "holmes:elementary",
+       "key": "predicted_correctly"
+      },
+      "then": [
+       {
+        "op": "cancel_effects",
+        "card": "opponent_card",
+        "force": true
+       },
+       {
+        "op": "set_value",
+        "card": "opponent_card",
+        "ignore": true
+       }
+      ]
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "HOLMES defense 3 / boost 3. Played face up: the prediction is made BEFORE the attacker's card is revealed (the plugin's request is answered at play time, like Perfect Shot's). A versatile card is predicted by its printed value; a card with no printed value counts 0. Right guess: the cancel works even on an uncancelable card (`force`) and the whole value of the card is ignored (`set_value ignore`, a later BOOST still adds); wrong guess: nothing."
+  },
+  {
+   "title": "Master of Disguise",
+   "copies": 2,
+   "text": "Choose an opponent. Holmes swaps spaces with their hero. Deal 1 damage to that hero.",
+   "uncancelable": true,
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "swap",
+      "target": "hero",
+      "with": {
+       "side": "enemy",
+       "kind": "hero"
+      },
+      "as": "swapped"
+     },
+     {
+      "op": "if",
+      "condition": {
+       "test": "exists",
+       "fighters": {
+        "role": "$swapped",
+        "side": "enemy"
+       }
+      },
+      "then": [
+       {
+        "op": "damage",
+        "target": {
+         "side": "enemy",
+         "kind": "hero"
+        },
+        "amount": 1
+       }
+      ]
+     }
+    ],
+    "boost": []
+   },
+   "notes": "HOLMES scheme, boost 2. The swap is not a move and works at any distance; if it cannot happen (a status that keeps a fighter in place, a defeated fighter) there is no damage either (designer, via REGLAS-PENDIENTES-batch4.md)."
+  },
+  {
+   "title": "Service Revolver",
+   "copies": 2,
+   "text": "",
+   "uncancelable": true,
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "DR. WATSON attack 5 / boost 3, no effect text."
+  },
+  {
+   "title": "Administer Aid",
+   "copies": 2,
+   "text": "Place Dr. Watson in a space adjacent to Holmes. Holmes recovers 1 health. Draw 1 card.",
+   "uncancelable": true,
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "place",
+      "target": "this",
+      "where": {
+       "adjacent_to": "hero"
+      },
+      "chooser": "owner"
+     },
+     {
+      "op": "heal",
+      "target": "hero",
+      "amount": 1
+     },
+     {
+      "op": "draw",
+      "player": "owner",
+      "amount": 1
+     }
+    ],
+    "boost": []
+   },
+   "notes": "DR. WATSON scheme, boost 2: only Watson plays it, so `this` is Watson; he is placed on an empty space next to Holmes. With no free space next to Holmes the placement does nothing and the other two lines resolve."
+  },
+  {
+   "title": "Education Never Ends",
+   "copies": 2,
+   "text": "AFTER COMBAT: If you won the combat, your opponent draws 1 card. If you lost the combat, you draw 2 cards.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "combat_result",
+       "result": "won"
+      },
+      "then": [
+       {
+        "op": "draw",
+        "player": "opponent",
+        "amount": 1
+       }
+      ],
+      "else": [
+       {
+        "op": "draw",
+        "player": "owner",
+        "amount": 2
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "ANY, versatile 3 / boost 1 (can be canceled). Won = the rival took the combat damage; a tie is lost (the defender keeps a tie)."
+  },
+  {
+   "title": "The Game is Afoot",
+   "copies": 2,
+   "text": "AFTER COMBAT: Move Holmes up to 3 spaces.",
+   "uncancelable": true,
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "move",
+      "target": "hero",
+      "amount": 3,
+      "up_to": true,
+      "chooser": "owner"
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "HOLMES attack 5 / boost 2. Ordinary movement."
+  },
+  {
+   "title": "Deduce Strategy",
+   "copies": 3,
+   "text": "DURING COMBAT: You may change the printed value of the opponent's card to its BOOST value. (If a card does not have a BOOST value, it is treated as 0.)",
+   "uncancelable": true,
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "card",
+       "card": "opponent_card",
+       "filter": {}
+      },
+      "then": [
+       {
+        "op": "optional",
+        "chooser": "owner",
+        "ops": [
+         {
+          "op": "set_value",
+          "card": "opponent_card",
+          "amount": {
+           "attr": "boost",
+           "of": "opponent_card"
+          }
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "HOLMES, versatile 3 / boost 1. `set_value amount`: the printed value becomes the BOOST (bonuses and a BOOST played on top still add). The defender's DURING resolves first."
+  },
+  {
+   "title": "Feint",
+   "copies": 3,
+   "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "cancel_effects",
+      "card": "opponent_card"
+     }
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "ANY, versatile 2 / boost 1. Can be canceled by the opponent's Feint."
+  },
+  {
+   "title": "Study Methods",
+   "copies": 2,
+   "text": "AFTER COMBAT: If you won the combat, look at your opponent's hand.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "combat_result",
+       "result": "won"
+      },
+      "then": [
+       {
+        "op": "look_hand",
+        "player": "opponent"
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "ANY, versatile 3 / boost 2. The bot reads the human's hand only now (look_hand)."
+  }
+ ],
+ "plugins": [
+  {
+   "id": "holmes:elementary",
+   "why": "A prediction made at the moment the card is played, before the attacker's card is revealed (the DSL has no moment for it) and compared after the reveal: the plugin asks the owner once and keeps the number in the run's flags (Abe's Perfect Shot, mirrored: the defender predicts the attacker's printed value); the same id is the test `predicted_correctly`."
+  },
+  {
+   "id": "holmes:confirm_suspicion",
+   "why": "The owner names a value, the rival picks and discards a card by that value and the card's BOOST is then read: a chosen discard whose identity the engine must learn from a physical hand (the human lays it on their discard pile and the bot reads it, like Ambush), with a hand reveal when there is no match; the same id is the test `discarded`."
+  }
+ ],
+ "hidden_info": [
+  {
+   "card": "Eliminate the Impossible",
+   "what": "look_hand on the rival's hand, then a card of it is discarded",
+   "bot_plays_it": "The bot reads the human's hand only when it resolves this scheme (look_hand) and discards the card it values most.",
+   "human_plays_it": "The bot shows its hand (a face-up row) and the human picks the card with the panel."
+  },
+  {
+   "card": "Study Methods",
+   "what": "look_hand after a combat the owner won",
+   "bot_plays_it": "The bot reads the human's hand only then and remembers it as KnownHand.",
+   "human_plays_it": "The bot shows its hand in a row."
+  },
+  {
+   "card": "Confirm Suspicion",
+   "what": "a value is named, the rival discards a card of that value or reveals their hand",
+   "bot_plays_it": "The bot names the value from public information only (the rival's deck list minus what is gone); the human lays a card on their discard pile or says none (then the bot reads their hand: look_hand).",
+   "human_plays_it": "The human names the value on the panel; the bot discards a matching card of its hand (it sees its own hand) or shows its hand."
+  },
+  {
+   "card": "Elementary",
+   "what": "the defender predicts the attacker's face-down card",
+   "bot_plays_it": "The bot guesses from public information only (the attacker's deck list minus what is gone, restricted to cards its fighter can play); it never reads the face-down card.",
+   "human_plays_it": "The panel asks the number before the reveal; the bot's card stays face down until the number is given."
+  }
+ ],
+ "open_questions": [],
+ "discrepancies": [
+  {
+   "card": "Feint",
+   "what": "unmatched-memory files the effect under DURING; the card reads IMMEDIATELY (the card image wins)."
+  }
+ ],
+ "table": {}
+}

@@ -1,0 +1,191 @@
+{
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-22. CardID = 17600 + idx; 304 = character card (sheet 3, 10x7, index 4). The deck object holds 31 cards (the 30 plus the character card). Sherlock's deck is sheet 176 like Medusa's and the rest: only deck.identity (data/tts/sherlock-holmes.json) tells the decks apart (docs/card-identity.md).",
+  "Hero card (read from the image): SHERLOCK HOLMES, MELEE, START HEALTH 16, MOVE 2; ability 'Effects on HOLMES and DR. WATSON cards cannot be canceled by an opponent. (Effects on ANY cards can be canceled.)'; sidekick DR. WATSON, RANGED, START HEALTH 8, move 2 (unmatched-memory agrees).",
+  "Bands read from the images: SHERLOCK HOLMES on The Game is Afoot, Deduce Strategy, Counterpunch, Elementary, Master of Disguise, Confirm Suspicion and Eliminate the Impossible; DR. WATSON on Service Revolver, Fixed Point in a Changing Age and Administer Aid; ANY on Study Methods, Education Never Ends and Feint. Order on the sheet: Game is Afoot 0-1, Service Revolver 2-3, Deduce Strategy 4-6, Counterpunch 7-9, Study Methods 10-11, Education Never Ends 12-13, Feint 14-16, Fixed Point 17-18, Elementary 19-20, Master of Disguise 21-22, Confirm Suspicion 23-25, Eliminate the Impossible 26-27, Administer Aid 28-29.",
+  "Discrepancy with unmatched-memory (the card wins): Feint reads IMMEDIATELY: Cancel all effects on your opponent's card (unmatched-memory files it under DURING). Everything else (titles, copies, type, value, BOOST, 30 cards, texts) agrees with the images.",
+  "Sherlock's Feint (idx 14-16, band ANY) is word for word Medusa's, Doctor Strange's and Pandora's: the three Feints carry the tag `sherlock` so that two equal Card values in two decks of one sheet never exist (tests/test_card_identity.py). Nothing reads the tag."
+ ],
+ "fid": "holmes",
+ "name": "Sherlock Holmes",
+ "sidekicks": [
+  {
+   "fid": "watson",
+   "name": "Dr. Watson",
+   "count": 1,
+   "hp": 8,
+   "move": 2,
+   "attack": "range"
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet_id": 176,
+  "hero_card_id": 304,
+  "sheet": [
+   {
+    "idx": 0,
+    "title": "The Game is Afoot",
+    "fighter": "Sherlock Holmes"
+   },
+   {
+    "idx": 1,
+    "title": "The Game is Afoot",
+    "fighter": "Sherlock Holmes"
+   },
+   {
+    "idx": 2,
+    "title": "Service Revolver",
+    "fighter": "Dr. Watson"
+   },
+   {
+    "idx": 3,
+    "title": "Service Revolver",
+    "fighter": "Dr. Watson"
+   },
+   {
+    "idx": 4,
+    "title": "Deduce Strategy",
+    "fighter": "Sherlock Holmes"
+   },
+   {
+    "idx": 5,
+    "title": "Deduce Strategy",
+    "fighter": "Sherlock Holmes"
+   },
+   {
+    "idx": 6,
+    "title": "Deduce Strategy",
+    "fighter": "Sherlock Holmes"
+   },
+   {
+    "idx": 7,
+    "title": "Counterpunch",
+    "fighter": "Sherlock Holmes"
+   },
+   {
+    "idx": 8,
+    "title": "Counterpunch",
+    "fighter": "Sherlock Holmes"
+   },
+   {
+    "idx": 9,
+    "title": "Counterpunch",
+    "fighter": "Sherlock Holmes"
+   },
+   {
+    "idx": 10,
+    "title": "Study Methods",
+    "fighter": "any"
+   },
+   {
+    "idx": 11,
+    "title": "Study Methods",
+    "fighter": "any"
+   },
+   {
+    "idx": 12,
+    "title": "Education Never Ends",
+    "fighter": "any"
+   },
+   {
+    "idx": 13,
+    "title": "Education Never Ends",
+    "fighter": "any"
+   },
+   {
+    "idx": 14,
+    "title": "Feint",
+    "fighter": "any",
+    "tags": [
+     "sherlock"
+    ]
+   },
+   {
+    "idx": 15,
+    "title": "Feint",
+    "fighter": "any",
+    "tags": [
+     "sherlock"
+    ]
+   },
+   {
+    "idx": 16,
+    "title": "Feint",
+    "fighter": "any",
+    "tags": [
+     "sherlock"
+    ]
+   },
+   {
+    "idx": 17,
+    "title": "Fixed Point in a Changing Age",
+    "fighter": "Dr. Watson"
+   },
+   {
+    "idx": 18,
+    "title": "Fixed Point in a Changing Age",
+    "fighter": "Dr. Watson"
+   },
+   {
+    "idx": 19,
+    "title": "Elementary",
+    "fighter": "Sherlock Holmes"
+   },
+   {
+    "idx": 20,
+    "title": "Elementary",
+    "fighter": "Sherlock Holmes"
+   },
+   {
+    "idx": 21,
+    "title": "Master of Disguise",
+    "fighter": "Sherlock Holmes"
+   },
+   {
+    "idx": 22,
+    "title": "Master of Disguise",
+    "fighter": "Sherlock Holmes"
+   },
+   {
+    "idx": 23,
+    "title": "Confirm Suspicion",
+    "fighter": "Sherlock Holmes"
+   },
+   {
+    "idx": 24,
+    "title": "Confirm Suspicion",
+    "fighter": "Sherlock Holmes"
+   },
+   {
+    "idx": 25,
+    "title": "Confirm Suspicion",
+    "fighter": "Sherlock Holmes"
+   },
+   {
+    "idx": 26,
+    "title": "Eliminate the Impossible",
+    "fighter": "Sherlock Holmes"
+   },
+   {
+    "idx": 27,
+    "title": "Eliminate the Impossible",
+    "fighter": "Sherlock Holmes"
+   },
+   {
+    "idx": 28,
+    "title": "Administer Aid",
+    "fighter": "Dr. Watson"
+   },
+   {
+    "idx": 29,
+    "title": "Administer Aid",
+    "fighter": "Dr. Watson"
+   }
+  ]
+ }
+}

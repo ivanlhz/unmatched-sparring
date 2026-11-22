@@ -1,6 +1,4 @@
 # path  agent  task  UTC time   (see BRIEF: short locks only)
-data/heroes/effects/schema.json  sherlock  cancel_effects force  2026-11-22 12:00Z
-sparring/effects/ops_combat.py  sherlock  cancel_effects force (Elementary)  2026-11-22 12:00Z
 sparring/effects/ops_core.py  little-red  registration and basket-choice hooks  2026-11-22 12:02Z
 sparring/effects/state.py  little-red  registration and basket-choice hooks  2026-11-22 12:02Z
 sparring/effects/choose.py  little-red  registration and basket-choice hooks  2026-11-22 12:02Z

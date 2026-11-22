@@ -1,0 +1,443 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/sherlock-holmes.json",
+  "overlay": "data/heroes/overlay/sherlock-holmes.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "sherlock-holmes",
+ "name": "Sherlock Holmes",
+ "fid": "holmes",
+ "hp": 16,
+ "move": 2,
+ "attack": "melee",
+ "set": "cobble-fog",
+ "ability": "Effects on HOLMES and DR. WATSON cards cannot be canceled by an opponent. Effects on ANY cards can be canceled.",
+ "sidekicks": [
+  {
+   "name": "Dr. Watson",
+   "hp": 8,
+   "move": 2,
+   "attack": "range",
+   "count": 1,
+   "fid": "watson"
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet": 176,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "The Game is Afoot",
+    "fighter": "Sherlock Holmes",
+    "type": "attack",
+    "value": 5,
+    "boost": 2,
+    "text": "AFTER COMBAT: Move Holmes up to 3 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 1,
+    "title": "The Game is Afoot",
+    "fighter": "Sherlock Holmes",
+    "type": "attack",
+    "value": 5,
+    "boost": 2,
+    "text": "AFTER COMBAT: Move Holmes up to 3 spaces.",
+    "tags": []
+   },
+   {
+    "idx": 2,
+    "title": "Service Revolver",
+    "fighter": "Dr. Watson",
+    "type": "attack",
+    "value": 5,
+    "boost": 3,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 3,
+    "title": "Service Revolver",
+    "fighter": "Dr. Watson",
+    "type": "attack",
+    "value": 5,
+    "boost": 3,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 4,
+    "title": "Deduce Strategy",
+    "fighter": "Sherlock Holmes",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "DURING COMBAT: You may change the printed value of the opponent's card to its BOOST value. (If a card does not have a BOOST value, it is treated as 0.)",
+    "tags": []
+   },
+   {
+    "idx": 5,
+    "title": "Deduce Strategy",
+    "fighter": "Sherlock Holmes",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "DURING COMBAT: You may change the printed value of the opponent's card to its BOOST value. (If a card does not have a BOOST value, it is treated as 0.)",
+    "tags": []
+   },
+   {
+    "idx": 6,
+    "title": "Deduce Strategy",
+    "fighter": "Sherlock Holmes",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "DURING COMBAT: You may change the printed value of the opponent's card to its BOOST value. (If a card does not have a BOOST value, it is treated as 0.)",
+    "tags": []
+   },
+   {
+    "idx": 7,
+    "title": "Counterpunch",
+    "fighter": "Sherlock Holmes",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: If Holmes is adjacent to the opposing fighter, deal 2 damage to that fighter.",
+    "tags": []
+   },
+   {
+    "idx": 8,
+    "title": "Counterpunch",
+    "fighter": "Sherlock Holmes",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: If Holmes is adjacent to the opposing fighter, deal 2 damage to that fighter.",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "Counterpunch",
+    "fighter": "Sherlock Holmes",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: If Holmes is adjacent to the opposing fighter, deal 2 damage to that fighter.",
+    "tags": []
+   },
+   {
+    "idx": 10,
+    "title": "Study Methods",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you won the combat, look at your opponent's hand.",
+    "tags": []
+   },
+   {
+    "idx": 11,
+    "title": "Study Methods",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: If you won the combat, look at your opponent's hand.",
+    "tags": []
+   },
+   {
+    "idx": 12,
+    "title": "Education Never Ends",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, your opponent draws 1 card. If you lost the combat, you draw 2 cards.",
+    "tags": []
+   },
+   {
+    "idx": 13,
+    "title": "Education Never Ends",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: If you won the combat, your opponent draws 1 card. If you lost the combat, you draw 2 cards.",
+    "tags": []
+   },
+   {
+    "idx": 14,
+    "title": "Feint",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": [
+     "sherlock"
+    ]
+   },
+   {
+    "idx": 15,
+    "title": "Feint",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": [
+     "sherlock"
+    ]
+   },
+   {
+    "idx": 16,
+    "title": "Feint",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 1,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": [
+     "sherlock"
+    ]
+   },
+   {
+    "idx": 17,
+    "title": "Fixed Point in a Changing Age",
+    "fighter": "Dr. Watson",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: If Dr. Watson is adjacent to Holmes, they each recover 1 health.",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "Fixed Point in a Changing Age",
+    "fighter": "Dr. Watson",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: If Dr. Watson is adjacent to Holmes, they each recover 1 health.",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "Elementary",
+    "fighter": "Sherlock Holmes",
+    "type": "defense",
+    "value": 3,
+    "boost": 3,
+    "text": "Play this card face up. Predict the printed attack value of the opponent's card. DURING COMBAT: If you predicted the correct value, cancel all effects on your opponent's card and ignore its attack value.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "Elementary",
+    "fighter": "Sherlock Holmes",
+    "type": "defense",
+    "value": 3,
+    "boost": 3,
+    "text": "Play this card face up. Predict the printed attack value of the opponent's card. DURING COMBAT: If you predicted the correct value, cancel all effects on your opponent's card and ignore its attack value.",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "Master of Disguise",
+    "fighter": "Sherlock Holmes",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Choose an opponent. Holmes swaps spaces with their hero. Deal 1 damage to that hero.",
+    "tags": []
+   },
+   {
+    "idx": 22,
+    "title": "Master of Disguise",
+    "fighter": "Sherlock Holmes",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Choose an opponent. Holmes swaps spaces with their hero. Deal 1 damage to that hero.",
+    "tags": []
+   },
+   {
+    "idx": 23,
+    "title": "Confirm Suspicion",
+    "fighter": "Sherlock Holmes",
+    "type": "scheme",
+    "value": null,
+    "boost": 1,
+    "text": "Choose an opponent and name a value. Your opponent must choose and discard one card matching that attack or defense value. Their hero takes damage equal to the BOOST value of the discarded card. If they do not have a card of the named value, they must reveal their hand instead.",
+    "tags": []
+   },
+   {
+    "idx": 24,
+    "title": "Confirm Suspicion",
+    "fighter": "Sherlock Holmes",
+    "type": "scheme",
+    "value": null,
+    "boost": 1,
+    "text": "Choose an opponent and name a value. Your opponent must choose and discard one card matching that attack or defense value. Their hero takes damage equal to the BOOST value of the discarded card. If they do not have a card of the named value, they must reveal their hand instead.",
+    "tags": []
+   },
+   {
+    "idx": 25,
+    "title": "Confirm Suspicion",
+    "fighter": "Sherlock Holmes",
+    "type": "scheme",
+    "value": null,
+    "boost": 1,
+    "text": "Choose an opponent and name a value. Your opponent must choose and discard one card matching that attack or defense value. Their hero takes damage equal to the BOOST value of the discarded card. If they do not have a card of the named value, they must reveal their hand instead.",
+    "tags": []
+   },
+   {
+    "idx": 26,
+    "title": "Eliminate the Impossible",
+    "fighter": "Sherlock Holmes",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Choose an opponent. Look at their hand and choose 1 card for them to discard.",
+    "tags": []
+   },
+   {
+    "idx": 27,
+    "title": "Eliminate the Impossible",
+    "fighter": "Sherlock Holmes",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Choose an opponent. Look at their hand and choose 1 card for them to discard.",
+    "tags": []
+   },
+   {
+    "idx": 28,
+    "title": "Administer Aid",
+    "fighter": "Dr. Watson",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Place Dr. Watson in a space adjacent to Holmes. Holmes recovers 1 health. Draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 29,
+    "title": "Administer Aid",
+    "fighter": "Dr. Watson",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Place Dr. Watson in a space adjacent to Holmes. Holmes recovers 1 health. Draw 1 card.",
+    "tags": []
+   }
+  ]
+ },
+ "ai_profile": {
+  "holmes": {
+   "name": "Sherlock Holmes",
+   "hero": true,
+   "count": 1,
+   "max_hp": 16,
+   "move": 2,
+   "ranged": false,
+   "role": "hero",
+   "attack": {
+    "cards": 15,
+    "mean": 3.07,
+    "max": 5
+   },
+   "exclusive": [
+    {
+     "title": "The Game is Afoot",
+     "type": "attack",
+     "copies": 2,
+     "impact": 1.23
+    },
+    {
+     "title": "Deduce Strategy",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 0.92
+    },
+    {
+     "title": "Counterpunch",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 1.51
+    },
+    {
+     "title": "Elementary",
+     "type": "defense",
+     "copies": 2,
+     "impact": 1.68
+    },
+    {
+     "title": "Master of Disguise",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 1.3
+    },
+    {
+     "title": "Confirm Suspicion",
+     "type": "scheme",
+     "copies": 3,
+     "impact": 2.76
+    },
+    {
+     "title": "Eliminate the Impossible",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 1.1
+    }
+   ]
+  },
+  "watson": {
+   "name": "Dr. Watson",
+   "hero": false,
+   "count": 1,
+   "max_hp": 8,
+   "move": 2,
+   "ranged": true,
+   "role": "striker",
+   "attack": {
+    "cards": 11,
+    "mean": 3.09,
+    "max": 5
+   },
+   "exclusive": [
+    {
+     "title": "Service Revolver",
+     "type": "attack",
+     "copies": 2,
+     "impact": 1.05
+    },
+    {
+     "title": "Fixed Point in a Changing Age",
+     "type": "versatile",
+     "copies": 2,
+     "impact": 1.51
+    },
+    {
+     "title": "Administer Aid",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 2.0
+    }
+   ],
+   "requires_alive": []
+  }
+ },
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-22. CardID = 17600 + idx; 304 = character card (sheet 3, 10x7, index 4). The deck object holds 31 cards (the 30 plus the character card). Sherlock's deck is sheet 176 like Medusa's and the rest: only deck.identity (data/tts/sherlock-holmes.json) tells the decks apart (docs/card-identity.md).",
+  "Hero card (read from the image): SHERLOCK HOLMES, MELEE, START HEALTH 16, MOVE 2; ability 'Effects on HOLMES and DR. WATSON cards cannot be canceled by an opponent. (Effects on ANY cards can be canceled.)'; sidekick DR. WATSON, RANGED, START HEALTH 8, move 2 (unmatched-memory agrees).",
+  "Bands read from the images: SHERLOCK HOLMES on The Game is Afoot, Deduce Strategy, Counterpunch, Elementary, Master of Disguise, Confirm Suspicion and Eliminate the Impossible; DR. WATSON on Service Revolver, Fixed Point in a Changing Age and Administer Aid; ANY on Study Methods, Education Never Ends and Feint. Order on the sheet: Game is Afoot 0-1, Service Revolver 2-3, Deduce Strategy 4-6, Counterpunch 7-9, Study Methods 10-11, Education Never Ends 12-13, Feint 14-16, Fixed Point 17-18, Elementary 19-20, Master of Disguise 21-22, Confirm Suspicion 23-25, Eliminate the Impossible 26-27, Administer Aid 28-29.",
+  "Discrepancy with unmatched-memory (the card wins): Feint reads IMMEDIATELY: Cancel all effects on your opponent's card (unmatched-memory files it under DURING). Everything else (titles, copies, type, value, BOOST, 30 cards, texts) agrees with the images.",
+  "Sherlock's Feint (idx 14-16, band ANY) is word for word Medusa's, Doctor Strange's and Pandora's: the three Feints carry the tag `sherlock` so that two equal Card values in two decks of one sheet never exist (tests/test_card_identity.py). Nothing reads the tag."
+ ]
+}

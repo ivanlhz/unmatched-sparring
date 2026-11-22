@@ -61,8 +61,8 @@ def _cancel_effects(run, game, spec):
     if side is None:
         side = _named_side(run, spec["card"])
     card = None if side is None else (flow.atk_card if side == "atk" else flow.def_card)
-    if side is None or (card is not None and modifiers.is_uncancelable(card, game, flow.att if side == "atk" else flow.tgt)):
-        return
+    if side is None or (card is not None and not spec.get("force") and modifiers.is_uncancelable(card, game, flow.att if side == "atk" else flow.tgt)):
+        return          # "force": a cancel that also works on an uncancelable card (Sherlock's Elementary, guessed right)
     moments = spec.get("moments")
     if spec.get("if_won"):                      # "if you win this combat": the result is not known yet, the flow decides it with the damage
         flow.win_cancels.append(["atk" if run.ctx.played_as == "attack" else "def", side])
