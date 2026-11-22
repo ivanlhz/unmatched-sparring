@@ -1298,6 +1298,21 @@
         "Verified live by Ivan (docs/live-checklist.md, section Robin Hood)"
       ],
       "note": "Rules decisions and open questions for Ivan: docs/heroes/robin-hood.md (Pending Ivan). Engine notes: docs/effects-dsl.md, section Robin Hood. Live test pending."
+    },
+    {
+      "id": "HERO-LITTLE-RED",
+      "title": "Little Red Riding Hood (Little Red vs. Beowulf, the Huntsman, a basket that reads the top of her discard pile) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/little-red-riding-hood.json, data/heroes/little-red-riding-hood.json, data/heroes/effects/little-red-riding-hood.json and data/tts/little-red-riding-hood.json generated and validated (import_hero, validate_effects, import_save); the 12 titles (30 cards, sheet 177, CardIDs 17700-17729, hero card 310), every value, boost, band and corner symbol read from the images (two slips of unmatched-memory: Big Eyes versatile 3, Stones in the Belly 2; Into the Woods prints one symbol per copy)",
+        "The order of the discard pile is state: the basket is the symbol of its newest card, read when each effect line resolves (plugin test red:basket); the starting Basket is not a card; a wild basket (the Basket or the star) is one symbol its player chooses (Ivan 2026-11-22, LR1), asked on the panel for the human and by sparring/ai_little_red.py for the bot; nothing reorders a pile (tests/test_little_red_pile_order.py)",
+        "All 12 cards on the interpreter for both seats: What Large Hands You Have (the top card comes back instead of the card, or the card), What Big Ears You Have (an attack that may defend while the basket is an axe), Stones in the Belly (the Ambush flow), Never Leave the Path, A Grimm Tale and the Huntsman's cards using the same basket",
+        "The Basket is a token of her bag laid inside each side's discard zone by the gate, and no read of a pile takes it for a card (tests/test_little_red_table.py, tests/test_little_red_matrix.py)",
+        "At the table in both seats: the wild-basket question, the top-card question, Big Ears at the Reveal, save and resume in the middle of a question (tests/test_little_red_human.py)",
+        "Little Red against every other hero in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator with the heuristic and the search AI (tests/test_little_red_matrix.py, tests/test_little_red_ai.py)",
+        "Verified live by Ivan (docs/live-checklist.md, section Little Red Riding Hood)"
+      ],
+      "note": "Rules decisions and open questions for Ivan: docs/heroes/little-red-riding-hood.md (Pending Ivan). Engine notes: docs/effects-dsl.md, section Little Red Riding Hood. Live test pending."
     }
   ]
 }
