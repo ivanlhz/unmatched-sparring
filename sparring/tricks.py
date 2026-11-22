@@ -99,6 +99,19 @@ def card_from_option(game, holder: int, loki: int, option: int):
     return game.card_of(option, holder)
 
 
+def zone_id(st, card) -> int:
+    """The id a hand shows in a before / after snapshot: a TRICK of the other deck (not in `st.full_set`) is written `qualified`, so it never
+    reads as the player's own card of the same CardID."""
+    return card.card_id + QUALIFIED if is_trick(card) and card not in st.full_set else card.card_id
+
+
+def card_of_option(game, holder: int, option: int):
+    """The card an option names when the options belong to `holder`'s side: their own card, or (`QUALIFIED` + id) a TRICK of the other deck."""
+    if option >= QUALIFIED:
+        return game.cards_by_id(1 - holder).get(option - QUALIFIED)
+    return game.cards_by_id(holder).get(option)
+
+
 def take(game, holder: int, loki: int, card) -> None:
     """`card` (a TRICK) leaves `holder`'s hand for Loki's: Laevateinn revealed it."""
     st = game.players[holder]

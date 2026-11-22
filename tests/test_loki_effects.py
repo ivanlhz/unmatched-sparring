@@ -8,6 +8,8 @@ import pytest
 
 from conftest import give
 from sparring import tricks
+from sparring.effects.choose import ControllerChooser
+from sparring.effects.run import Ctx, EffectRun
 from sparring.state import Game
 from test_bigfoot_effects import Answers
 from test_effects_combat import hand_filler, pair, put_adjacent
@@ -123,23 +125,31 @@ def test_a_trick_discarded_from_the_opponents_hand_returns_to_loki(bprd):
     assert g.players[0].known.foreign == []
 
 
-def test_loki_may_put_the_returned_trick_on_top_of_his_deck(bprd):
+def test_the_bot_puts_a_returned_trick_on_top_of_its_deck_when_its_hand_is_full(bprd):
     g = mk(bprd)
-    g.controllers[0].queue = [[True]]
+    hand_filler(g, 0, 6)
     trick = lend(g, 1, SINDRI)
     g.discard_card(1, trick)
-    assert trick not in g.players[0].hand and g.players[0].deck[0] is trick
+    assert trick not in g.players[0].hand and g.players[0].deck[0] is trick and len(g.players[0].hand) == 6
 
 
 def test_the_hand_limit_discard_of_a_trick_returns_it_too(bprd):
     g = mk(bprd, turn=1)
-    g.controllers[0].queue = [[False]]
     trick = lend(g, 1, LURE)
     hand_filler(g, 1, 7)
-    g.controllers[1].keep = None
-    g.players[1].hand.sort(key=lambda c: c is trick)           # the TRICK is the last one the hand limit may take
+    g.controllers[1].discards = [trick]                                              # the foe chooses the TRICK as the card the hand limit takes
     g.end_turn()
-    assert len(g.players[1].hand) <= 7
+    assert len(g.players[1].hand) == 7 and trick in g.players[0].hand and trick not in g.players[1].discard
+    assert g.players[0].known.foreign == []
+
+
+def test_a_random_discard_that_takes_a_trick_returns_it_to_loki(bprd):
+    g = mk(bprd)
+    trick = lend(g, 1, FREYJA)
+    g.players[1].hand[:] = [trick]                                                   # the only card: the random pick cannot miss it
+    ops = [{"op": "discard", "cards": {"zone": "hand", "player": "opponent", "pick": "random", "amount": 1}}]
+    EffectRun(ops, Ctx(owner=0, this_fid="loki")).run(g, {0: ControllerChooser(), 1: ControllerChooser()})
+    assert trick in g.players[0].hand and trick not in g.players[1].discard and not g.players[1].hand
 
 
 # ---------------------------------------------------------------- +1 to the move per TRICK in an opponent's hand

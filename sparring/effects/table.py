@@ -12,6 +12,7 @@ Who is "the table player" is what the engine already knew: the player whose cont
 (`Controller.human`); a simulation or a search clone has none, so there every card is fully resolved."""
 from __future__ import annotations
 
+from .. import tricks
 from ..i18n import plural, t
 
 
@@ -44,7 +45,8 @@ def make_known(game, player: int, card, keep: tuple = ()) -> None:
     elif card in st.deck:
         st.deck.remove(card)
     known = game.players[1 - player].known.seen
-    spare = [c for c in st.hand if c not in keep and c.card_id not in known] or [c for c in st.hand if c not in keep]
+    own = [c for c in st.hand if not tricks.borrowed(game, player, c)]        # a TRICK of Loki's in the hand is a real card, never a placeholder
+    spare = [c for c in own if c not in keep and c.card_id not in known] or [c for c in own if c not in keep]
     if spare:
         st.hand.remove(spare[-1])
         st.deck.append(spare[-1])

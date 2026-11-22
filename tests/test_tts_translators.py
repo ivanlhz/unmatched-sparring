@@ -36,7 +36,8 @@ def test_the_registry_holds_the_translated_ops_with_both_variants(rig):
     assert set(TRANSLATORS) == {"draw", "discard", "move", "place", "swap", "revive", "summon", "return_to_deck",
                                 "put_in_hand", "search_deck", "counter", "form", "ongoing", "tuck", "remove", "stack_top", "reveal_deck",
                                 "shuffle_deck", "hand_to_deck_all", "future_look", "reveal_top", "deck_order", "track",
-                                "pandora_reveal", "pandora_look", "pandora_stop"}
+                                "pandora_reveal", "pandora_look", "pandora_stop",
+                                "trick_given", "trick_to_discard", "trick_returned", "trick_to_deck", "trick_taken"}
     for t in TRANSLATORS.values():
         assert callable(t.bot) and callable(t.human) and t.bot is not t.human and callable(t.mode)
 

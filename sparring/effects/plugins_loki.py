@@ -13,6 +13,8 @@ from . import modifiers, table
 from .model import EffectError
 from .ops_core import plugin
 
+BOT_FULL_HAND = 7          # the bot puts a returned TRICK on top of its deck instead of its hand when that hand would be at the limit of 7
+
 
 def _flow(run, name: str):
     flow = getattr(run, "flow", None)
@@ -46,12 +48,15 @@ def _swap_values(run, game, spec):
 # ---------------------------------------------------------------- Laevateinn
 
 def _reveal_options(game, victim: int, loki: int) -> list[int]:
-    """What may lie at the position Loki picked in the table player's hand: every card of their deck that is not in a public pile, and
-    the TRICKs of Loki's deck the engine knows they hold."""
+    """What may lie at the position Loki picked in the table player's hand: every card of their deck that is not in a public pile (one id per
+    title: copies are interchangeable, and the panel holds 30 buttons at most), and the TRICKs of Loki's deck the engine knows they hold (listed first)."""
     st = game.players[victim]
     gone = {c.card_id for c in st.gone}
-    own = [c.card_id for c in st.full_set if c.card_id not in gone]
-    return own + [tricks.qualified(c) for c in tricks.tricks_in_rival_hand(game, loki)]
+    by_title: dict[str, int] = {}
+    for c in st.full_set:
+        if c.card_id not in gone:
+            by_title.setdefault(c.title, c.card_id)
+    return [tricks.qualified(c) for c in tricks.tricks_in_rival_hand(game, loki)] + list(by_title.values())      # the TRICKs first: they fit the first page of the panel
 
 
 @plugin("loki:laevateinn")
@@ -136,11 +141,16 @@ def _looking_for_trouble(run, game, spec):
 @plugin("loki:return_trick")
 def _return_trick(run, game, spec):
     """The TRICK an opponent discarded from their hand is in Loki's hand already (`tricks.discarded`): Loki may put it on top of his deck
-    instead. One yes / no ("on top of your deck?")."""
+    instead. The human Loki answers one yes / no ("on top of your deck?"); the bot decides by the size of its hand (a card in hand is a card it
+    can play now, but a hand at the limit would have to discard)."""
     owner = run.ctx.owner
     ids = run.bound("card", "cards")
     card = next((c for c in game.players[owner].hand if c.card_id == ids[0] and tricks.is_trick(c)), None)
     if card is None:
         return
-    if run.ask(game, "optional", owner, [True, False], 1, 1, "put it on top of your deck?", trick_deck=card.title)[0]:
+    if table.physical(game, owner):          # Loki is at the table: they say it on the panel
+        on_top = run.ask(game, "optional", owner, [True, False], 1, 1, "put it on top of your deck?", trick_deck=card.title)[0]
+    else:                                    # the bot keeps the card in hand to play it, unless the hand is full: then it waits on top of the deck
+        on_top = len(game.players[owner].hand) >= BOT_FULL_HAND
+    if on_top:
         tricks.to_deck_top(game, owner, card)

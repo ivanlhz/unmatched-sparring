@@ -44,8 +44,10 @@ from . import session_choices as choices
 from . import session_effects as human_effects
 from . import session_gadget as gadget_token
 from . import session_hidden as hidden
+from . import session_tricks as loki_tricks, tricks
 from . import session_moves as moves
 from . import session_pieces as piece_id
+
 from . import session_peek as peek
 from . import session_order as order_cards
 from . import session_jill as jill_decks      # noqa: F401  (registers the translators of Jill Trent's deck reveals)
@@ -428,6 +430,8 @@ class Session:
         self.counter_seen: dict[str, int] = {}             # count of each derived counter already written and verified on its dial
         self._transit: dict[int, int] = {}                 # CardID played by the human -> reads it has gone without reaching the discard
         self.combat_guids: dict[int, str] = {}             # CardID of the human's card at the combat spot -> its GUID (Relentless moves it)
+        self.trick_guids: dict[str, list] = {}             # Loki's TRICKs away from their deck: GUID of the card -> [home player, CardID] (session_tricks)
+        self._trick_moved: dict[int, str] = {}             # CardID -> GUID of a TRICK the last translator moved (never saved: it lives inside one projection)
         self._intuition_said: int | None = None            # the human Abe's active tokens already told in chat
         self._gadget_shown: int | None = None              # the gadget Jill Trent's token was last put at (None: not placed yet this game)
         self._gadget_missing_said = False                  # the missing token was already told in chat
@@ -1730,6 +1734,8 @@ class Session:
             saved["token_copies"] = {k: list(v) for k, v in self.token_copies.items()}
         if self.combat_guids:
             saved["combat_guids"] = {str(k): v for k, v in self.combat_guids.items()}
+        if self.trick_guids:
+            saved["trick_guids"] = {g: list(v) for g, v in self.trick_guids.items()}
         if self.fx_unprojected is not None:
             saved["fx_unprojected"] = self.fx_unprojected
         return saved
@@ -1829,6 +1835,7 @@ class Session:
             self.look_granted = d.get("look_granted") is True
             self.token_copies = {str(k): [str(g) for g in v] for k, v in (d.get("token_copies") or {}).items()}
             self.combat_guids = {int(k): str(v) for k, v in (d.get("combat_guids") or {}).items()}
+            self.trick_guids = {str(g): [int(v[0]), int(v[1])] for g, v in (d.get("trick_guids") or {}).items()}
             self.fx_unprojected = d.get("fx_unprojected")
             self.pending_discard, self.pending_value = d["pending_discard"], d["pending_value"]
             self.look = self._load_look(d.get("look"))
@@ -2575,18 +2582,18 @@ class Session:
         mine = {c.card_id: c for c in g.players[self.human].full_set}
         spent_ids, spent_guids = self._spent_in_attack(p)
         fresh = lambda r: r["id"] not in spent_ids and r.get("guid") not in spent_guids      # a card of the first part still on the table is no defense
-        theirs = [r for r in seen if r["id"] in mine and fresh(r)]  # by CardID ownership, never by order
+        theirs = [r for r in seen if (r["id"] in mine or r.get("guid") in self.trick_guids) and fresh(r)]  # by CardID ownership, never by order; a TRICK borrowed from Loki by its GUID
         if len(theirs) > 1:
             self.say(t("reveal.many", n=len(theirs)), ChatKind.WARNING)
             return
         face_up = False
         if not theirs:                            # a defense/attack left FACE UP before the Reveal is read as it lies
-            theirs = [r for r in self._rd_combat_spot() if isinstance(r, dict) and r.get("id") in mine and r.get("guid") and fresh(r)]
+            theirs = [r for r in self._rd_combat_spot() if isinstance(r, dict) and (r.get("id") in mine or r.get("guid") in self.trick_guids) and r.get("guid") and fresh(r)]
             if len(theirs) > 1:
                 self.say(t("reveal.many", n=len(theirs)), ChatKind.WARNING)
                 return
             face_up = bool(theirs)
-        human_card = mine[theirs[0]["id"]] if theirs else None
+        human_card = loki_tricks.card_of_row(self, self.human, theirs[0]) if theirs else None
         try:
             if p.second is not None:             # the attacker's card is already played: only a defense may be on the table
                 if human_card is not None and p.kind == "human_attacks":
@@ -5147,10 +5154,9 @@ class Session:
         res = self._rd_bot_hand()
         st = self.game.players[self.bot]
         by_id = {c.card_id: c for c in st.full_set}
-        try:
-            cards = [by_id[r["id"]] for r in res]
-        except KeyError as e:
-            raise SessionError(t("err.unknown_card", err=e)) from None
+        cards = [loki_tricks.card_of_row(self, self.bot, r) for r in res]       # a TRICK of the human Loki's deck is told by its GUID
+        if None in cards:
+            raise SessionError(t("err.unknown_card", err=next(r["id"] for r, c in zip(res, cards) if c is None)))
         in_play = self._bot_cards_in_play()
         cards = [c for c in cards if c not in in_play]   # a scheme stopped at the panel still sits in the table hand
         p = self.pending
@@ -5180,8 +5186,10 @@ class Session:
             ping = ((piece_guids(self.cfg.pieces[attacker.fid]), piece_guids(self.cfg.pieces[target.fid]),
                      [self.cfg.bot_seat, self.cfg.human_seat])
                     if kind == "bot_attacks" else None)
+            side = "human" if tricks.borrowed(self.game, self.bot, card) else "bot"      # a TRICK of the human Loki's deck: his images and range
             res = self._w(lua.play_card_face_down(card.card_id, self.cfg.bot_seat, x, y, z, self.cfg.rot_y,
-                                                  self.cfg.bot_card_ids, identity=self._identity(), ping=ping),
+                                                  self.cfg.bot_card_ids if side == "bot" else self.cfg.human_card_ids,
+                                                  identity=self._identity(side), ping=ping),
                           "cards").result
         except OSError:
             raise
@@ -5858,11 +5866,12 @@ class Session:
         """Engine discard == table discard (additions and removals); hand size by count."""
         st = self.game.players[self.human]
         own = {x.card_id for x in st.full_set}
+        loki_tricks.settle_discards(self)           # a TRICK of Loki's they laid on their pile goes back to him
         def read() -> set[int]:                   # only the human's cards: foreign things in the zone neither count nor delay
             # a card that an effect of this step is taking out of your discard toward your deck (Searing Clarity, the
             # bot moves it) is not read again as discarded even if the snapshot lags
             aside = {x.card_id for x in (*st.tucked, *st.removed)}     # tucked or removed: still on their pile until they move them
-            return ({r["id"] for r in self._rd_human_discard()} & own) - self.fx_in_flight - aside
+            return ({r["id"] for r in loki_tricks.own_rows(self, self._rd_human_discard())} & own) - self.fx_in_flight - aside
         ids = read()
         self._swap_owed_copies(ids)
         known = {x.card_id for x in st.discard}
@@ -5992,12 +6001,13 @@ class Session:
         st = self.game.players[self.human]
         known = self.game.players[self.bot].known
         told = set(known.seen) | set(known.possible)
+        loki = {c for c in st.hand if tricks.borrowed(self.game, self.human, c)}     # a TRICK of Loki's in their hand is a real card the table shows: never a placeholder
         dropped = len(st.hand) - target
-        if dropped > sum(1 for c in st.hand if c.card_id not in told):
-            known.degrade(dropped, target)
+        if dropped > sum(1 for c in st.hand if c.card_id not in told and c not in loki):
+            known.degrade(dropped, target - len(loki))
             told = set(known.seen) | set(known.possible)
         while len(st.hand) > target:
-            spare = next((c for c in reversed(st.hand) if c.card_id not in told), st.hand[-1])
+            spare = next((c for c in reversed(st.hand) if c.card_id not in told and c not in loki), None)                 or next((c for c in reversed(st.hand) if c not in loki), st.hand[-1])
             st.hand.remove(spare)
             st.deck.append(spare)
 

@@ -24,6 +24,7 @@ from typing import Callable
 
 from .effects.choose import ChoiceRequest
 from .effects.model import EffectError, load_effects, walk_ops
+from . import tricks
 from .i18n import has, t
 
 MAX_CHOICE_BUTTONS = 6
@@ -119,7 +120,7 @@ def option_label(game, req: ChoiceRequest, option) -> str:
     if kind == "space":
         return t("choice.space", n=option)
     if kind in ("cards", "order"):
-        card = game.cards_by_id(req.extra.get("of", req.player)).get(option)
+        card = tricks.card_of_option(game, req.extra.get("of", req.player), option)
         return safe_label(card.title if card is not None else t("choice.card_n", n=option))
     fighter = game.fighters.get(option) if isinstance(option, str) else None
     if fighter is not None and not fighter.hero and sum(1 for o in req.options if getattr(game.fighters.get(o), "name", None) == fighter.name) > 1:
@@ -197,6 +198,10 @@ def prompt_text(game, req: ChoiceRequest) -> str:
         base = _prompt("showdown")
     elif req.kind == "optional" and "bury_rival" in req.extra:           # Better Swear Me In: the rival's top card, revealed
         return t("choice.prompt.bury_rival", title=req.extra.get("title", "?"))
+    elif req.kind == "optional" and "trick_deck" in req.extra:           # Loki: the TRICK an opponent discarded is back in his hand
+        return t("choice.prompt.trick_deck", title=req.extra["trick_deck"])
+    elif req.kind == "cards" and req.extra.get("purpose") == "reveal" and req.extra.get("which"):     # Loki's Laevateinn: which card lies at the position he picked
+        base = t("choice.prompt.loki_reveal", which=req.extra["which"])
     elif req.kind == "effect" and req.extra.get("op") == "predict":
         base = _prompt("predict")
     elif req.kind == "effect" and req.extra.get("future"):      # The future of Ninjutsu: which deck, then leave or bottom

@@ -31,7 +31,7 @@ import random
 from functools import lru_cache
 from itertools import combinations
 
-from . import ai_achilles, ai_blackbeard, ai_mary, ai_pandora, ai_washington, ai_wukong, ai_wyatt, ai_yennenga, enraged
+from . import ai_achilles, ai_blackbeard, ai_mary, ai_pandora, ai_washington, ai_wukong, ai_wyatt, ai_yennenga, enraged, tricks
 from .ai_medusa import (ACTION_VALUE, DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, SURVIVAL_P, W_HERO, W_MEDUSA_HP,
                         W_SIDEKICK, MedusaAI, Model, can_use, defence_keeper, discard_cut, effect_reliance, hand_room, keep_value, kept_hand_value, kill_value, play_signature)
 from .controller import Controller
@@ -378,6 +378,8 @@ class EffectAI:
             return self._dust_card(game, req)
         if purpose == "bidding":
             return self._bidding_card(game, req)
+        if purpose == "trouble":
+            return self._trouble_card(game, req)
         if purpose == "ruse":
             return self._ruse_discards(game, req)
         if purpose == "ruse_reveal":
@@ -449,6 +451,14 @@ class EffectAI:
         rival = req.extra.get("of", 1 - req.player)
         cards = {c.card_id: c for c in game.players[rival].full_set}
         return [min(req.options, key=lambda i: ((cards[i].value or 0), card_worth(cards[i]), i))]
+
+    def _trouble_card(self, game: Game, req: ChoiceRequest) -> list:
+        """Loki's Looking For Trouble: the card the rival is made to defend with, among the cards of their hand it has seen (the returned one
+        included, and the TRICKs it knows they hold). The weakest defense goes first, a TRICK before another card of the same value: whoever
+        plays a TRICK that is not Loki's runs its NOT LOKI part (ai_loki.after_value)."""
+        rival = req.extra.get("of", 1 - req.player)
+        cards = {i: tricks.card_of_option(game, rival, i) for i in req.options}
+        return [min(req.options, key=lambda i: ((cards[i].value or 0), not tricks.is_trick(cards[i]), card_worth(cards[i]), i))]
 
     def _ruse_discards(self, game: Game, req: ChoiceRequest) -> list:
         """Spymaster's ruse: of the cards the rival revealed, the ones to discard are the two it would miss most (`card_worth`)."""

@@ -1,16 +1,4 @@
 # path  agent  task  UTC time   (see BRIEF: short locks only)
-sparring/session.py  loki  Loki TRICKs at the table (session ledger, translators)  2026-11-22 10:29Z
-sparring/session_translators.py  loki  Loki TRICKs at the table (session ledger, translators)  2026-11-22 10:29Z
-sparring/session_bot_effects.py  loki  Loki TRICKs at the table (session ledger, translators)  2026-11-22 10:29Z
-sparring/state.py  loki  Loki TRICKs at the table (session ledger, translators)  2026-11-22 10:29Z
-sparring/tricks.py  loki  Loki TRICKs at the table (session ledger, translators)  2026-11-22 10:29Z
-sparring/effects/ops_core.py  loki  Loki: plugin import, i18n, AI hook, prompts, make_known guard  2026-11-22 10:42Z
-data/i18n/en.json  loki  Loki: plugin import, i18n, AI hook, prompts, make_known guard  2026-11-22 10:42Z
-data/i18n/es.json  loki  Loki: plugin import, i18n, AI hook, prompts, make_known guard  2026-11-22 10:42Z
-sparring/ai_effects.py  loki  Loki: plugin import, i18n, AI hook, prompts, make_known guard  2026-11-22 10:42Z
-sparring/session_choices.py  loki  Loki: plugin import, i18n, AI hook, prompts, make_known guard  2026-11-22 10:42Z
-sparring/effects/table.py  loki  Loki: plugin import, i18n, AI hook, prompts, make_known guard  2026-11-22 10:42Z
-tests/test_tts_translators.py  loki  Loki: plugin import, i18n, AI hook, prompts, make_known guard  2026-11-22 10:42Z
 docs/effects-dsl.md  blackbeard  hero docs: DSL section, live checklist, features, README  2026-11-22 10:48Z
 docs/live-checklist.md  blackbeard  hero docs: DSL section, live checklist, features, README  2026-11-22 10:48Z
 features.json  blackbeard  hero docs: DSL section, live checklist, features, README  2026-11-22 10:48Z

@@ -37,14 +37,15 @@ from typing import Callable
 
 from .cards import Card
 from .i18n import plural, t
-from . import session_pandora, session_reveal as reveal    # session_pandora registers the translators of Pandora's Box
+from . import session_pandora, session_reveal as reveal, session_tricks, tricks    # session_pandora and session_tricks register their translators
 from .session_translators import Ctx, combat_card_to_deck, is_tail, translate
 from .tts import lua
 from .tts.lua import ChatKind
 
 
 
-DIRECT_OPS = ("tuck", "remove", "reveal_deck", "shuffle_deck", "stack_top", "hand_to_deck_all", "future_look", "reveal_top", "deck_order", "track", "pandora_reveal", "pandora_look", "pandora_stop")     # translated as they were reported, no diff involved
+DIRECT_OPS = ("tuck", "remove", "reveal_deck", "shuffle_deck", "stack_top", "hand_to_deck_all", "future_look", "reveal_top", "deck_order", "track", "pandora_reveal", "pandora_look", "pandora_stop",
+              "trick_given", "trick_to_discard", "trick_returned", "trick_to_deck", "trick_taken")     # translated as they were reported, no diff involved
 
 
 def bot_cause() -> str:
@@ -77,7 +78,7 @@ def read_human_hand(session, player: int) -> list[Card]:
 # ---------------------------------------------------------------- snapshot and projection
 
 def zones(st) -> dict:
-    return {"hand": [c.card_id for c in st.hand], "deck": [c.card_id for c in st.deck],
+    return {"hand": [tricks.zone_id(st, c) for c in st.hand], "deck": [c.card_id for c in st.deck],
             "discard": [c.card_id for c in st.discard]}
 
 
