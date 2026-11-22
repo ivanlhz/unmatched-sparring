@@ -6,7 +6,6 @@ features.json  sherlock  docs, features and lists for the hero  2026-11-22 12:10
 README.md  sherlock  docs, features and lists for the hero  2026-11-22 12:10Z
 config/table.json  sherlock  docs, features and lists for the hero  2026-11-22 12:10Z
 
-sparring/effects/ops_core.py  little-red  the question names the top card Large Hands returns  2026-11-22 12:17Z
 
 sparring/ai_medusa.py  robin  AI hooks (ai_robin)  2026-11-22 12:22Z
 sparring/ai_effects.py  robin  AI hooks (ai_robin)  2026-11-22 12:22Z

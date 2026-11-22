@@ -626,6 +626,10 @@ def _choice_context(game, run, spec: dict) -> dict:
             ctx["cancels"] = _cancellable_moments(game, run)
     if len(ops) == 1 and ops[0]["op"] == "discard" and isinstance(ops[0]["cards"], str):
         ctx["discards"] = [c.card_id for c in card_ref(game, run, ops[0]["cards"])]
+    if len(ops) == 1 and ops[0]["op"] == "put_in_hand" and isinstance(ops[0]["cards"], dict) and ops[0]["cards"].get("zone") == "discard"             and ops[0]["cards"].get("pick") == "last":          # the top card of a pile comes back (What Large Hands You Have): the question names it
+        pile = game.players[player_of(game, run, ops[0]["cards"]["player"])].discard
+        if pile:
+            ctx["returns_top"] = pile[-1].card_id
     defeats = [o for o in spec.get("cost") or [] if o["op"] == "defeat"]
     if defeats:                                          # a fighter given up for the effect (Icy Guile, Foul Purpose): `EffectAI._fighter_pays`
         cands, _ = fighter_candidates(game, run, defeats[0]["target"])
