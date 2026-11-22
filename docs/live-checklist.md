@@ -564,6 +564,17 @@ Nothing of Sun Wukong has been seen on a real table. His deck is sheet 176 like 
 - [ ] **Ruyi Jingo Bang (H/B)**: after the first part (0) against a defense card the second attack of 4 is defended with a new card face down and Reveal; a Feint stops it.
 - [ ] Ox Form and Tortoise Form (the rival may BOOST), Taunting Laughter (the rival discards a card or its value is ignored), Infinite Strikes (+1 per Clone next to the target, one action back), 72 Transformations, Wily Fighting and the numbers as printed.
 
+### Pandora (Battle of Legends, Volume Three, two Kakodaemons)
+
+Nothing of Pandora has been seen on a real table. Her deck is sheet 176 like Medusa's and the rest; her two Kakodaemons are tokens (Custom_Token in the save, "Tile" in real TTS, called Thanatos and Olethros) that **start in the bag, not on the board**; her seven MISERIES are a separate deck of sheet 177 (`4581f8`) in the bag.
+- [ ] **Detection (auto)**: with her deck at one spot and any other hero's at the other, the start-up line names Pandora; the bag `15414a` holds the deck of 31 cards (character card 359).
+- [ ] **Pieces**: her miniature `8603fa`, her dial `eeaab5` (14) and the Kakodaemons `7cd57e` (Thanatos), `fed318` (Olethros) are found by GUID. At the start no Kakodaemon is on the board.
+- [ ] **The Box (H)**: at the start of your turn (the first one too) take the seven MISERIES out of the bag, shuffle them and reveal the top one; the panel asks which one it was (buttons by name, the last two on a second page), then "reveal another?". Yes: reveal the next and say which. At three feathers or more the chat says you stop, the dial goes down by one per revealed Misery by itself. At the end of the turn shuffle them back. **(B)**: the chat names each Misery the bot reveals and the feathers out; nothing moves on the table (the Miseries stay in the bag).
+- [ ] **Woe (H)**: the chat says to put Thanatos (or Olethros) on a space of Pandora's zone with 1 health; End action reads it. **(B)**: the bot takes the Kakodaemon out of the bag and puts it there.
+- [ ] **Hope (H)**: look at the top card of the Box before deciding; the bot does not ask. **(B)**: the chat says the bot looked.
+- [ ] **Pain, Toil, Greed, Confusion**: Pain hurts the rivals next to Pandora (the dials follow); Toil is +1 to Pandora's attacks until the end of the turn; Greed is a card you draw; Confusion moves Pandora up to 1 space.
+- [ ] **The cards**: Hera's Curiosity (+1 per revealed Misery, then look at the bot's hand), Aphrodite's Beauty (printed 0 / BOOST 3, heals per revealed Misery), Spite and Malice only for a Kakodaemon, Offering to the Gods (free BOOST), Celestial Raiments (ignores the value), Zeus's Mischief, Forged by Hephaestus, Guided by the Fates, Hindsight, Divine Intervention and the numbers as printed.
+
 ### Hidden information (cards that look at the bot's hand, and the bot's on you)
 - [ ] **The bot's hand row**: when playing Confront Any Demon or God (only if you lose), Advanced Psychometry (adjacent), Remove A Painful Memory (with an ONGOING) or Every Possible Angle, the bot lays its hand **face up in a row** at `bot_row_spot` and **pings** each card (`ping_points`). The **Look at bot's hand** button uses another row, at `look_spot`.
 - [ ] **The bot's own pings do not choose for you** (9335eab): with the row open, the bot does not "choose" a card by itself. *(31/10 failure with Remove A Painful Memory: it chose Posthumous Power within 1 s; fixed, still to be seen. If it happens again, widen `BOT_PING_WINDOW`.)*

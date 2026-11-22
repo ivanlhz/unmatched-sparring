@@ -1222,6 +1222,22 @@
         "Verified live by Iván (docs/live-checklist.md, section Sun Wukong)"
       ],
       "note": "Rules decisions and open questions for Iván: docs/heroes/sun-wukong.md (Pending Ivan). Engine notes: docs/effects-dsl.md section 48. Live test pending."
+    },
+    {
+      "id": "HERO-PANDORA",
+      "title": "Pandora (Battle of Legends, Volume Three, two Kakodaemons that start off the board, Pandora's Box) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/pandora.json, data/heroes/pandora.json, data/heroes/effects/pandora.json and data/tts/pandora.json generated and validated (import_hero, validate_effects, import_save); the 12 titles (30 cards, sheet 176, character card 359, bands PANDORA / KAKODAEMON / ANY) and the seven MISERIES (sheet 177) read from the images; Aphrodite's Beauty reads 0 / BOOST 3 as printed (unmatched-memory says 3 / 2); ai_profile computed by the importer",
+        "Her deck shares CardIDs 17600-17629 with Medusa and the rest of sheet 176: told apart by deck image and owner, never by a bare CardID (tests/test_hero_pandora_data.py, tests/test_card_identity.py); her Feints carry the tag pandora because Medusa's idx 15 is the same card word for word; her two Kakodaemon tokens (Thanatos, Olethros) and every GUID are her own",
+        "The Kakodaemons start in the reserve (start_on_board 0) and enter only through Woe (Ivan 2026-11-22, PA1); a defeated one returns (revive, else summon)",
+        "Pandora's Box: a start-of-turn loop (plugins_pandora: reveal, look, close), the revealed Miseries kept as a bit mask in the ability counters and shuffled back at the end of her turn, the next Miseries drawn at random when revealed so nobody can peek at an order; three feathers stop her and cost 1 damage per revealed Misery; the human's real Box is asked (which Misery came up) and the bot's is named in the chat",
+        "The bot prices keep-revealing-or-stop (sparring/ai_pandora.py: optimal stopping over the Miseries still in the Box, HOPE's known top card, hit points dearer when low, the risk of dying next turn): 11 wins of 40 against the chasing Hellboy, against 6 for never keeping on and 0 for always keeping on (docs/heroes/pandora.md)",
+        "All 12 cards on the interpreter for both seats, with the Miseries counted by the counter revealed (Hera's Curiosity, Aphrodite's Beauty, Zeus's Mischief), Spite and Malice only for a Kakodaemon, Offering to the Gods on may_boost, Celestial Raiments on set_value ignore",
+        "Pandora against every other hero in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator (tests/test_pandora_matrix.py)",
+        "Verified live by Iván (docs/live-checklist.md, section Pandora)"
+      ],
+      "note": "Rules decisions and open questions for Iván: docs/heroes/pandora.md (Pending Ivan). Engine notes: docs/effects-dsl.md section 49. Live test pending."
     }
   ]
 }
