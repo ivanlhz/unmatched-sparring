@@ -175,3 +175,20 @@ def test_study_methods_lost_shows_nothing(rig, monkeypatch):
     click(session, table, Event.REVEAL)
     assert session.look is None
 
+
+
+@with_rig("hellboy", HOLMES, BOT_HAND)
+def test_watson_cannot_attack_with_a_holmes_card_at_the_table(rig):
+    session, table, game, fake, cfg = rig
+    put_adjacent(game, table, cfg, "watson", "hellboy")
+    human_hand(table, game, "Counterpunch", "Service Revolver", "Feint")
+    click(session, table, Event.ATTACKER, {"attacker": "att_watson"})
+    click(session, table, Event.ATTACK, {"target": "hellboy"})
+    from test_d3_table_effects import human_plays
+    played = human_plays(table, game, "Counterpunch")
+    table.human_hand.remove(played.card_id)
+    table.human_count -= 1
+    hp = game.fighters["hellboy"].hp
+    msgs = click(session, table, Event.REVEAL)
+    assert said(msgs, "Counterpunch es de Sherlock Holmes: Dr. Watson no la puede jugar"), msgs
+    assert game.fighters["hellboy"].hp == hp

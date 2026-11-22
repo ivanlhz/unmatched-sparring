@@ -79,6 +79,8 @@ def test_the_bots_elementary_is_played_face_up_with_a_number_and_a_right_number_
     seen = []
     monkeypatch.setattr(session.ai, "choose_defense", lambda g, a, t, attack_card=None: seen.append(attack_card) or elementary)
     monkeypatch.setattr(hidden, "predict_attack_value", lambda g, me, fid=None: guess)
+    guids, placed = [], hidden.bot_defense_placed
+    monkeypatch.setattr(hidden, "bot_defense_placed", lambda sess, p: guids.append(p.bot_card_guid) or placed(sess, p))
     put_adjacent(game, table, cfg, "hellboy", "holmes")
     human_hand(table, game, "Excalibur", "Service Pistol", "Glimpse Of Hell")
     human_attacks(session, table, game, "hellboy", "holmes", "Excalibur")
@@ -86,25 +88,10 @@ def test_the_bots_elementary_is_played_face_up_with_a_number_and_a_right_number_
     msgs = click(session, table, Event.REVEAL)
     assert seen == [None], "the bot defends without seeing the attack card"
     assert said(msgs, f"El bot juega Elementary boca arriba y dice que el valor impreso de ataque de tu carta es {guess}"), msgs
+    assert len(guids) == 1 and table.flips[0] == guids[0] and table.flips.count(guids[0]) == 1, "turned face up when it was placed, before the human's card"
     assert game.fighters["holmes"].hp == (hp if stopped else hp - 3)               # Excalibur 6 against Elementary 3
     assert dial(session, cfg, table, "holmes") == game.fighters["holmes"].hp
     assert human_reads(table) == []
-
-
-@with_rig(HOLMES, "hellboy", HOLMES_BOT_HAND)
-def test_the_bots_elementary_prediction_is_saved_with_the_pending_combat(rig, monkeypatch):
-    session, table, game, fake, cfg = rig
-    elementary = next(c for c in game.players[0].hand if c.title == "Elementary")
-    monkeypatch.setattr(session.ai, "choose_defense", lambda g, a, t, attack_card=None: elementary)
-    monkeypatch.setattr(hidden, "predict_attack_value", lambda g, me, fid=None: 5)
-    p = None
-    put_adjacent(game, table, cfg, "hellboy", "holmes")
-    human_hand(table, game, "Excalibur", "Service Pistol")
-    human_attacks(session, table, game, "hellboy", "holmes", "Excalibur")
-    # the bot places its defense at Reveal; the prediction is on the pending until the combat is resolved in the same click
-    msgs = click(session, table, Event.REVEAL)
-    assert said(msgs, "dice que el valor impreso de ataque de tu carta es 5")
-    assert table.flips, "the bot's card was turned face up"
 
 
 # ---------------------------------------------------------------- the human's Holmes defends with Elementary (the bot attacks)
