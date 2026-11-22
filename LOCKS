@@ -4,3 +4,6 @@ sparring/state.py  little-red  review fixes: pile order ambiguity, defense hook,
 data/tts/houdini.json  little-red  review fixes: pile order ambiguity, defense hook, Houdini note  2026-11-22 13:11Z
 sparring/session_choices.py  little-red  review fixes: pile top question, prompt wording  2026-11-22 13:15Z
 sparring/effects/ops_core.py  little-red  review fixes: pile top question, prompt wording  2026-11-22 13:15Z
+sparring/session.py  little-red  review fixes: Basket reads, restart, pile top  2026-11-22 13:18Z
+data/i18n/en.json  little-red  review fixes: Basket reads, restart, pile top  2026-11-22 13:18Z
+data/i18n/es.json  little-red  review fixes: Basket reads, restart, pile top  2026-11-22 13:18Z
