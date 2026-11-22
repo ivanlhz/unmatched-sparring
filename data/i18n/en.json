@@ -1447,5 +1447,7 @@
  "narr.fighter.back_by_hand": "{fid} comes back with {hp} health",
  "tbl.where.apart": "in a zone none of your other fighters is in",
  "elektra.flip.bot": "{name} resurrects: I flip her health dial (the Elektra Resurrected dial, 9).",
- "elektra.flip.human": "{name} resurrects: flip your health dial (the Elektra Resurrected dial, 9). I write her life on it from now on."
+ "elektra.flip.human": "{name} resurrects: flip your health dial (the Elektra Resurrected dial, 9). I write her life on it from now on.",
+ "choice.prompt.returns_top": "{title}: do you return {top}, the top card of your discard pile, to your hand (instead of this card)?",
+ "err.big_ears_basket": "{title} can only be played as a defense while the top of your discard pile shows an axe (or a star, or only the Basket lies there)"
 }

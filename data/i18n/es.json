@@ -1447,5 +1447,7 @@
  "narr.fighter.back_by_hand": "{fid} vuelve con {hp} PV",
  "tbl.where.apart": "en una zona donde no este ninguno de tus otros luchadores",
  "elektra.flip.bot": "{name} resucita: le doy la vuelta al dial de vida (el dial Elektra Resurrected, 9).",
- "elektra.flip.human": "{name} resucita: dale la vuelta a tu dial de vida (el dial Elektra Resurrected, 9). Desde ahora escribo su vida en ese."
+ "elektra.flip.human": "{name} resucita: dale la vuelta a tu dial de vida (el dial Elektra Resurrected, 9). Desde ahora escribo su vida en ese.",
+ "choice.prompt.returns_top": "{title}: devuelves {top}, la carta de arriba de tu descarte, a tu mano (en vez de esta carta)?",
+ "err.big_ears_basket": "{title} solo se juega como defensa si arriba de tu descarte hay una hacha (o una estrella, o solo esta la Cesta)"
 }

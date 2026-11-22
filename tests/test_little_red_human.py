@@ -183,6 +183,7 @@ def test_large_hands_with_a_rose_asks_to_return_the_top_card_and_the_bot_moves_i
     msgs = attack(session, table, game, "What Large Hands You Have")
     once = next(c.card_id for c in game.players[1].full_set if c.title == "Once Upon a Time")
     assert session.effect_run.awaiting.kind == "optional" and session.effect_run.awaiting.extra["returns_top"] == once, msgs
+    assert said(msgs, "devuelves Once Upon a Time, la carta de arriba de tu descarte"), msgs
     msgs = press(session, table, True)
     assert once in table.human_hand and once not in table.human_discard, msgs
     assert [c.title for c in game.players[1].discard] == ["The Wolf's Skin", "What Large Hands You Have"]
@@ -247,7 +248,7 @@ def test_big_ears_with_a_wolf_on_top_is_refused_and_the_human_keeps_the_choice(r
     human_hand(table, game, "What Big Ears You Have", "The Wolf's Skin")
     human_pile(table, game, "Never Leave the Path")
     msgs = bot_attacks(session, table, game, "Service Pistol", "hellboy", "red", "What Big Ears You Have")
-    assert game.fighters["red"].hp == 14 and said(msgs, "What Big Ears You Have") and said(msgs, "no sirve para defender"), msgs
+    assert game.fighters["red"].hp == 14 and said(msgs, "What Big Ears You Have solo se juega como defensa si arriba de tu descarte hay una hacha"), msgs
 
 
 # ---------------------------------------------------------------- the bot's Little Red against the human

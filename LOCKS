@@ -5,7 +5,3 @@ docs/live-checklist.md  sherlock  docs, features and lists for the hero  2026-11
 features.json  sherlock  docs, features and lists for the hero  2026-11-22 12:10Z
 README.md  sherlock  docs, features and lists for the hero  2026-11-22 12:10Z
 config/table.json  sherlock  docs, features and lists for the hero  2026-11-22 12:10Z
-sparring/session_choices.py  little-red  prompt of the top card, Big Ears refusal  2026-11-22 12:27Z
-sparring/state.py  little-red  prompt of the top card, Big Ears refusal  2026-11-22 12:27Z
-data/i18n/en.json  little-red  prompt of the top card, Big Ears refusal  2026-11-22 12:27Z
-data/i18n/es.json  little-red  prompt of the top card, Big Ears refusal  2026-11-22 12:27Z

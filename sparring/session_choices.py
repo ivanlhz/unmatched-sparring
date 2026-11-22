@@ -201,6 +201,9 @@ def prompt_text(game, req: ChoiceRequest) -> str:
         base = _prompt("gadget")
     elif req.kind == "effect" and req.extra.get("tag") == "misery":      # Pandora's Box: which of the seven cards the human revealed
         base = _prompt("misery")
+    elif req.kind == "optional" and "returns_top" in req.extra:           # What Large Hands You Have: the top card of the pile comes back
+        card = request_card(game, req)
+        return t("choice.prompt.returns_top", title=card.title if card is not None else "?", top=card_titles(game, [req.extra["returns_top"]], req.card_owner if req.card_owner is not None else req.player))
     elif req.kind == "effect" and req.extra.get("tag") == "basket":      # Little Red: the wild basket counts as one symbol
         base = _prompt("basket")
     elif req.kind == "effect" and req.extra.get("tag") == "showdown":    # Wyatt Earp: one of the effects not used yet this turn
