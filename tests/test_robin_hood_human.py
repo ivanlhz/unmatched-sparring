@@ -253,6 +253,17 @@ def test_highway_robbery_played_by_an_outlaw_ignores_the_bots_defense_value(rig,
     assert game.fighters["hellboy"].hp == hp - 2, msgs
 
 
+@with_rig(*HELLBOY_HAND)
+def test_robin_hood_himself_cannot_play_highway_robbery_at_the_table(rig, monkeypatch):
+    session, table, game, fake, cfg = rig
+    no_defense(session, monkeypatch)
+    human_hand(table, game, *ROBIN_HAND)
+    hp = game.fighters["hellboy"].hp
+    msgs = attack(session, table, game, "Highway Robbery", attacker="robin")
+    assert said(msgs, "Carta ilegal: Highway Robbery es de Outlaw") and game.fighters["hellboy"].hp == hp, msgs
+    assert session.pending is not None and session.pending.kind == "human_attacks"          # the combat did not happen: change the card and Reveal again
+
+
 @with_rig("Excalibur", "Service Pistol")
 def test_ambush_makes_the_bot_discard_a_random_card_and_adds_its_boost(rig, monkeypatch):
     session, table, game, fake, cfg = rig

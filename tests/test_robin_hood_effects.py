@@ -476,3 +476,11 @@ def test_steal_from_the_rich_asks_the_rival_not_robin(bprd):
     g.controllers[1].queue = [[False]]
     g.play_scheme(0, g.fighters["robin"], give(g, 0, "Steal From the Rich"))
     assert [r.kind for r in g.controllers[1].requests] == ["optional"] and not g.controllers[0].requests
+
+
+def test_an_outlaw_that_falls_defending_with_defenders_of_sherwood_may_be_the_one_that_comes_back(bprd):
+    g = mk(bprd, turn=1)
+    outlaw, rival = pair(g, "outlaw1", "hellboy")
+    g.controllers[0].queue = [lambda req: [max(req.options)]]
+    g.attack(rival, outlaw, give(g, 1, "Service Pistol"), give(g, 0, "Defenders of Sherwood"))
+    assert outlaw.alive and outlaw.hp == 1 and g.board.share_zone(outlaw.pos, g.fighters["robin"].pos)
