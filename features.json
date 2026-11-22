@@ -1240,6 +1240,20 @@
       "note": "Rules decisions and open questions for Iván: docs/heroes/pandora.md (Pending Ivan). Engine notes: docs/effects-dsl.md section 49. Live test pending."
     },
     {
+      "id": "HERO-LOKI",
+      "title": "Loki (Battle of Legends, Volume Three, no sidekick, TRICKs that change hands) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/loki.json, data/heroes/loki.json, data/heroes/effects/loki.json and data/tts/loki.json generated and validated (import_hero, validate_effects, import_save); the 11 titles (30 cards, sheet 176, character card 361, the four TRICKs band ANY, Shapeshifter BOOST 2) read from the card images",
+        "A TRICK is a card of Loki's deck wherever it lies: a TRICK Loki plays goes to the opponent's hand, one the opponent plays goes to Loki's discard, one discarded from a hand returns to Loki (hand or top of his deck), +1 to his move per TRICK in the opponent's hand (sparring/tricks.py, tests/test_loki_effects.py); the four TRICKs are lent to every other hero's effects",
+        "Hidden information and the search: the location of a TRICK is public; Knowledge/determinize place the known TRICKs in the opponent's sampled hand and never in Loki's pool (tests/test_loki_ai.py, mutation-checked); the heuristic prices Loki's cards and what a TRICK costs a player who is not Loki (sparring/ai_loki.py)",
+        "At the table in both seats: the bot moves the TRICKs between hands and piles, a ledger of GUIDs tells a borrowed TRICK from a card of the human's own deck of the same CardID, Laevateinn and Looking For Trouble ask the human at the panel (sparring/session_tricks.py, tests/test_loki_human.py)",
+        "Loki against each of the other heroes in both seats reaches game over in the simulator with the heuristic and the search AI, and on FakeTTS against the heroes whose CardIDs the fake table can tell from his (tests/test_loki_matrix.py)",
+        "Verified live by Ivan (docs/live-checklist.md, section Loki)"
+      ],
+      "note": "Rules decisions and open questions for Ivan: docs/heroes/loki.md (Pending Ivan). Engine notes: docs/effects-dsl.md, section 51. Live test pending."
+    },
+    {
       "id": "HERO-BLACKBEARD",
       "title": "Blackbeard (Battle of Legends, Volume Three, two Sea Dogs on the board, three doubloons, ransoms) playable by the bot and by the human against every hero",
       "status": "in-progress",

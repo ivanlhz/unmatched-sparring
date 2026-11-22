@@ -718,3 +718,16 @@ For each failure:
 - [ ] The `--read-only` report (detection/calibration) or the `--timing` output (latency).
 - [ ] If you reloaded: with or without `--resume`; and remember you have the "pre-sparring" save.
 
+
+### Loki (Battle of Legends, Volume Three)
+
+Nothing of Loki has been seen on a real table. His deck is sheet 176 (his own images), his miniature `c55ac8` and life dial `bcd809` (16) come out of the bag `213b55`; the dial GUID is also Medusa's, told apart by its name. He has no sidekick and no token. Four of his cards are TRICKs: they change hands, so test the table in both seats.
+- [ ] **Detection (auto)**: with his deck at one spot and any other hero's at the other, the start-up line names Loki; the bag holds a deck of 31 cards (30 + character card 361).
+- [ ] **A TRICK the bot (Loki) plays** (Trick: Baldr's Downfall as an attack, Sindri's Bet as a defense, Svadilfari's Lure as a scheme): after the combat the card is in YOUR hand (the chat says so: "MISCHIEF-MONGER: ... va a tu mano"), not on the bot's discard pile.
+- [ ] **A TRICK you hold**: you can play it with any of your fighters as an attack, a defense or a scheme (the band is ANY); after the combat the bot puts it on ITS discard pile (it was Loki's). Its NOT LOKI part runs for you (Baldr's Downfall: 2 damage to your hero; Freyja's Rescue heals Loki 3; Sindri's Bet returns the top card of Loki's discard pile; Svadilfari's Lure discards a random card of your hand).
+- [ ] **Discarding a TRICK** (hand limit or an effect): lay it on your discard pile; at your next button the bot takes it back to ITS hand (or the top of its deck) and says so. If it cannot, it asks you to move the card.
+- [ ] **+1 to Loki's move** per TRICK in your hand (the bot's Maneuver reaches further; Ragnarok is worth 3 per TRICK).
+- [ ] **Laevateinn** (bot's): the panel asks which card lies at the position the bot names ("la carta N de las M"); the TRICKs you hold are listed first. A TRICK goes to the bot's hand and the bot takes it from your hand.
+- [ ] **Looking For Trouble** (bot's): the bot looks at your hand (the only read of it) and names the card you play instead of your defense, a TRICK included; you take your defense back and lay the named card, then press the first button (Done).
+- [ ] **You are Loki**: the TRICK you play is taken by the bot into ITS hand (it moves it); the bot plays it later with your images and it goes to YOUR discard pile; a TRICK the bot discards comes back to your hand and the panel asks whether it goes on top of your deck.
+- [ ] Sindri's Bet (Loki's part): the opponent (the bot) decides to discard a card or lose 3; yours: the panel asks. God of Mischief, Underhanded (6 with fewer cards in his hand), Shapeshifter (+1 per card in their hand or an action), Malicious Flyting (2 cards against a TRICK), Ragnarok and the numbers as printed (Shapeshifter's BOOST is 2).
