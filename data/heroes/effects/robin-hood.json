@@ -8,7 +8,7 @@
  "ability": {
   "text": "After you attack, you may move your attacking fighter up to 2 spaces.",
   "triggers": [
-   {"id": "robin_step", "when": {"event": "after_attack", "fighter": {"side": "own"}},
+   {"id": "move_after_attack", "when": {"event": "after_attack", "fighter": {"side": "own"}},
     "ops": [{"op": "move", "target": "$attacker", "amount": 2, "up_to": true}]}
   ],
   "passives": [],
