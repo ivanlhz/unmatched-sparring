@@ -159,7 +159,7 @@ def _start_play(monkeypatch, zone_error):
             raise Reached()                      # the step after the zone check: the start-up went on
 
     cfg = SimpleNamespace(language="en", raw={}, session_config=lambda: SimpleNamespace(bot_pause=0, card_zoom=True))
-    monkeypatch.setattr(play, "build_game", lambda *a, **k: SimpleNamespace(own=lambda p: []))
+    monkeypatch.setattr(play, "build_game", lambda *a, **k: SimpleNamespace(own=lambda p, alive_only=True: []))
     monkeypatch.setattr(play, "Session", FakeSession)
     monkeypatch.setattr(play, "make_bot_ai", lambda *a, **k: None)
     monkeypatch.setattr(play, "ai_config", lambda *a, **k: None)

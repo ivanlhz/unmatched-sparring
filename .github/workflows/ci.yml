@@ -17,7 +17,9 @@ jobs:
   bot:
     name: Bot (pytest)
     runs-on: windows-latest
-    timeout-minutes: 90
+    # one process on purpose: the AI search works to a wall-clock budget and some tests measure a fresh process, so
+    # pytest-xdist workers make them flaky. ~11.7k tests outgrew 90 minutes (the last runs were cut at ~8k).
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
 
