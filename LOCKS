@@ -1,10 +1,4 @@
 # path  agent  task  UTC time   (see BRIEF: short locks only)
-tools/import_save.py  blackbeard  register hero + importer extra cards  2026-11-22 10:01Z
-sparring/effects/state.py  blackbeard  register hero + importer extra cards  2026-11-22 10:01Z
-tests/test_heroes.py  blackbeard  register hero + importer extra cards  2026-11-22 10:01Z
-tests/test_card_identity.py  blackbeard  register hero + importer extra cards  2026-11-22 10:01Z
-tests/test_d1_bot_cards.py  blackbeard  register hero + importer extra cards  2026-11-22 10:01Z
-tests/test_effects_schema.py  blackbeard  register hero + importer extra cards  2026-11-22 10:01Z
 sparring/heroes.py  loki  counter pile rival_hand  2026-11-22 10:02Z
 sparring/state.py  loki  counter pile rival_hand + trick movement hooks  2026-11-22 10:02Z
 sparring/effects/ops_core.py  pandora  engine hooks for the Box (plugin import, engine-run trigger, prompts, AI hook)  2026-11-22 10:04Z

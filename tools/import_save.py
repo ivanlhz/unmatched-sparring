@@ -109,12 +109,14 @@ def _same(a: str, b: str) -> bool:
     return _plain(COLOR_TAG_RE.sub("", a)) == _plain(COLOR_TAG_RE.sub("", b))
 
 
-def deck_sheet(deck: dict, size: int = DECK_SIZE, characters: int = 1, character: int | None = None) -> tuple[tuple[int, int], int] | None:
+def deck_sheet(deck: dict, size: int = DECK_SIZE, characters: int = 1, character: int | None = None,
+               extras: tuple[int, ...] = ()) -> tuple[tuple[int, int], int] | None:
     """(CardID range of the `size` playing cards, character CardID) of a physical hero deck, or None if it is not one.
     The playing cards share a sheet (CardID // 100); the character card is the single card from another sheet. A deck with
-    `characters` character cards (Yennefer & Triss has two, one per variant) answers the one called `character`."""
+    `characters` character cards (Yennefer & Triss has two, one per variant) answers the one called `character`.
+    `extras` are loose rules cards that ride in the deck and are neither playing nor character cards (Blackbeard's 500)."""
     by_sheet: dict[int, list[int]] = {}
-    for cid in deck["DeckIDs"]:
+    for cid in (c for c in deck["DeckIDs"] if c not in extras):
         by_sheet.setdefault(cid // 100, []).append(cid)
     main = [ids for ids in by_sheet.values() if len(ids) == size]
     rest = [ids for ids in by_sheet.values() if len(ids) != size]
@@ -199,7 +201,8 @@ def extract_hero(objects: list[dict], hero: HeroDef, raw_hero: dict, report: Rep
     claimed: set[str] = set()
 
     chars = len(hero.tts.get("character_cards", ())) or 1
-    decks = [(o, deck_sheet(o, hero.deck_size, chars, hero.tts.get("character_card_id"))) for o in contents if is_deck(o)]
+    extras = tuple(hero.tts.get("extra_card_ids", ()))
+    decks = [(o, deck_sheet(o, hero.deck_size, chars, hero.tts.get("character_card_id"), extras)) for o in contents if is_deck(o)]
     decks = [(o, s) for o, s in decks if s is not None]
     if hero.card_base is not None:
         decks = [(o, s) for o, s in decks if s[0][0] == hero.card_base] or decks

@@ -1,0 +1,41 @@
+{
+ "slug": "blackbeard",
+ "bag": {
+  "guid": "af6cfa",
+  "inner": "541533"
+ },
+ "deck": {
+  "guid": "2bfd21",
+  "card_ids": [
+   200,
+   229
+  ],
+  "character_card_id": 362,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/10724509353453123831/088754DF9EFEC529A0893DD59427E18A7BC8C54A/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/16008817530513064233/5198933BD7EC34DB7837A941039A54B70025738B/"
+   }
+  ]
+ },
+ "fighters": {
+  "blackbeard": {
+   "piece": "8841d2",
+   "dial": "81e2ff",
+   "dial_max": 13
+  },
+  "seadog1": {
+   "piece": "e815fe",
+   "nickname": "Hands"
+  },
+  "seadog2": {
+   "piece": "265d90",
+   "nickname": "Caesar"
+  }
+ },
+ "tokens": {
+  "treasury": "442da0",
+  "doubloon": "a3b09d"
+ },
+ "counter_dials": {}
+}

@@ -1,0 +1,436 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/blackbeard.json",
+  "overlay": "data/heroes/overlay/blackbeard.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "blackbeard",
+ "name": "Blackbeard",
+ "fid": "blackbeard",
+ "hp": 13,
+ "move": 2,
+ "attack": "range",
+ "set": "battle-of-legends-volume-three",
+ "ability": "PRIVATEER TURNED PIRATE\nStart the game with 1 doubloon in the treasury, you have the other 2.\n- At the start of your turn, you may pay 1 doubloon to gain 1 action.\n- When Blackbeard takes combat damage, pay 1 doubloon.\n\nBLACKBEARD'S DOUBLOONS\nDoubloons that Blackbeard doesn't have are kept in the Treasury.\n\nBlackbeard pays a doubloon to the Treasury when he takes combat damage. He may also pay a doubloon at the start of his turn to gain an extra action.\n\nThe effects on many of Blackbeard's cards can be ignored by paying a ransom. Any opponent can pay the amount of doubloons shown at the end of an effect to ignore that effect. These doubloons are taken from the Treasury and given to Blackbeard.",
+ "sidekicks": [
+  {
+   "name": "Sea Dog",
+   "hp": 1,
+   "move": 2,
+   "attack": "melee",
+   "count": 2,
+   "fid": "seadog",
+   "tts_tokens": [
+    "Hands",
+    "Caesar"
+   ]
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 200,
+  "sheet": 2,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "A Brace of Primed Pistols",
+    "fighter": "Blackbeard",
+    "type": "attack",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: Deal 3 damage to an opposing fighter in Blackbeard's zone unless 2 doubloons.",
+    "tags": []
+   },
+   {
+    "idx": 1,
+    "title": "A Brace of Primed Pistols",
+    "fighter": "Blackbeard",
+    "type": "attack",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: Deal 3 damage to an opposing fighter in Blackbeard's zone unless 2 doubloons.",
+    "tags": []
+   },
+   {
+    "idx": 2,
+    "title": "Avast Ye!",
+    "fighter": "Blackbeard",
+    "type": "attack",
+    "value": 5,
+    "boost": 3,
+    "text": "IMMEDIATELY: Your opponent discards 1 random card unless 1 doubloon. AFTER COMBAT: Deal 1 damage to each opposing fighter in Blackbeard's zone unless 1 doubloon.",
+    "tags": []
+   },
+   {
+    "idx": 3,
+    "title": "Avast Ye!",
+    "fighter": "Blackbeard",
+    "type": "attack",
+    "value": 5,
+    "boost": 3,
+    "text": "IMMEDIATELY: Your opponent discards 1 random card unless 1 doubloon. AFTER COMBAT: Deal 1 damage to each opposing fighter in Blackbeard's zone unless 1 doubloon.",
+    "tags": []
+   },
+   {
+    "idx": 4,
+    "title": "Give No Quarter",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 1,
+    "text": "DURING COMBAT: If another friendly fighter is adjacent to the opposing fighter, this card's value is 5 instead. AFTER COMBAT: Gain 1 action unless 1 doubloon.",
+    "tags": []
+   },
+   {
+    "idx": 5,
+    "title": "Give No Quarter",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 1,
+    "text": "DURING COMBAT: If another friendly fighter is adjacent to the opposing fighter, this card's value is 5 instead. AFTER COMBAT: Gain 1 action unless 1 doubloon.",
+    "tags": []
+   },
+   {
+    "idx": 6,
+    "title": "Give No Quarter",
+    "fighter": "any",
+    "type": "attack",
+    "value": 3,
+    "boost": 1,
+    "text": "DURING COMBAT: If another friendly fighter is adjacent to the opposing fighter, this card's value is 5 instead. AFTER COMBAT: Gain 1 action unless 1 doubloon.",
+    "tags": []
+   },
+   {
+    "idx": 7,
+    "title": "Light the Fuse",
+    "fighter": "Sea Dog",
+    "type": "attack",
+    "value": 2,
+    "boost": 3,
+    "text": "AFTER COMBAT: Move your fighter up to 2 spaces. Then, deal 1 damage to each fighter adjacent to them.",
+    "tags": []
+   },
+   {
+    "idx": 8,
+    "title": "Light the Fuse",
+    "fighter": "Sea Dog",
+    "type": "attack",
+    "value": 2,
+    "boost": 3,
+    "text": "AFTER COMBAT: Move your fighter up to 2 spaces. Then, deal 1 damage to each fighter adjacent to them.",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "Light the Fuse",
+    "fighter": "Sea Dog",
+    "type": "attack",
+    "value": 2,
+    "boost": 3,
+    "text": "AFTER COMBAT: Move your fighter up to 2 spaces. Then, deal 1 damage to each fighter adjacent to them.",
+    "tags": []
+   },
+   {
+    "idx": 10,
+    "title": "Queen Anne's Revenge",
+    "fighter": "Blackbeard",
+    "type": "versatile",
+    "value": 7,
+    "boost": 3,
+    "text": "This card's effects cannot be canceled. DURING COMBAT: Subtract 2 from this card's value for each doubloon your opponent pays.",
+    "tags": []
+   },
+   {
+    "idx": 11,
+    "title": "Queen Anne's Revenge",
+    "fighter": "Blackbeard",
+    "type": "versatile",
+    "value": 7,
+    "boost": 3,
+    "text": "This card's effects cannot be canceled. DURING COMBAT: Subtract 2 from this card's value for each doubloon your opponent pays.",
+    "tags": []
+   },
+   {
+    "idx": 12,
+    "title": "Fearsome and Calculating",
+    "fighter": "Blackbeard",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "IMMEDIATELY: Look at your opponent's hand and choose 1 card for them to discard unless 1 doubloon.",
+    "tags": []
+   },
+   {
+    "idx": 13,
+    "title": "Fearsome and Calculating",
+    "fighter": "Blackbeard",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "IMMEDIATELY: Look at your opponent's hand and choose 1 card for them to discard unless 1 doubloon.",
+    "tags": []
+   },
+   {
+    "idx": 14,
+    "title": "Fearsome and Calculating",
+    "fighter": "Blackbeard",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "IMMEDIATELY: Look at your opponent's hand and choose 1 card for them to discard unless 1 doubloon.",
+    "tags": []
+   },
+   {
+    "idx": 15,
+    "title": "Show a Leg!",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: Summon a Sea Dog in Blackbeard's zone.",
+    "tags": []
+   },
+   {
+    "idx": 16,
+    "title": "Show a Leg!",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "AFTER COMBAT: Summon a Sea Dog in Blackbeard's zone.",
+    "tags": []
+   },
+   {
+    "idx": 17,
+    "title": "No Prey, No Pay",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: You may BOOST this card. AFTER COMBAT: If you won the combat, draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 18,
+    "title": "No Prey, No Pay",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: You may BOOST this card. AFTER COMBAT: If you won the combat, draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 19,
+    "title": "No Prey, No Pay",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "DURING COMBAT: You may BOOST this card. AFTER COMBAT: If you won the combat, draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "Parley",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card unless 2 doubloons.",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "Parley",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card unless 2 doubloons.",
+    "tags": []
+   },
+   {
+    "idx": 22,
+    "title": "Parley",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card unless 2 doubloons.",
+    "tags": []
+   },
+   {
+    "idx": 23,
+    "title": "Intimidating Visage",
+    "fighter": "Blackbeard",
+    "type": "defense",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: If Blackbeard is adjacent to an opposing fighter, he recovers 2 health.",
+    "tags": []
+   },
+   {
+    "idx": 24,
+    "title": "Intimidating Visage",
+    "fighter": "Blackbeard",
+    "type": "defense",
+    "value": 4,
+    "boost": 1,
+    "text": "AFTER COMBAT: If Blackbeard is adjacent to an opposing fighter, he recovers 2 health.",
+    "tags": []
+   },
+   {
+    "idx": 25,
+    "title": "Plunder",
+    "fighter": "Blackbeard",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Move each of your fighters up to 3 spaces. They may move through opposing fighters. Steal 1 doubloon from the treasury.",
+    "tags": []
+   },
+   {
+    "idx": 26,
+    "title": "Plunder",
+    "fighter": "Blackbeard",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Move each of your fighters up to 3 spaces. They may move through opposing fighters. Steal 1 doubloon from the treasury.",
+    "tags": []
+   },
+   {
+    "idx": 27,
+    "title": "Plunder",
+    "fighter": "Blackbeard",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Move each of your fighters up to 3 spaces. They may move through opposing fighters. Steal 1 doubloon from the treasury.",
+    "tags": []
+   },
+   {
+    "idx": 28,
+    "title": "Scourge of the Seven Seas",
+    "fighter": "Blackbeard",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Blackbeard recovers 2 health unless 1 doubloon. Summon a Sea Dog in any space unless 1 doubloon. Gain 1 action unless 1 doubloon.",
+    "tags": []
+   },
+   {
+    "idx": 29,
+    "title": "Scourge of the Seven Seas",
+    "fighter": "Blackbeard",
+    "type": "scheme",
+    "value": null,
+    "boost": 2,
+    "text": "Blackbeard recovers 2 health unless 1 doubloon. Summon a Sea Dog in any space unless 1 doubloon. Gain 1 action unless 1 doubloon.",
+    "tags": []
+   }
+  ]
+ },
+ "tts": {
+  "extra_card_ids": [
+   500
+  ]
+ },
+ "token_names": {
+  "442da0": "treasury",
+  "a3b09d": "doubloon"
+ },
+ "ai_profile": {
+  "blackbeard": {
+   "name": "Blackbeard",
+   "hero": true,
+   "count": 1,
+   "max_hp": 13,
+   "move": 2,
+   "ranged": true,
+   "role": "hero",
+   "attack": {
+    "cards": 20,
+    "mean": 3.25,
+    "max": 7
+   },
+   "exclusive": [
+    {
+     "title": "A Brace of Primed Pistols",
+     "type": "attack",
+     "copies": 2,
+     "impact": 0.6
+    },
+    {
+     "title": "Avast Ye!",
+     "type": "attack",
+     "copies": 2,
+     "impact": 1.35
+    },
+    {
+     "title": "Queen Anne's Revenge",
+     "type": "versatile",
+     "copies": 2,
+     "impact": 1.65
+    },
+    {
+     "title": "Fearsome and Calculating",
+     "type": "versatile",
+     "copies": 3,
+     "impact": 0.88
+    },
+    {
+     "title": "Intimidating Visage",
+     "type": "defense",
+     "copies": 2,
+     "impact": 1.66
+    },
+    {
+     "title": "Plunder",
+     "type": "scheme",
+     "copies": 3,
+     "impact": 1.02
+    },
+    {
+     "title": "Scourge of the Seven Seas",
+     "type": "scheme",
+     "copies": 2,
+     "impact": 0.3
+    }
+   ]
+  },
+  "seadog": {
+   "name": "Sea Dog",
+   "hero": false,
+   "count": 2,
+   "max_hp": 1,
+   "move": 2,
+   "ranged": false,
+   "role": "keep_away",
+   "attack": {
+    "cards": 14,
+    "mean": 2.43,
+    "max": 3
+   },
+   "exclusive": [
+    {
+     "title": "Light the Fuse",
+     "type": "attack",
+     "copies": 3,
+     "impact": 1.29
+    }
+   ],
+   "requires_alive": []
+  }
+ },
+ "_notes": [
+  "Sheet 2 of the tournament savegame (8x4, CardIDs 200-229), read card by card from the image on 2026-11-22 (Ivan's save: CustomDeck key 2 of the Blackbeard deck). The deck object holds 32 cards: the 30 playing cards, the loose rules card 500 (sheet 5, one image) and the character card 362 (sheet 3, 10x7, index 62). Order on the sheet: Brace 0-1, Avast Ye 2-3, Give No Quarter 4-6, Light the Fuse 7-9, Queen Anne's Revenge 10-11, Fearsome and Calculating 12-14, Show a Leg 15-16, No Prey No Pay 17-19, Parley 20-22, Intimidating Visage 23-24, Plunder 25-27, Scourge 28-29.",
+  "Restrictions read from the card backs: BLACKBEARD (Brace, Avast Ye, Queen Anne's Revenge, Fearsome and Calculating, Intimidating Visage, Plunder, Scourge), SEA DOG (Light the Fuse), ANY (Give No Quarter, Show a Leg, No Prey No Pay, Parley). Titles are spelled as printed; unmatched-memory writes them in sentence case (memory_title).",
+  "Hero card (read from the image): BLACKBEARD, RANGED, START HEALTH 13, MOVE 2; PRIVATEER TURNED PIRATE; sidekick SEA DOGS, MELEE, x2, start health 1 each (unmatched-memory spells the name 'Seadog'; the card says SEA DOGS). Values, boosts and copies of the 30 cards agree with unmatched-memory."
+ ]
+}
