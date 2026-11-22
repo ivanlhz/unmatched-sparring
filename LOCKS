@@ -9,3 +9,6 @@ data/i18n/es.json  robin  review fixes: interchangeable Outlaw tokens, Steal pro
 sparring/session_choices.py  robin  review fixes: interchangeable Outlaw tokens, Steal prompt  2026-11-22 13:05Z
 docs/effects-dsl.md  robin  review fixes: interchangeable Outlaw tokens, Steal prompt  2026-11-22 13:05Z
 
+sparring/effects/state.py  little-red  review fixes: pile order ambiguity, defense hook, Houdini note  2026-11-22 13:11Z
+sparring/state.py  little-red  review fixes: pile order ambiguity, defense hook, Houdini note  2026-11-22 13:11Z
+data/tts/houdini.json  little-red  review fixes: pile order ambiguity, defense hook, Houdini note  2026-11-22 13:11Z
