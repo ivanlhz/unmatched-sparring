@@ -323,7 +323,10 @@ class CombatFlow:
         return next(i for i, p in enumerate(self.game.players) if any(c is card for c in p.full_set))
 
     def card_by_id(self, card_id: int, owner: int) -> Card:
-        """The card of `owner` with that id. Ids repeat across players in a mirror match, so the owner is required."""
+        """The card of `owner` with that id. Ids repeat across players in a mirror match, so the owner is required. A TRICK of the other
+        player's deck (Loki's, in a hand that is not his) is saved by its qualified id (`tricks.QUALIFIED`)."""
+        if card_id >= tricks.QUALIFIED:
+            owner, card_id = 1 - owner, card_id - tricks.QUALIFIED
         for c in self.game.players[owner].full_set:
             if c.card_id == card_id:
                 return c
@@ -552,13 +555,18 @@ class CombatFlow:
                 out["dsl"]["second_attack"] = dict(self.second_attack)
         return out
 
+    def _saved_id(self, card: Card, owner: int) -> int:
+        """The id a card is saved under: its own, or the qualified one for a TRICK that lies with the other player."""
+        return card.card_id + tricks.QUALIFIED if tricks.borrowed(self.game, owner, card) else card.card_id
+
     def _base_dict(self, ctx, res) -> dict:
         return {
             "phase": self.phase.value, "side_idx": self.side_idx, "after_open": self.after_open,
             "values": list(self.values), "fids": [self.att.fid, self.tgt.fid],
             **({"second": self.second} if self.second is not None else {}),
-            "atk_card": self.atk_card.card_id, "def_card": None if self.def_card is None else self.def_card.card_id,
-            "played": [[owner, card.card_id] for owner, card in self.played],
+            "atk_card": self._saved_id(self.atk_card, self.att.owner),
+            "def_card": None if self.def_card is None else self._saved_id(self.def_card, self.tgt.owner),
+            "played": [[owner, self._saved_id(card, owner)] for owner, card in self.played],
             "def_bonus_parts": [[n, label] for n, label in self.def_bonus_parts],
             "answers": dict(self.answers), "await_key": self.await_key,
             "pending": None if self.pending is None else self.pending.to_dict(),

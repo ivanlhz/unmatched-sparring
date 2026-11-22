@@ -65,8 +65,7 @@ def read_human_hand(session, player: int) -> list[Card]:
     rows = session.client.call_lua(lua.read_hand(session.cfg.human_seat)) or []
     session.fx_looked = True                     # the virtual hand is re-identified: `project` must not read it as draws
     st = g.players[player]
-    by_id = {c.card_id: c for c in st.full_set}
-    cards = [by_id[r["id"]] for r in rows if isinstance(r, dict) and r.get("id") in by_id]
+    cards = [c for c in (session_tricks.card_of_row(session, player, r) for r in rows if isinstance(r, dict)) if c is not None]     # a TRICK of Loki's by its GUID
     for c in cards:
         session.make_known(c, keep=tuple(cards))
     for c in [c for c in st.hand if c not in cards]:     # the rest of the virtual hand was never there

@@ -1,6 +1,1 @@
 # path  agent  task  UTC time   (see BRIEF: short locks only)
-sparring/session_bot_effects.py  loki  look_hand reads the ledger, Looking For Trouble at the table  2026-11-22 10:50Z
-sparring/session_rage.py  loki  look_hand reads the ledger, Looking For Trouble at the table  2026-11-22 10:50Z
-sparring/state.py  loki  observe_hand keeps the TRICKs apart  2026-11-22 10:50Z
-sparring/combat_flow.py  loki  flow save/load of a borrowed TRICK  2026-11-22 10:52Z
-sparring/search/adapter.py  loki  search caches key a borrowed TRICK apart  2026-11-22 10:55Z

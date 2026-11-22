@@ -1753,7 +1753,7 @@ class Session:
             "language": i18n.language(),
             "pending": None if p is None else {
                 "kind": p.kind, "attacker": p.attacker.fid, "target": p.target.fid,
-                "bot_card": p.bot_card.card_id if p.bot_card else None, "bot_card_guid": p.bot_card_guid,
+                "bot_card": tricks.zone_id(self.game.players[self.bot], p.bot_card) if p.bot_card else None, "bot_card_guid": p.bot_card_guid,
                 "cancel_failures": p.cancel_failures, "defended": p.defended, "boost_wait": None if p.wait is None else p.wait.to_dict(),
                 **({"flow": p.flow.to_dict(), "combat": p.combat} if p.flow is not None else {}),
                 **({"prediction": p.prediction} if p.prediction is not None else {}),
@@ -1826,7 +1826,7 @@ class Session:
         try:
             persist.apply_game(self.game, d["game"])
             self._attach_choosers()
-            by_id = {c.card_id: c for c in self.game.players[self.bot].full_set}
+            by_id = loki_tricks.by_id(self, self.bot)                 # the TRICK the bot plays from the human Loki's deck is saved by its qualified id
             p = d["pending"]
             self.pending = None if p is None else Pending(
                 p["kind"], self.game.fighters[p["attacker"]], self.game.fighters[p["target"]],

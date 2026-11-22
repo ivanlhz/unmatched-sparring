@@ -512,8 +512,12 @@ class Game:
 
     # known hand of the rival (effect "look at the hand"): see KnownHand
     def observe_hand(self, viewer: int, cards: list[Card]) -> None:
-        """`viewer` has just seen the rival's whole hand through a card effect."""
-        self.players[viewer].known.observe(cards, self.turn_no)
+        """`viewer` has just seen the rival's whole hand through a card effect. The TRICKs of the viewer's own deck that lie there (Loki's) are
+        kept apart (`KnownHand.foreign`): their CardIDs may repeat the rival's own cards'."""
+        known = self.players[viewer].known
+        away = [c for c in cards if tricks.borrowed(self, 1 - viewer, c)]
+        known.observe([c for c in cards if c not in away], self.turn_no)
+        known.foreign = [c.card_id for c in away]
 
     def card_left_hand(self, owner: int, card: Card) -> None:
         """A card has left `owner`'s hand (played, discarded, lost): their rival stops counting on it."""

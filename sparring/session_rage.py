@@ -16,6 +16,7 @@ else changes nothing: the chat says what is wrong and the panel keeps waiting. T
           card they take back to their hand and play instead, same spot; none keeps Sleight Of Hand where it is."""
 from __future__ import annotations
 
+from . import session_tricks as loki_tricks
 from .effects.choose import ChoiceRequest
 from .i18n import plural, t
 from .session_choices import panel_text, request_card
@@ -91,7 +92,7 @@ def verdict(session, req: ChoiceRequest) -> tuple[list[int] | None, str | None]:
         return _verdict_play(session, req)
     g = session.game
     st = g.players[session.human]
-    by_id = {c.card_id: c for c in st.full_set}
+    by_id = loki_tricks.by_id(session, session.human)
     rows = session._rd_human_discard_raw()
     if rows is None and st.discard:                  # no reply is not an empty pile: nothing may be read as given up
         return None, t("pile.unreadable")
@@ -123,9 +124,9 @@ def _combat_spot(session) -> list[dict]:
 def _verdict_play(session, req: ChoiceRequest) -> tuple[list[int] | None, str | None]:
     """The Mists of Munnopor played by the human's attacker: the new card sits at their combat spot, not the discarded one."""
     st = session.game.players[session.human]
-    by_id = {c.card_id: c for c in st.full_set}
+    by_id = loki_tricks.by_id(session, session.human)
     old = req.extra.get("old")
-    at_spot = {r["id"] for r in _combat_spot(session) if r.get("id") in by_id}
+    at_spot = {i for i in loki_tricks.spot_ids(session, _combat_spot(session)) if i in by_id}
     new = sorted(at_spot - {old})
     if not new:
         if req.extra.get("bidding"):                          # Do my bidding: the card chosen for them must be the one they play
@@ -148,7 +149,7 @@ def _verdict_play(session, req: ChoiceRequest) -> tuple[list[int] | None, str | 
 def counted(session, req: ChoiceRequest, ids: list[int]) -> str:
     """The chat line once the cards are accepted."""
     card, m = _card_name(session, req), mode(req)
-    by_id = {c.card_id: c for c in session.game.players[session.human].full_set}
+    by_id = loki_tricks.by_id(session, session.human)
     if m == "blind":
         if not ids:
             return t("blind.none", card=card)

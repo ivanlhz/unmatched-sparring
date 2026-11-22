@@ -552,7 +552,7 @@ class EngineState:
         return (self.observer, self.weights, g.board.key, g.turn, self.phase, self.partial, self.pending[:2] if self.pending else None,
                 g.form(1 - g.turn) if self.phase == "start" else None,
                 tuple((f.fid, f.pos, f.hp) for f in g.fighters.values() if f.alive),
-                tuple(sorted(c.card_id for c in g.players[mover].hand)),
+                tuple(sorted(tricks.zone_id(g.players[mover], c) for c in g.players[mover].hand)),       # a TRICK of Loki's in the hand is a card of its own, whatever CardID a card of the hand's own deck has
                 tuple(f.fid for f in g.fighters.values() if f.alive and not g.fx.can_move(f)),    # pinned by an effect
                 g.maneuver_bonus(g.turn),      # the Maneuver's reach moves with the hero's ability (Sinbad's VOYAGE cards in the pile)
                 g.actions_left if self.weights.lookahead or pack.passive(g, g.turn) else None,    # a pack's last action is spent on a blow, not on a walk (`_generate_moves`)
@@ -932,7 +932,7 @@ class EngineState:
         g = self.game
         mine, rival = g.players[p], g.players[1 - p]
         ids = lambda cards: tuple(c.card_id for c in cards)
-        return (card.card_id, variant, p, g.turn, g.actions_left, g.board.key, ids(mine.hand), tuple(sorted(ids(mine.deck))),
+        return (tricks.zone_id(mine, card), variant, p, g.turn, g.actions_left, g.board.key, tuple(tricks.zone_id(mine, c) for c in mine.hand), tuple(sorted(ids(mine.deck))),
                 ids(mine.discard), ids(rival.discard), len(rival.hand), len(rival.deck), tuple(g.drawn),
                 tuple((fid, f.hp, f.pos, f.alive) for fid, f in sorted(g.fighters.items())),
                 tuple(g.fx.ongoing_card_id(q) for q in (0, 1)), repr(g.fx.statuses), repr(g.fx.modifiers), repr(g.fx.counters))
@@ -950,13 +950,13 @@ class EngineState:
         after = g.clone()
         after.rng = random.Random(0)        # the clone shares the game's rng: a simulated shuffle must not move it
         after.drawn = list(g.drawn)         # `Game.clone` resets the draw counter the signatures compare
-        played = next(c for c in after.players[p].hand if c.card_id == card.card_id)
+        played = next(c for c in after.players[p].hand if c == card)
         after.play_scheme(p, scheme_fighter(after, p, played), played,
                           choosers={p: SyntheticChooser(policy=variant or "greedy"), 1 - p: SyntheticChooser(policy="greedy")})
         if after.winner is not None or after.actions_left >= g.actions_left:
             return False
-        kept = {c.card_id for c in g.players[p].hand}
-        if any(c.card_id not in kept for c in after.players[p].hand):
+        kept = set(g.players[p].hand)
+        if any(c not in kept for c in after.players[p].hand):
             return False
         # play_signature[0] is the own hand (it may shrink) and [1] the own deck (it may take those cards)
         return play_signature(g, p, card)[2:] == play_signature(after, p, card)[2:]

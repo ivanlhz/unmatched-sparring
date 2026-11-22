@@ -115,8 +115,10 @@ def _looking_for_trouble(run, game, spec):
         return
     owner, rival, defender, old = run.ctx.owner, flow.tgt.owner, flow.tgt, flow.def_card
     from .ops_core import OPS
-    OPS["look_hand"](run, game, {"op": "look_hand", "player": "opponent"})
-    options = _trouble_pool(game, run, owner, rival, defender, flow, old)
+    if "trouble_options" not in run.flags:     # the op runs again after each answer, the table has moved by then: the look and the pool are taken once
+        OPS["look_hand"](run, game, {"op": "look_hand", "player": "opponent"})
+        run.flags["trouble_options"] = _trouble_pool(game, run, owner, rival, defender, flow, old)
+    options = run.flags["trouble_options"]
     own_key = tricks.qualified(old) if tricks.borrowed(game, rival, old) else old.card_id
     if len(options) < 2:
         return                                  # only the returned card: it is played again

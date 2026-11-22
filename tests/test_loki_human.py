@@ -277,3 +277,31 @@ def test_laevateinn_asks_which_card_lies_at_the_position_and_a_trick_goes_to_lok
     finally:
         client.close()
         fake.close()
+
+
+def test_looking_for_trouble_makes_the_human_play_the_trick_the_bot_names(tmp_path):
+    session, table, game, fake, cfg, client = rig(tmp_path, "loki", "hellboy", ("Looking For Trouble", "Underhanded", "Ragnarök", LURE, FREYJA))
+    try:
+        human_hand(table, game, "B.P.R.D. Training", "Excalibur")
+        trick = lend_to_human(session, table, game, SINDRI)
+        training = next(c for c in game.players[1].full_set if c.title == "B.P.R.D. Training")
+        lfr = next(c for c in game.players[0].hand if c.title == "Looking For Trouble")
+        bot_turn(session, table, [Act("attack", fid="loki", target="hellboy", card=lfr)])
+        table.face_down = [{"id": training.card_id, "guid": f"h{training.card_id}"}]       # their defense
+        table.human_hand.remove(training.card_id)
+        table.human_count = len(table.human_hand)
+        click(session, table, Event.REVEAL)
+        req = session.effect_run.awaiting
+        assert req.extra["purpose"] == "swap_defense" and req.options == [tricks.qualified(trick)]       # the bot looked at the hand and named the TRICK (LO4)
+        table.face_down = []
+        table.face_up = [{"id": training.card_id, "guid": f"h{training.card_id}"}, {"id": trick.card_id, "guid": f"h{trick.card_id}"}]     # the chosen card lies beside their defense, which the bot takes back
+        table.human_hand.remove(trick.card_id)
+        table.human_hand.append(training.card_id)
+        table.human_count = len(table.human_hand)
+        click(session, table, Event.CHOICE, {"i": 1})                                          # Done
+        assert game.players[1].hand and training in game.players[1].hand
+        assert trick in game.players[0].discard and trick not in game.players[1].hand        # played by the opponent: Loki's discard
+        assert session.trick_guids == {} and trick.card_id in table.bot_discard and trick.card_id not in table.human_hand
+    finally:
+        client.close()
+        fake.close()

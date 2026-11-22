@@ -241,3 +241,19 @@ def _run_intents(session) -> None:
         session._flush()
         for check in checks:
             check()
+
+
+# ---------------------------------------------------------------- requests whose options may name a TRICK
+
+def by_id(session, player: int) -> dict:
+    """CardID -> card of `player`'s deck, plus the TRICKs of the other deck by their qualified id (how the options of a request name them)."""
+    g = session.game
+    out = {c.card_id: c for c in g.players[player].full_set}
+    out.update({tricks.QUALIFIED + c.card_id: c for c in g.players[1 - player].full_set if tricks.is_trick(c)})
+    return out
+
+
+def spot_ids(session, rows: list[dict]) -> set[int]:
+    """The CardIDs of the cards at a combat spot as a request names them: a borrowed TRICK (its GUID is in the ledger) by its qualified id."""
+    away = ledger(session)
+    return {r["id"] + tricks.QUALIFIED if r.get("guid") in away else r["id"] for r in rows if isinstance(r, dict) and "id" in r}
