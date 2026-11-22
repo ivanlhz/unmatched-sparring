@@ -1459,3 +1459,12 @@ Everything is in docs/heroes/loki.md; the engine additions are small and additiv
 - **The trigger `resurrect`** (`start_of_turn` of the owner, condition `life` exactly 1) is plain ops: the plugin `elektra:flip` (`off_board.release`: `life` 2, the hero's `max_hp` 9, the removed fighters stop being off the board and count as defeated, with `died_at` the space they left), `return_to_deck` of the whole discard pile with `shuffle`, `revive` Elektra, `revive` the Hand in a zone no other fighter of hers is in, and a last `revive` of those left over on any empty space (not enough zones).
 - **SpaceSel `apart_from_own`** (`true`): spaces that share no zone with any other fighter of the mover's owner standing on the board; `_plan_spots` places one fighter after another, so each placed fighter closes its zone for the next.
 - Plugin `elektra:replace_combatant` is Smoke And Mirrors' machinery for Snakeroot Clan (any Hand takes Elektra's place in the combat).
+
+## Robin Hood (batch 4): a move after every attack, damage dealt as an amount, an Ambush under another id
+
+Everything is in docs/heroes/robin-hood.md; no new op, no new schema field.
+
+- **The ability is a trigger on `after_attack`** (`fighter: {side: own}`) with `move` of `$attacker`, up to 2. The event is raised when the combat reaches DONE, after every AFTER COMBAT effect of both cards (`CombatFlow._enter(DONE)`), once per attack (none of his cards makes a second attack); its fighter selector sees only living fighters, so a defeated attacker triggers nothing and no condition is needed. A `move` up to N already may stay (the bot answers with a space or none, the human's own miniature is a table note with a `hand_moves` permission the session checks at End action), so it is not wrapped in an `optional`.
+- **`{"stat": "damage_dealt_this_combat"}` as the `amount` of a `draw`** (Disarming Shot): the combat damage that landed on the opposing fighter before the hero's cap on hit points, so the overkill counts, after damage reduction and caps; 0 for a card that was cancelled or a blow redirected to the attacker.
+- **`robin:ambush`** is `blue:ambush` (the Raptors') registered under his own id (`plugins_robin.py`): a plugin id carries the fid of its hero.
+- **The rival's price in cards with no combat in sight** (Steal From the Rich, an `optional` with a hand-discard `cost` and an `else`): `EffectAI._optional` asks `ai_robin.is_steal` before the generic `worth_paying`, which never pays outside a combat. The table player gets the generic "use the effect?" with the card text.

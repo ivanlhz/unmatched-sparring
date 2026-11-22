@@ -1283,6 +1283,21 @@
         "Verified live by Ivan (docs/live-checklist.md, section Sherlock Holmes)"
       ],
       "note": "Rules decisions and open questions for Ivan: docs/heroes/sherlock-holmes.md (Pending Ivan). Engine notes: docs/effects-dsl.md, section Sherlock Holmes. Live test pending."
+    },
+    {
+      "id": "HERO-ROBIN-HOOD",
+      "title": "Robin Hood (Battle of Legends, Volume Three, four Outlaws, a move after every attack) playable by the bot and by the human against every hero",
+      "status": "in-progress",
+      "criteria": [
+        "data/heroes/overlay/robin-hood.json, data/heroes/robin-hood.json, data/heroes/effects/robin-hood.json and data/tts/robin-hood.json generated and validated (import_hero, validate_effects, import_save); the 11 titles (30 cards, sheet 176, character card 308) checked against the images: the only slip of unmatched-memory is Ambush's printed text, and Highway Robbery is restricted to an Outlaw (tests/test_hero_robin_hood_data.py)",
+        "His deck shares CardIDs 17600-17629 with Medusa and the rest of sheet 176: told apart by deck image and owner, never by a bare CardID (tests/test_card_identity.py); his Feint carries the tag robin-hood because it is word for word Bigfoot's",
+        "The ability is an after_attack trigger with a move of up to 2 on the attacking fighter (an Outlaw too), after every AFTER COMBAT effect, never for a defeated attacker, yes for a defeated defender (tests/test_robin_hood_effects.py, mutation-checked); the human is told which fighter may walk and the bot reads the walk back from the table, refusing one that breaks the rule, also after a resume (tests/test_robin_hood_human.py)",
+        "All 11 cards on the interpreter for both seats: Disarming Shot draws the combat damage dealt (overkill included), Ambush discards from the hand and adds the BOOST (the human lays the card the bot names), Highway Robbery cancels and ignores the defense value, Defenders of Sherwood returns any defeated Outlaw to an empty space of Robin's zone (the human places it by hand), Steal From the Rich is decided by the rival (a panel question for the human, a rule on public information for the bot)",
+        "His life dial GUID 1fc8df is also Yennenga's: told apart by name, played in both seats and both ways round (tests/test_robin_hood_dials.py, tests/test_piece_identity.py)",
+        "Robin Hood against every other hero in both seats reaches game over on FakeTTS (passive and attacking human) and in the simulator with the heuristic and the search AI (tests/test_robin_hood_matrix.py, tests/test_robin_hood_ai.py)",
+        "Verified live by Ivan (docs/live-checklist.md, section Robin Hood)"
+      ],
+      "note": "Rules decisions and open questions for Ivan: docs/heroes/robin-hood.md (Pending Ivan). Engine notes: docs/effects-dsl.md, section Robin Hood. Live test pending."
     }
   ]
 }

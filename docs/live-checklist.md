@@ -590,6 +590,19 @@ Nothing of Blackbeard has been seen on a real table. His deck is on a sheet of i
 - [ ] **Show a Leg! / Scourge (Sea Dogs)**: a defeated Sea Dog returns with 1 health (you place it; the bot's is placed by GUID); with none defeated the owner may reposition one; with no free space in the zone the chat says so.
 - [ ] **Light the Fuse** (only a Sea Dog plays it), **Plunder** (everyone moves up to 3 through opposing fighters and steals a doubloon), Give No Quarter (5 with a friend next to the target), Intimidating Visage, No Prey, No Pay and the numbers as printed.
 
+### Robin Hood (Battle of Legends, Volume Three, four Outlaws)
+
+Nothing of Robin Hood has been seen on a real table. His deck is sheet 176 like Medusa's and the rest; his four Outlaws are tokens (Custom_Token in the save, "Tile" in real TTS, all called Outlaw, one image, no life dial) on the board from the start, and **his life dial `1fc8df` is also Yennenga's**.
+- [ ] **Detection (auto)**: with his deck at one spot and any other hero's at the other, the start-up line names Robin Hood; the bag `ee2fcc` holds the deck of 31 cards (character card 308).
+- [ ] **Pieces**: his miniature `5aa21a`, dial `1fc8df` (13) and the Outlaws `88a446`, `0d8360`, `821507`, `dc6b24` are found by GUID; the session renames the four tokens Outlaw 1 to 4 so the chat can tell them apart. With Yennenga on the table the session tells the two dials apart by name and writes neither when it cannot (a chat line says so).
+- [ ] **The move after the attack (H)**: after each attack of Robin or an Outlaw the chat says "Despues de atacar: tu luchador atacante puede moverse ... mueve a robin (u outlaw N) hasta 2 casillas"; do the AFTER effects, walk the miniature up to 2 spaces (not through an opposing fighter) and press End action. A longer walk, or one through a rival, is refused with the reason and the engine keeps the old space; leaving it is fine. A defeated attacker is not told to move. **(B)**: the bot moves its own attacker after the combat.
+- [ ] **Highway Robbery (an Outlaw plays it)**: the rival's defense counts 0 and its effects are cancelled; Robin himself cannot play it.
+- [ ] **Ambush (H)**: the bot discards a random card of its hand and adds its BOOST. **(B)**: the chat names the position ("la carta N de tu mano") in your hand counting from the left; lay that card on your discard pile and press Done; the bot reads it and adds its BOOST.
+- [ ] **Disarming Shot / Piercing Shot / Regroup / Snark (H)**: the bot deals the cards the chat says ("Te he dado N cartas"); Disarming Shot deals as many as the damage it dealt, the overkill included.
+- [ ] **Defenders of Sherwood (H)**: with several defeated Outlaws the panel asks which comes back; the chat says to put it on an empty space of Robin's zone; put it there and press End action. **(B)**: the bot puts the Outlaw back itself; with no free space in the zone it only draws.
+- [ ] **Steal From the Rich**: **(H)** the panel asks "use the effect?" with the card text: Yes = you discard a card (lay it on your pile, press End action) and the bot draws 1, No = the bot draws 2. **(B as rival)** the chat says whether the bot paid.
+- [ ] **Wily Fighting, Feint, A Hunter's Eye, Snark** and the numbers as printed.
+
 ### Sherlock Holmes (Cobble & Fog)
 
 Nothing of Sherlock Holmes has been seen on a real table. His deck is sheet 176 like Medusa's (the images tell the decks apart), Dr. Watson is a Custom_Token with a life dial, and both life dials share a GUID with Achilles' and Patroclus' (`feaa22`, `ec605e`: Custom_Models named after their fighter, resolved by name).
