@@ -86,7 +86,7 @@ def turn_goes_on(game) -> bool:
     """The player whose turn it is still has something to do: an action is left and, when all that is left is a free action to attack,
     an attack is possible with the hand they hold (otherwise the turn is over: nothing else may spend it)."""
     game.prune_free_attacks(game.turn)       # a free action to attack nobody can use is lost (Wyatt Earp)
-    if game.actions_left <= 0:
+    if game.actions_left <= 0 or not game.own(game.turn):         # no action left, or no fighter on the board to spend one (Elektra removed in her own turn)
         return False
     if not attack_only(game):
         return True

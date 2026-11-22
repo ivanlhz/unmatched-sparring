@@ -890,6 +890,8 @@ class MedusaAI(Controller):
             g1 = self.apply_expected(game, a1)
             if g1.winner is not None:
                 second = self.outcome(g1)
+            elif not g1.own(self.me):         # the first action took every fighter off the board (Elektra's first defeat): no second action
+                second = 0.0
             else:       # what the first action did with the hero's blow goes on counting for the second one
                 rest = self.candidates(g1, model, walked_out=blow and self.walks_out(game, a1),
                                        struck=a1.kind == "attack" and a1.fid == game.hero(self.me).fid)
