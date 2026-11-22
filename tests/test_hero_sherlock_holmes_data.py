@@ -89,10 +89,9 @@ def test_generated_herodef_is_a_melee_hero_with_a_ranged_doctor_watson_on_the_bo
 
 
 def test_generated_herodef_is_the_importers_output():
+    from sparring.cards import memory_dir
     from tools.import_hero import build, render
-    from pathlib import Path
-    import os
-    memory = Path(os.environ.get("UNMATCHED_MEMORY", ""))
+    memory = memory_dir()       # the same lookup as the importer: UNMATCHED_MEMORY or the sibling unmatched-memory folder
     if not (memory / "data" / "heroes" / "sherlock-holmes.json").exists():
         pytest.skip("unmatched-memory is not available")
     assert (HEROES_DIR / f"{SLUG}.json").read_text(encoding="utf-8") == render(build(SLUG, memory))
