@@ -82,6 +82,11 @@ def describe(game, before: dict, run, flow=None, title: str | None = None) -> st
     if (swapped := run.flags.get("swapped")) is not None:         # Sleight Of Hand: the card went back to the hand
         side = "bot" if run.ctx.owner == game.bot_player else "human"
         parts.append(t(f"narr.swapped.{side}", title=_title(game, swapped["new"], run.ctx.owner)))
+    side = "bot" if run.ctx.owner == game.bot_player else "human"
+    if (named := run.flags.get("named")) is not None:               # Sherlock's Confirm Suspicion: the value that was named
+        parts.insert(0, t(f"narr.named.{side}", n=named))
+    if run.flags.get("elementary") and run.flags.get("prediction") is not None:      # Sherlock's Elementary: the number said before the reveal
+        parts.append(t(f"narr.elementary.{side}", n=run.flags["prediction"]))
     if run.flags.get("look_cancelled"):
         parts.append(t("narr.look_cancelled"))
     elif run.flags.get("looked_hand") and before["seen"][run.ctx.owner] != _seen(game.players[run.ctx.owner]):

@@ -31,7 +31,7 @@ import random
 from functools import lru_cache
 from itertools import combinations
 
-from . import ai_achilles, ai_blackbeard, ai_little_red, ai_mary, ai_pandora, ai_washington, ai_wukong, ai_wyatt, ai_yennenga, enraged, tricks
+from . import ai_achilles, ai_blackbeard, ai_little_red, ai_mary, ai_pandora, ai_sherlock, ai_washington, ai_wukong, ai_wyatt, ai_yennenga, enraged, tricks
 from .ai_medusa import (ACTION_VALUE, DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, SURVIVAL_P, W_HERO, W_MEDUSA_HP,
                         W_SIDEKICK, MedusaAI, Model, can_use, defence_keeper, discard_cut, effect_reliance, hand_room, keep_value, kept_hand_value, kill_value, play_signature)
 from .controller import Controller
@@ -384,6 +384,10 @@ class EffectAI:
             return self._ruse_discards(game, req)
         if purpose == "ruse_reveal":
             return self._ruse_reveal(game, req)
+        if req.extra.get("confirm") is not None and zone == "hand" and of == me:      # Confirm Suspicion: the card given up costs its keep value and its BOOST in hit points
+            by_id = {c.card_id: c for c in game.players[me].hand}
+            hand, rel = game.players[me].hand, effect_reliance(game, me)
+            return sorted((i for i in req.options if i in by_id), key=lambda i: (keep_value(by_id[i], hand, rel) + W_MEDUSA_HP * by_id[i].boost, i))[:n_min]
         if zone == "hand" and of != me:                    # C4: what a look showed, the rest by position
             return ControllerChooser._from_rival_hand(game, req, of)
         if zone == "hand":
@@ -594,6 +598,8 @@ class EffectAI:
         return sorted(req.options, key=lambda i: (-self.blow_value(fighters[i], DEFAULT_BLOW, game), i))
 
     def _amount(self, game: Game, req: ChoiceRequest, nested: bool) -> list:
+        if req.extra.get("confirm") is not None:    # Sherlock's Confirm Suspicion: the value to name (ai_sherlock)
+            return [ai_sherlock.name_value(game, req.player)]
         if req.extra.get("blind_count"):
             return [self._blind_boost(game, req)]
         if req.extra.get("queens"):         # Queen Anne's Revenge: how many doubloons the rival pays (ai_blackbeard)
@@ -611,6 +617,8 @@ class EffectAI:
         if req.extra.get("tag") == "basket":      # Little Red's wild basket: which symbol it counts as (ai_little_red)
             return [ai_little_red.pick_symbol(game, req)]
         if req.extra.get("op") == PREDICT_OP:
+            if req.extra.get("elementary"):        # Sherlock's Elementary: the attacker's printed value, from public information (ai_sherlock)
+                return [ai_sherlock.predict_attack_value(game, req.player, req.extra.get("attacker"))]
             return [predict_value(game, req.player)]
         if req.extra.get("future") == "deck":
             return [self._future_deck(game, req)]
@@ -703,6 +711,8 @@ class EffectAI:
         return 1 if card_worth(card) > average else 0
 
     def _optional(self, game: Game, req: ChoiceRequest, nested: bool) -> list | None:
+        if "rival_value" in req.extra:       # Deduce Strategy: the rival's printed value becomes its BOOST, when that is lower (ai_sherlock)
+            return [ai_sherlock.deduce_pays(req.extra["rival_value"])]
         if "ransom" in req.extra:            # Blackbeard's "unless N doubloons": paid when the line costs more than the doubloons (ai_blackbeard)
             return [ai_blackbeard.ransom_pays(self, game, req)]
         if "doubloon_action" in req.extra:   # Blackbeard's start of turn: a doubloon to the Treasury for an action (ai_blackbeard)

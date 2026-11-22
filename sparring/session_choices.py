@@ -112,6 +112,8 @@ def option_label(game, req: ChoiceRequest, option) -> str:
             return safe_label(t("choice.ransom.pay", n=req.extra["ransom"]) if option is True else t("choice.ransom.decline"))
         if "doubloon_action" in req.extra:                    # his action at the start of the turn
             return safe_label(t("choice.doubloon.pay") if option is True else t("choice.no"))
+        if "rival_value" in req.extra:                        # Sherlock's Deduce Strategy: the rival's printed value becomes its BOOST
+            return safe_label(t("choice.deduce.change", now=req.extra["rival_value"]["now"], to=req.extra["rival_value"]["to"]) if option is True else t("choice.no"))
         if option is False and "else_damage" in req.extra:
             return safe_label(t("choice.take", n=req.extra["else_damage"]))
         return t("choice.yes") if option is True else t("choice.no")
@@ -138,7 +140,7 @@ def options_text(game, req: ChoiceRequest, limit: int = 6) -> str:
 
 def card_text_hint(game, req: ChoiceRequest) -> str:
     """' Card: <printed text>' for a plain yes/no (Pyrotechnics: the question alone did not say what the card does), else ''."""
-    if req.kind != "optional" or req.extra.get("discards") or "reposition" in req.extra or "ransom" in req.extra or "doubloon_action" in req.extra or "to" in req.extra or "shield" in req.extra or "bury_rival" in req.extra:
+    if req.kind != "optional" or req.extra.get("discards") or "reposition" in req.extra or "ransom" in req.extra or "doubloon_action" in req.extra or "rival_value" in req.extra or "to" in req.extra or "shield" in req.extra or "bury_rival" in req.extra:
         return ""
     card = request_card(game, req)
     text = getattr(card, "text", "") if card is not None else ""
@@ -177,6 +179,10 @@ def prompt_text(game, req: ChoiceRequest) -> str:
         return t(where, title=card.title if card is not None else "Blackbeard")
     if req.kind == "optional" and "doubloon_action" in req.extra:  # his action at the start of the turn
         return t("choice.prompt.doubloon_action", held=req.extra["held"], treasury=req.extra["treasury"])
+    if req.kind == "optional" and "rival_value" in req.extra:      # Sherlock's Deduce Strategy
+        return t("choice.prompt.deduce", now=req.extra["rival_value"]["now"], to=req.extra["rival_value"]["to"])
+    if req.kind == "amount" and req.extra.get("confirm") is not None:      # Sherlock's Confirm Suspicion: the value to name
+        return t("choice.prompt.name_value")
     if req.kind == "amount" and req.extra.get("queens"):           # Queen Anne's Revenge: how many doubloons to pay
         return t("choice.prompt.queens", treasury=req.extra["treasury"], n=req.extra["queens"])
     if req.kind == "amount" and req.extra.get("blind_count"):      # BLIND BOOST: how many, before any card moves
@@ -205,6 +211,8 @@ def prompt_text(game, req: ChoiceRequest) -> str:
         return t("choice.prompt.trick_deck", title=req.extra["trick_deck"])
     elif req.kind == "cards" and req.extra.get("purpose") == "reveal" and req.extra.get("which"):     # Loki's Laevateinn: which card lies at the position he picked
         base = t("choice.prompt.loki_reveal", which=req.extra["which"])
+    elif req.kind == "effect" and req.extra.get("op") == "predict" and req.extra.get("elementary"):     # Sherlock's Elementary: no face down option
+        base = t("choice.prompt.elementary")
     elif req.kind == "effect" and req.extra.get("op") == "predict":
         base = _prompt("predict")
     elif req.kind == "effect" and req.extra.get("future"):      # The future of Ninjutsu: which deck, then leave or bottom

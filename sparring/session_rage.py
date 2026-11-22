@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from . import session_tricks as loki_tricks
 from .effects.choose import ChoiceRequest
+from .effects.plugins_sherlock import matches
 from .i18n import plural, t
 from .session_choices import panel_text, request_card
 
@@ -45,6 +46,8 @@ def instruction(session, req: ChoiceRequest) -> str:
         return t("blind.instruction", card=card, n=req.max)
     if m == "reveal" and req.extra.get("dust"):             # Blinding dust: the card given up for the damage of its BOOST
         return t("dust.instruction", card=card)
+    if m == "reveal" and req.extra.get("confirm") is not None:      # Sherlock's Confirm Suspicion: a card of the named value, or none
+        return t("confirm.recheck" if req.extra.get("recheck") else "confirm.instruction", card=card, value=req.extra["confirm"])
     if m == "reveal" and req.extra.get("ambush"):           # Ambush (and any random discard the bot reads): the position the bot named
         return t("ambush.instruction", which=req.extra.get("which", card))
     if m == "reveal":
@@ -67,6 +70,8 @@ def instruction(session, req: ChoiceRequest) -> str:
 def status(session, req: ChoiceRequest) -> str:
     if mode(req) == "reveal" and req.extra.get("dust"):
         return panel_text(t("dust.status"))
+    if mode(req) == "reveal" and req.extra.get("confirm") is not None:
+        return panel_text(t("confirm.status", value=req.extra["confirm"]))
     if mode(req) == "reveal" and req.extra.get("ambush"):
         return panel_text(t("ambush.status"))
     if mode(req) == "play" and req.extra.get("trouble"):
@@ -110,6 +115,8 @@ def verdict(session, req: ChoiceRequest) -> tuple[list[int] | None, str | None]:
         if wrong:
             items = ", ".join(t("rage.wrong_item", title=c.title, kind=t(f"rage.type.{c.type}")) for c in wrong)
             return None, t("rage.wrong", items=items, card=_card_name(session, req))
+    elif m == "reveal" and req.extra.get("confirm") is not None and (wrong := [by_id[i] for i in arrived if not matches(by_id[i], req.extra["confirm"])]):
+        return None, t("confirm.wrong", items=", ".join(f"{c.title} ({c.value or 0})" for c in wrong), value=req.extra["confirm"], card=_card_name(session, req))
     elif len(arrived) > req.max:
         return None, t("blind.too_many" if m == "blind" else "reveal.too_many", n=len(arrived), max=req.max,
                        titles=", ".join(by_id[i].title for i in arrived), card=_card_name(session, req))
@@ -163,6 +170,10 @@ def counted(session, req: ChoiceRequest, ids: list[int]) -> str:
             return t("knee.auto", card=card, title=by_id[ids[0]].title)
         return t("blind.counted", card=card, titles=", ".join(by_id[i].title for i in ids),
                  bonus=f"+{sum(by_id[i].boost for i in ids)}")
+    if m == "reveal" and req.extra.get("confirm") is not None:
+        if not ids:
+            return t("confirm.none", card=card, value=req.extra["confirm"])
+        return t("confirm.counted", card=card, title=by_id[ids[0]].title, boost=by_id[ids[0]].boost)
     if m == "reveal" and req.extra.get("dust"):
         return t("dust.counted", card=card, title=by_id[ids[0]].title, boost=by_id[ids[0]].boost)
     if m == "reveal" and req.extra.get("ambush"):

@@ -1,7 +1,4 @@
 # path  agent  task  UTC time   (see BRIEF: short locks only)
-sparring/session.py  sherlock  Elementary prediction at Reveal, Confirm Suspicion table story  2026-11-22 12:05Z
-sparring/session_hidden.py  sherlock  Elementary prediction at Reveal  2026-11-22 12:05Z
-sparring/session_rage.py  sherlock  Confirm Suspicion pile mode  2026-11-22 12:05Z
 docs/effects-dsl.md  sherlock  docs, features and lists for the hero  2026-11-22 12:10Z
 docs/card-identity.md  sherlock  docs, features and lists for the hero  2026-11-22 12:10Z
 docs/live-checklist.md  sherlock  docs, features and lists for the hero  2026-11-22 12:10Z
@@ -9,11 +6,5 @@ features.json  sherlock  docs, features and lists for the hero  2026-11-22 12:10
 README.md  sherlock  docs, features and lists for the hero  2026-11-22 12:10Z
 config/table.json  sherlock  docs, features and lists for the hero  2026-11-22 12:10Z
 
-sparring/effects/choose.py  sherlock  registration, hooks and strings  2026-11-22 12:14Z
-sparring/ai_effects.py  sherlock  registration, hooks and strings  2026-11-22 12:14Z
-sparring/session_choices.py  sherlock  registration, hooks and strings  2026-11-22 12:14Z
-sparring/effects/narrate.py  sherlock  registration, hooks and strings  2026-11-22 12:14Z
-data/i18n/en.json  sherlock  registration, hooks and strings  2026-11-22 12:14Z
-data/i18n/es.json  sherlock  registration, hooks and strings  2026-11-22 12:14Z
 sparring/effects/ops_core.py  little-red  the question names the top card Large Hands returns  2026-11-22 12:17Z
 sparring/effects/table.py  elektra  ENGINE_RUN_TRIGGERS resurrect  2026-11-22 12:18Z

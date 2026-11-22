@@ -230,6 +230,9 @@ class SyntheticChooser:
         return self.policy == "greedy"
 
     def _optional(self, game, req: ChoiceRequest) -> list:
+        if "rival_value" in req.extra:               # Sherlock's Deduce Strategy: the rival's value drops to its BOOST, or it does not
+            from ..ai_sherlock import deduce_pays
+            return [deduce_pays(req.extra["rival_value"])]
         if "washington" in req.extra:                # ESPIONAGE in a rollout: the attacker spends a token, the opponent keeps the card
             return [req.extra["washington"] == "use"]
         if "pact" in req.extra:                      # DARK PACT in a rollout: while the hero can spare the hit points
@@ -239,6 +242,9 @@ class SyntheticChooser:
         return [self.greedy or "cost_cards" not in req.extra]
 
     def _amount(self, game, req: ChoiceRequest) -> list:
+        if req.extra.get("confirm") is not None:     # Sherlock's Confirm Suspicion: the value to name, priced from public information
+            from ..ai_sherlock import name_value
+            return [name_value(game, req.player)]
         if req.extra.get("assign"):                  # Yennenga's ability in a rollout: the share the bot's own policy gives the Archer
             from ..ai_yennenga import archer_share
             return [archer_share(game, req)]
@@ -256,6 +262,9 @@ class SyntheticChooser:
         last. Taking the first two options blindly played Pancakes! as heal + a return of nothing."""
         from ..ai_effects import EffectAI
         n = min(req.max, len(req.options))
+        if req.extra.get("elementary"):             # Sherlock's Elementary in a rollout: the public estimate of the attacker's printed value
+            from ..ai_sherlock import predict_attack_value
+            return [predict_attack_value(game, req.player, req.extra.get("attacker"))]
         if req.extra.get("tag") == "basket":       # Little Red's wild basket in a rollout: the same pick as the bot's own
             from ..ai_little_red import pick_symbol
             return [pick_symbol(game, req)]

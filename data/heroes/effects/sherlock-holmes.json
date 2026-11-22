@@ -381,35 +381,15 @@
     "immediately": [],
     "during": [
      {
-      "op": "if",
-      "condition": {
-       "test": "card",
-       "card": "opponent_card",
-       "filter": {}
-      },
-      "then": [
-       {
-        "op": "optional",
-        "chooser": "owner",
-        "ops": [
-         {
-          "op": "set_value",
-          "card": "opponent_card",
-          "amount": {
-           "attr": "boost",
-           "of": "opponent_card"
-          }
-         }
-        ]
-       }
-      ]
+      "op": "plugin",
+      "id": "holmes:deduce_strategy"
      }
     ],
     "after": [],
     "scheme": [],
     "boost": []
    },
-   "notes": "HOLMES, versatile 3 / boost 1. `set_value amount`: the printed value becomes the BOOST (bonuses and a BOOST played on top still add). The defender's DURING resolves first."
+   "notes": "HOLMES, versatile 3 / boost 1. Plugin `holmes:deduce_strategy`: an optional whose request carries the rival card's printed value and BOOST (so a bot can weigh it: lower is better) and then `set_value` to the BOOST (the printed value becomes N, bonuses and a BOOST played on top still add; a card with no BOOST counts 0). The defender's DURING resolves first. Nothing is asked when no card was played against it."
   },
   {
    "title": "Feint",
@@ -461,6 +441,10 @@
   {
    "id": "holmes:elementary",
    "why": "A prediction made at the moment the card is played, before the attacker's card is revealed (the DSL has no moment for it) and compared after the reveal: the plugin asks the owner once and keeps the number in the run's flags (Abe's Perfect Shot, mirrored: the defender predicts the attacker's printed value); the same id is the test `predicted_correctly`."
+  },
+  {
+   "id": "holmes:deduce_strategy",
+   "why": "An optional change of the rival card's printed value to its BOOST: the request has to carry both numbers (the DSL's `optional` has no way to put the card's value and BOOST in the question) so that a bot decides by them and the human is told what the change does."
   },
   {
    "id": "holmes:confirm_suspicion",

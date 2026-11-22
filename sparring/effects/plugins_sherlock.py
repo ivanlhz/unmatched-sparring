@@ -16,10 +16,11 @@ found there must be discarded (`phase: recheck`)."""
 from __future__ import annotations
 
 from . import table
-from .ops_core import plugin, plugin_condition
+from .ops_core import OPS, plugin, plugin_condition
 from .ops_combat import PREDICT_OP, PREDICT_VALUES
-from .plugins_strange import _unplayed
+from .plugins_strange import _flow, _unplayed
 
+DEDUCE = "holmes:deduce_strategy"
 ELEMENTARY = "holmes:elementary"
 CONFIRM = "holmes:confirm_suspicion"
 VALUES = list(PREDICT_VALUES)           # any printed value can be named (Ivan, 28/10, for every prediction)
@@ -31,6 +32,23 @@ def matches(card, named: int) -> bool:
     return card.type != "scheme" and (card.value or 0) == named
 
 
+# ---------------------------------------------------------------- Deduce Strategy
+
+@plugin(DEDUCE)
+def _deduce(run, game, spec):
+    """"You may change the printed value of the opponent's card to its BOOST value (no BOOST value: 0)". The owner is asked with both numbers in the
+    request (`rival_value`); the change is the engine's `set_value` of a printed value, so bonuses and a BOOST played on top still add."""
+    flow = _flow(run, DEDUCE)
+    attacking = run.ctx.played_as == "attack"
+    card = flow.def_card if attacking else flow.atk_card
+    if card is None:
+        return
+    boost = card.boost or 0
+    if not run.ask(game, "optional", run.ctx.owner, [True, False], 1, 1, "do it?", rival_value={"now": card.value or 0, "to": boost})[0]:
+        return
+    OPS["set_value"](run, game, {"op": "set_value", "card": "opponent_card", "amount": boost})
+
+
 # ---------------------------------------------------------------- Elementary
 
 @plugin(ELEMENTARY)
@@ -40,7 +58,7 @@ def _elementary(run, game, spec):
     flow = getattr(run, "flow", None)
     answer = run.ask(game, "effect", run.ctx.owner, VALUES, 1, 1, "predict the printed attack value of the opponent's card",
                      op=PREDICT_OP, elementary=True, attacker=None if flow is None else flow.att.fid)[0]
-    run.flags["prediction"] = answer
+    run.flags["prediction"], run.flags["elementary"] = answer, True
 
 
 @plugin_condition(ELEMENTARY)
