@@ -16,6 +16,3 @@ sparring/effects/narrate.py  sherlock  registration, hooks and strings  2026-11-
 data/i18n/en.json  sherlock  registration, hooks and strings  2026-11-22 12:14Z
 data/i18n/es.json  sherlock  registration, hooks and strings  2026-11-22 12:14Z
 sparring/effects/ops_core.py  little-red  the question names the top card Large Hands returns  2026-11-22 12:17Z
-sparring/session_choices.py  little-red  the question names the top card Large Hands returns  2026-11-22 12:17Z
-data/i18n/en.json  little-red  the question names the top card Large Hands returns  2026-11-22 12:17Z
-data/i18n/es.json  little-red  the question names the top card Large Hands returns  2026-11-22 12:17Z
