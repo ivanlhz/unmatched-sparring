@@ -42,6 +42,7 @@ def test_a_hero_off_the_board_is_worth_nearly_a_fresh_hero_and_much_more_than_a_
     dead = value(h, 1, 1)
     assert dead < away < whole + 0.5, (dead, away, whole)
     assert away > 0.5 * whole
+    assert EngineState._hero_life(g.fighters["elektra"]) > 0.5 and EngineState._hero_life(h.fighters["elektra"]) == 0
 
 
 def test_what_the_rival_gains_from_removing_her_is_not_the_value_of_a_kill(bprd):
@@ -99,3 +100,10 @@ def test_the_bot_swaps_a_hand_in_when_the_blow_would_take_her_out(bprd):
         e.hp = hp
         res = g.attack(foe, e, give(g, 1, "Katana"), give(g, 0, "Snakeroot Clan"))
         assert res.target in HANDS and e.alive and g.fx.counter_value(0, "life") == 0, (hp, res.target)       # a Hand takes the blow: she is not removed
+
+
+@pytest.mark.parametrize("seat", ["bot", "human"])
+@pytest.mark.parametrize("seed", [1, 2, 3])
+def test_the_scripted_chaser_plays_against_an_elektra_that_goes_off_the_board(seat, seed):
+    pair = ("elektra", "hellboy") if seat == "bot" else ("hellboy", "elektra")
+    assert sim.play(seed, bot_hero=pair[0], human_hero=pair[1], rival="chaser").winner != "draw"

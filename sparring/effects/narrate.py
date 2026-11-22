@@ -13,6 +13,7 @@ import re
 
 from . import plugins_blackbeard, table
 from ..i18n import has, t, tn
+from .. import off_board
 from ..spaces import describe as describe_space
 
 # the chat speaks to the human: the bot in the third person, the human in the second (tags `narr.v.*.<side>`)
@@ -187,7 +188,7 @@ def _fighters(game, before: dict) -> list[str]:
         if alive0 and not f.alive:
             out.append(t("narr.fighter.removed" if f.off_board else "narr.fighter.down", fid=who))
         elif not alive0 and f.alive:
-            if fid in game.placing and f.died_at is not None:      # the human puts it down by hand: the engine's spot is only a placeholder
+            if fid in game.placing and f.died_at is not None and off_board.is_elektra(game, f.owner):      # Elektra's Resurrect: the human puts it down by hand, the engine's spot is only a placeholder
                 out.append(t("narr.fighter.back_by_hand", fid=who, hp=f"{f.hp:g}"))
             elif f.died_at is None and not f.hero:        # first time out of the reserve: summoned, not returned
                 out.append(t("narr.fighter.summoned_by_hand" if fid in game.placing else "narr.fighter.summoned",
