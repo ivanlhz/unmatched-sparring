@@ -55,9 +55,13 @@ def _elementary(run, game, spec):
     if "prediction" in run.flags:
         return
     from .ops_combat import PREDICT_OP          # not at import time: ops_combat imports ops_core, which imports this module
+    from . import modifiers
     flow = getattr(run, "flow", None)
+    known = None                    # an attack card that is already face up (the second part of a double attack, a card played face up) has a public printed value
+    if flow is not None and flow.atk_card is not None and (flow.second is not None or modifiers.plays_face_up(flow.atk_card, game, flow.att, flow.tgt)):
+        known = flow.atk_card.value or 0
     answer = run.ask(game, "effect", run.ctx.owner, VALUES, 1, 1, "predict the printed attack value of the opponent's card",
-                     op=PREDICT_OP, elementary=True, attacker=None if flow is None else flow.att.fid)[0]
+                     op=PREDICT_OP, elementary=True, attacker=None if flow is None else flow.att.fid, known_value=known)[0]
     run.flags["prediction"], run.flags["elementary"] = answer, True
 
 

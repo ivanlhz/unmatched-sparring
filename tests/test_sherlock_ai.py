@@ -14,6 +14,7 @@ from sparring.effects.choose import ChoiceRequest, SyntheticChooser
 from sparring.search.controller import make_bot_ai
 from sparring.state import Game
 from test_bigfoot_effects import Answers
+from test_effects_combat import pair
 from test_sherlock_effects import mk
 
 
@@ -174,7 +175,42 @@ def test_a_search_with_holmes_never_peeks_at_the_hidden_attack_card(monkeypatch)
     """The prediction in the rollouts is the public estimate: the rival's hand of the determinized game is never the input."""
     seen = []
     real = ai_sherlock.predict_attack_value
-    monkeypatch.setattr(ai_sherlock, "predict_attack_value", lambda game, me, fid=None: seen.append(fid) or real(game, me, fid))
+    monkeypatch.setattr(ai_sherlock, "predict_attack_value", lambda game, me, fid=None, known=None: seen.append(fid) or real(game, me, fid, known))
     ai = make_bot_ai({"ai": "ismcts", "ai_iterations": 40, "ai_seed": 1})
     sim.play(1, bot_hero="sherlock-holmes", human_hero="hellboy", medusa=ai, rival="chaser", max_turns=30)
     assert ai.fallbacks == 0 and all(f is None or isinstance(f, str) for f in seen)
+
+
+def test_a_face_up_attack_has_a_public_printed_value_and_nothing_is_guessed(bprd):
+    g = mk(bprd)
+    assert ai_sherlock.predict_attack_value(g, 0, "medusa", known=5) == 5
+    assert EffectAI(0).decide(g, ChoiceRequest("effect", 0, list(range(8)), 1, 1, None, "immediately/0:0", "predict",
+                                               {"op": "predict", "elementary": True, "attacker": "medusa", "known_value": 4}, 0), nested=False) == [4]
+    assert SyntheticChooser(policy="greedy").choose(g, ChoiceRequest("effect", 0, list(range(8)), 1, 1, None, "k", "predict",
+                                                                      {"op": "predict", "elementary": True, "attacker": "medusa", "known_value": 4}, 0)) == [4]
+
+
+def test_the_second_part_of_a_double_attack_asks_elementary_with_the_known_value(bprd):
+    """The attacker's card is already face up in the second part: the request carries its printed value so a bot predicts it instead of guessing."""
+    from sparring.combat_flow import CombatFlow
+    g = mk(bprd, foe="hellboy", turn=1)
+    foe, h = pair(g, "hellboy", "holmes")
+    card = give(g, 1, "Right Hand Of Doom")                     # attack 4
+    flow = CombatFlow(g, foe, h, card, give(g, 0, "Elementary"), second=4)
+    flow.drive(lambda choice: None)
+    asked_ = [r for r in g.controllers[0].requests if r.extra.get("op") == "predict"]
+    assert asked_ and asked_[0].extra["known_value"] == 4
+
+
+def test_a_stale_look_does_not_narrow_the_estimate_once_the_hand_has_grown(bprd):
+    g = mk(bprd)
+    hiss = give(g, 1, "Hiss and Slither")
+    g.players[0].known.seen = [hiss.card_id]
+    give(g, 1, "Snipe")
+    give(g, 1, "Dash")                                         # the hand is now 3 cards and only 1 of them was seen
+    foe = g.players[1]
+    assert ai_sherlock._pool(g, 0) == [c for c in foe.full_set if c not in foe.gone]
+    g.players[0].known.seen = [hiss.card_id, give(g, 1, "Regroup").card_id, give(g, 1, "Feint").card_id]    # the whole hand of 5 seen
+    foe.hand[:] = foe.hand[:3]
+    assert len(ai_sherlock._pool(g, 0)) <= 3
+

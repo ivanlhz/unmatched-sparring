@@ -13,6 +13,3 @@ sparring/effects/state.py  little-red  review fixes: pile order ambiguity, defen
 sparring/state.py  little-red  review fixes: pile order ambiguity, defense hook, Houdini note  2026-11-22 13:11Z
 data/tts/houdini.json  little-red  review fixes: pile order ambiguity, defense hook, Houdini note  2026-11-22 13:11Z
 
-sparring/ai_effects.py  sherlock  review fixes: known value, stale look  2026-11-22 13:11Z
-sparring/effects/choose.py  sherlock  review fixes: known value  2026-11-22 13:11Z
-docs/live-checklist.md  sherlock  review fix: Master of Disguise wording  2026-11-22 13:11Z

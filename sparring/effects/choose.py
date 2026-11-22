@@ -264,7 +264,7 @@ class SyntheticChooser:
         n = min(req.max, len(req.options))
         if req.extra.get("elementary"):             # Sherlock's Elementary in a rollout: the public estimate of the attacker's printed value
             from ..ai_sherlock import predict_attack_value
-            return [predict_attack_value(game, req.player, req.extra.get("attacker"))]
+            return [predict_attack_value(game, req.player, req.extra.get("attacker"), req.extra.get("known_value"))]
         if req.extra.get("tag") == "basket":       # Little Red's wild basket in a rollout: the same pick as the bot's own
             from ..ai_little_red import pick_symbol
             return [pick_symbol(game, req)]

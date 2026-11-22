@@ -618,7 +618,7 @@ class EffectAI:
             return [ai_little_red.pick_symbol(game, req)]
         if req.extra.get("op") == PREDICT_OP:
             if req.extra.get("elementary"):        # Sherlock's Elementary: the attacker's printed value, from public information (ai_sherlock)
-                return [ai_sherlock.predict_attack_value(game, req.player, req.extra.get("attacker"))]
+                return [ai_sherlock.predict_attack_value(game, req.player, req.extra.get("attacker"), req.extra.get("known_value"))]
             return [predict_value(game, req.player)]
         if req.extra.get("future") == "deck":
             return [self._future_deck(game, req)]
