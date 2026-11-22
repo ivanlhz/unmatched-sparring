@@ -9,8 +9,10 @@ Three decisions the interpreter asks (`EffectAI._optional`, `EffectAI._amount`),
   * `queens_amount`: Queen Anne's Revenge, how many doubloons (0 to the Treasury) to pay at 2 off the card's value each: the count that maximises
     the swing in the combat damage, less the doubloons.
   * `action_pays`: the bot IS Blackbeard at the start of his turn: 1 doubloon to the Treasury for 1 action. A doubloon in the Treasury is a ransom
-    the opponent can pay later (and a coin off Queen Anne's Revenge's strength), so the action is bought only when the hand can use two actions and
-    the Treasury stays small.
+    the opponent can pay later (and a coin off Queen Anne's Revenge's strength), so the action is bought only when the hand has a card to play with
+    it and the Treasury stays within `TREASURY_CAP`. Measured (tools/measure_blackbeard_ai.py caps 60, heuristic AI against the chasing scripted
+    rival, 60 games): a cap of 2 won 41, no cap 50 to 51, whatever the cards needed (2, 1 or none): the extra action is worth more than the ransom
+    room the Treasury gives. The scripted rival never ransoms, so what the cap protects against is not in that number.
 """
 from __future__ import annotations
 
@@ -21,8 +23,8 @@ PAY_MARGIN = 0.25               # a ransom is paid only when the line costs the 
 ACTION_BONUS = 1.4              # an action for Blackbeard (Give No Quarter, Scourge of the Seven Seas)
 SEA_DOG_BACK = HARPY_VALUE + 0.9        # a defeated Sea Dog that returns: a body and its hit point
 SEA_DOG_MOVE = 0.4              # nobody defeated: a Sea Dog only repositions
-TREASURY_CAP = 2                # the action is not bought if it would put more than this many doubloons in the Treasury
-USEFUL_ACTIONS = 2              # ... nor unless the hand can play this many attacks or schemes
+TREASURY_CAP = 3                # the action is not bought if it would put more than this many doubloons in the Treasury (3: never a limit)
+USEFUL_ACTIONS = 1              # ... nor unless the hand can play this many attacks or schemes
 
 
 def _my_cards(game, me: int, ids) -> list:

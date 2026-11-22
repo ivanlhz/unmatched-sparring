@@ -186,7 +186,7 @@ uv run python -m sparring.play --config config\table.json --resume
 | `--first human\|bot\|random` | Who goes first. Default `random` (a draw is announced). |
 | `--seed N` | Seed for the draw and the decks (random if absent). |
 | `--resume` | Continue the saved game. Refuses a save from another table or an old format with a clear message. |
-| `--bot-hero SLUG`, `--human-hero SLUG` | Force the heroes (`abe-sapien`, `achilles`, `baba-yaga`, `bigfoot`, `bloody-mary`, `bullseye`, `chupacabra`, `ciri`, `daredevil`, `doctor-strange`, `donatello`, `eredin`, `george-washington`, `golden-bat`, `hellboy`, `houdini`, `jill-trent`, `john-henry`, `leonardo`, `liz-sherman`, `luke-cage`, `medusa`, `michelangelo`, `pandora`, `philippa`, `raphael`, `raptors`, `rosie-the-riveter`, `she-hulk`, `sinbad`, `sun-wukong`, `tomoe-gozen`, `triss-yennefer`, `wyatt-earp`, `yennefer-triss`, `yennenga`; not the same on both sides). |
+| `--bot-hero SLUG`, `--human-hero SLUG` | Force the heroes (`abe-sapien`, `achilles`, `baba-yaga`, `bigfoot`, `blackbeard`, `bloody-mary`, `bullseye`, `chupacabra`, `ciri`, `daredevil`, `doctor-strange`, `donatello`, `eredin`, `george-washington`, `golden-bat`, `hellboy`, `houdini`, `jill-trent`, `john-henry`, `leonardo`, `liz-sherman`, `luke-cage`, `medusa`, `michelangelo`, `pandora`, `philippa`, `raphael`, `raptors`, `rosie-the-riveter`, `she-hulk`, `sinbad`, `sun-wukong`, `tomoe-gozen`, `triss-yennefer`, `wyatt-earp`, `yennefer-triss`, `yennenga`; not the same on both sides). |
 | `--language es\|en` | Language of the panel and the chat. |
 | `--ai heuristic\|ismcts`, `--ai-time SECONDS` | Which AI plays the bot (see [The two AIs](#6-the-two-ais)). |
 | `--bot-pause SECONDS` | Pause after each bot action (default 1.0, 0 turns it off). |

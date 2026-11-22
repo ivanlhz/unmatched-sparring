@@ -1405,5 +1405,7 @@
  "trigger.title.doubloon_action": "Blackbeard's doubloon for an action",
  "trigger.title.doubloon_damage": "Blackbeard pays a doubloon for the blow",
  "choice.prompt.reposition_zone": "{title}: no Sea Dog is defeated. Do you move one of your Sea Dogs into Blackbeard's zone instead?",
- "choice.prompt.reposition_any": "{title}: no Sea Dog is defeated. Do you move one of your Sea Dogs to any empty space instead?"
+ "choice.prompt.reposition_any": "{title}: no Sea Dog is defeated. Do you move one of your Sea Dogs to any empty space instead?",
+ "blackbeard.coins_failed": "{name}: the bot could not move the doubloons on the table. Put them as the chat says: the engine's count is the truth.",
+ "blackbeard.coins_missing": "{name}: only {found} doubloon(s) found on the table (there are three). Put the missing one on the Treasury tile or beside {name}'s stack."
 }

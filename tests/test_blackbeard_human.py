@@ -319,7 +319,7 @@ def test_the_bot_buys_the_action_at_the_start_of_its_turn_and_the_chat_says_it(r
     assert not any("take_token_copy" in script for script in table.scripts), "the Treasury tile is not cloned for each doubloon in it"
 
 
-@with_rig("blackbeard", "hellboy", "Intimidating Visage", "Show a Leg!")
+@with_rig("blackbeard", "hellboy", "Intimidating Visage")
 def test_the_bot_keeps_its_doubloons_when_it_has_nothing_to_spend_the_action_on(rig):
     from test_d3_table_effects import bot_turn
     session, table, game, fake, cfg = rig

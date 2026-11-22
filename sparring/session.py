@@ -56,7 +56,7 @@ from . import session_reveal as reveal
 from . import session_counters
 from . import session_sinbad
 from . import session_tracks, tracks
-from . import session_archers, session_rosie
+from . import session_archers, session_blackbeard, session_rosie
 from . import session_sleight as sleight
 from . import session_translators as translators
 from .session_choices import panel_text
@@ -556,6 +556,7 @@ class Session:
         gadget_token.track(self)
         session_rosie.track(self, announce=True)
         session_archers.track(self, announce=True)
+        session_blackbeard.track(self, announce=True)
 
     def _start_first_turn(self) -> None:
         """The first turn's start-of-turn triggers. The game was built with `begin_turn(emit=False)`: before the table
@@ -629,6 +630,7 @@ class Session:
         gadget_token.track(self)
         session_rosie.track(self, announce=True)
         session_archers.track(self, announce=True)
+        session_blackbeard.track(self, announce=True)
         self._write_dials(post=True)              # the table already shows the engine's life, not the one from before the cut
         if self.game.winner is not None:
             self.say(t("sess.resume.game_over", winner=self.game.winner))
@@ -968,10 +970,12 @@ class Session:
         self.say(t("setup.done"))
         self._intuition_said = None               # the setup's silent first look must not hide the starting count
         session_rosie.forget(self)
+        session_blackbeard.forget(self)
         self._track_intuition(announce=True)
         gadget_token.track(self)
         session_rosie.track(self, announce=True)
         session_archers.track(self, announce=True)
+        session_blackbeard.track(self, announce=True)
         self._start_first_turn()
         if g.turn == self.bot:
             self.bot_stage = "start"
@@ -1074,6 +1078,7 @@ class Session:
         gadget_token.track(self)
         session_rosie.track(self)
         session_archers.track(self)
+        session_blackbeard.track(self)
         hidden.after_step(self)                   # a look of the human at the bot's hand: the row rides this script
         self._tell_blocks()
         self._commit()
@@ -4119,6 +4124,7 @@ class Session:
         gadget_token.track(self)                  # the token moves in the same flush as the gadget announcement
         session_rosie.track(self)
         session_archers.track(self)
+        session_blackbeard.track(self)
         if scene is None:
             self._flush_table()
             fin_fx()

@@ -146,32 +146,38 @@ def ask_action(g, held=2, treasury=1):
     return EffectAI(0).decide(g, req, nested=False)
 
 
-def test_the_bot_buys_an_action_when_it_holds_two_cards_to_play_and_the_treasury_stays_small(bprd):
+def test_the_bot_buys_an_action_when_it_holds_a_card_to_play(bprd):
     g = as_blackbeard(bprd)
     give(g, 0, "Give No Quarter")
     give(g, 0, "A Brace of Primed Pistols")
     assert ask_action(g, 2, 1) == [True]
 
 
-def test_the_bot_does_not_buy_an_action_with_a_single_card_to_play(bprd):
+def test_the_bot_does_not_buy_an_action_with_nothing_to_play_it_on(bprd):
     g = as_blackbeard(bprd)
-    give(g, 0, "Give No Quarter")
     give(g, 0, "Intimidating Visage")
     assert ask_action(g, 2, 1) == [False]
 
 
-def test_the_bot_does_not_buy_an_action_when_the_treasury_would_hold_three(bprd):
+def test_the_bot_buys_an_action_even_with_two_doubloons_already_in_the_treasury(bprd):
+    """Measured: a Treasury cap of 2 lost 41 games of 60 against 50 without it (tools/measure_blackbeard_ai.py caps)."""
     g = as_blackbeard(bprd)
     give(g, 0, "Give No Quarter")
-    give(g, 0, "A Brace of Primed Pistols")
-    assert ask_action(g, 1, 2) == [False]
+    assert ask_action(g, 1, 2) == [True] and ai_blackbeard.TREASURY_CAP == 3
 
 
 def test_a_scheme_counts_as_a_card_to_play(bprd):
     g = as_blackbeard(bprd)
     give(g, 0, "Plunder")
-    give(g, 0, "Scourge of the Seven Seas")
     assert ask_action(g, 2, 1) == [True]
+
+
+def test_a_card_nobody_on_the_board_can_play_does_not_count(bprd):
+    g = as_blackbeard(bprd)
+    give(g, 0, "Light the Fuse")                    # a Sea Dog's card
+    for d in ("seadog1", "seadog2"):
+        g.defeat(g.fighters[d])
+    assert ask_action(g, 2, 1) == [False]
 
 
 # ---------------------------------------------------------------- whole games with the search AI

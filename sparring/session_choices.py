@@ -173,7 +173,8 @@ def prompt_text(game, req: ChoiceRequest) -> str:
                  title=card.title if card is not None else "Blackbeard")
     if req.kind == "optional" and "reposition" in req.extra:       # "Summon a Sea Dog" with none defeated: move one instead
         card = request_card(game, req)
-        return t("choice.prompt.reposition_" + req.extra["reposition"], title=card.title if card is not None else "Blackbeard")
+        where = "choice.prompt.reposition_zone" if req.extra["reposition"] == "zone" else "choice.prompt.reposition_any"
+        return t(where, title=card.title if card is not None else "Blackbeard")
     if req.kind == "optional" and "doubloon_action" in req.extra:  # his action at the start of the turn
         return t("choice.prompt.doubloon_action", held=req.extra["held"], treasury=req.extra["treasury"])
     if req.kind == "amount" and req.extra.get("queens"):           # Queen Anne's Revenge: how many doubloons to pay
