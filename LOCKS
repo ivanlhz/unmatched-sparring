@@ -7,3 +7,5 @@ sparring/effects/ops_core.py  little-red  review fixes: pile top question, promp
 sparring/session.py  little-red  review fixes: Basket reads, restart, pile top  2026-11-22 13:18Z
 data/i18n/en.json  little-red  review fixes: Basket reads, restart, pile top  2026-11-22 13:18Z
 data/i18n/es.json  little-red  review fixes: Basket reads, restart, pile top  2026-11-22 13:18Z
+docs/live-checklist.md  little-red  review fixes docs  2026-11-22 13:22Z
+docs/effects-dsl.md  little-red  review fixes docs  2026-11-22 13:22Z
