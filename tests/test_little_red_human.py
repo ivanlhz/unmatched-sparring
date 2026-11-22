@@ -450,7 +450,7 @@ def test_a_restart_puts_the_basket_back_on_its_own_spot_before_the_decks_are_gat
     click(session, table, Event.RESTART)
     click(session, table, Event.RESTART)
     sent = [s.split("\n")[0] for s in table.scripts]
-    assert "-- sparring:basket_aside" in sent and sent.index("-- sparring:basket_aside") < sent.index("-- sparring:reset_deck")
+    assert "-- sparring:basket_aside" in sent and sent.index("-- sparring:basket_aside") < sent.index("-- sparring:reset_plan") < sent.index("-- sparring:reset_deck")
     aside, = table.asides
     assert '"51f3b8"' in aside and "-19.6" in aside                       # her own spot on the human's side, off the stacking cards
 

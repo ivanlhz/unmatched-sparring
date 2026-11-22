@@ -1655,8 +1655,8 @@ class Session:
         scope = self._scope()
         sizes = {"bot": len(fresh.players[self.bot].full_set), "human": len(fresh.players[self.human].full_set)}
         self._flush()
+        session_little_red.aside(self)                     # Little Red's Basket off every Deck first: the plan and the reset count a Deck only if all its cards are the side's
         self._check_reset_plan(scope, sizes)
-        session_little_red.aside(self)                     # Little Red's Basket off every Deck first (a Deck with a card that is nobody's is not gathered)
         decks = {"bot": self._w(lua.reset_deck(c.bot_deck_guid, id_range=c.bot_card_ids, identity=self._identity(),
                                                scope=scope, **self._deck_kw()), "cards")}
         if c.human_deck_guid:
