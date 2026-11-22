@@ -9,3 +9,11 @@ features.json  sherlock  docs, features and lists for the hero  2026-11-22 12:10
 README.md  sherlock  docs, features and lists for the hero  2026-11-22 12:10Z
 config/table.json  sherlock  docs, features and lists for the hero  2026-11-22 12:10Z
 sparring/state.py  little-red  check_defense_card knows What Big Ears You Have  2026-11-22 12:13Z
+sparring/effects/ops_core.py  elektra  register hero (plugin import, hero lists, nickname dedupe in the importer)  2026-11-22 12:13Z
+sparring/effects/state.py  elektra  register hero (plugin import, hero lists, nickname dedupe in the importer)  2026-11-22 12:13Z
+tests/test_d1_bot_cards.py  elektra  register hero (plugin import, hero lists, nickname dedupe in the importer)  2026-11-22 12:13Z
+tests/test_effects_schema.py  elektra  register hero (plugin import, hero lists, nickname dedupe in the importer)  2026-11-22 12:13Z
+tests/test_heroes.py  elektra  register hero (plugin import, hero lists, nickname dedupe in the importer)  2026-11-22 12:13Z
+tests/test_card_identity.py  elektra  register hero (plugin import, hero lists, nickname dedupe in the importer)  2026-11-22 12:13Z
+tests/test_piece_identity.py  elektra  register hero (plugin import, hero lists, nickname dedupe in the importer)  2026-11-22 12:13Z
+tools/import_save.py  elektra  register hero (plugin import, hero lists, nickname dedupe in the importer)  2026-11-22 12:13Z
