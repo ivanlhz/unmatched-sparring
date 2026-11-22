@@ -2,3 +2,6 @@
 sparring/effects/state.py  little-red  review fixes: pile order ambiguity, defense hook, Houdini note  2026-11-22 13:11Z
 sparring/state.py  little-red  review fixes: pile order ambiguity, defense hook, Houdini note  2026-11-22 13:11Z
 data/tts/houdini.json  little-red  review fixes: pile order ambiguity, defense hook, Houdini note  2026-11-22 13:11Z
+sparring/session.py  sherlock  review: withdrawn Elementary number, face-up attack known value  2026-11-22 13:14Z
+data/i18n/en.json  sherlock  review: withdrawn Elementary number, face-up attack known value  2026-11-22 13:14Z
+data/i18n/es.json  sherlock  review: withdrawn Elementary number, face-up attack known value  2026-11-22 13:14Z
