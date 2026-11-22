@@ -39,5 +39,8 @@
   }
  },
  "tokens": {},
- "counter_dials": {}
+ "counter_dials": {},
+ "ignored_tokens": [
+  "4581f8"
+ ]
 }

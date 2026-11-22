@@ -242,7 +242,7 @@ class SyntheticChooser:
         return [self.greedy or "cost_cards" not in req.extra]
 
     def _amount(self, game, req: ChoiceRequest) -> list:
-        if req.extra.get("confirm") is not None:     # Sherlock's Confirm Suspicion: the value to name, priced from public information
+        if req.extra.get("name_value"):     # Sherlock's Confirm Suspicion: the value to name, priced from public information
             from ..ai_sherlock import name_value
             return [name_value(game, req.player)]
         if req.extra.get("assign"):                  # Yennenga's ability in a rollout: the share the bot's own policy gives the Archer

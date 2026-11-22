@@ -105,5 +105,8 @@
    ]
   }
  },
- "counter_dials": {}
+ "counter_dials": {},
+ "ignored_tokens": [
+  "d0e886"
+ ]
 }

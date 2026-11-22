@@ -598,7 +598,7 @@ class EffectAI:
         return sorted(req.options, key=lambda i: (-self.blow_value(fighters[i], DEFAULT_BLOW, game), i))
 
     def _amount(self, game: Game, req: ChoiceRequest, nested: bool) -> list:
-        if req.extra.get("confirm") is not None:    # Sherlock's Confirm Suspicion: the value to name (ai_sherlock)
+        if req.extra.get("name_value"):    # Sherlock's Confirm Suspicion: the value to name (ai_sherlock)
             return [ai_sherlock.name_value(game, req.player)]
         if req.extra.get("blind_count"):
             return [self._blind_boost(game, req)]

@@ -125,7 +125,7 @@ def test_the_value_named_is_never_a_scheme_only_value(bprd):
 
 def test_the_effect_ai_names_a_value_for_the_amount_request(bprd):
     g = mk(bprd)
-    req = ChoiceRequest("amount", 0, list(range(8)), 1, 1, None, "scheme/0:0", "name a value", {"confirm": True}, 0)
+    req = ChoiceRequest("amount", 0, list(range(8)), 1, 1, None, "scheme/0:0", "name a value", {"confirm": True, "name_value": True}, 0)
     assert EffectAI(0).decide(g, req, nested=False) == [ai_sherlock.name_value(g, 0)]
     assert SyntheticChooser(policy="greedy").choose(g, req) == [ai_sherlock.name_value(g, 0)]
 

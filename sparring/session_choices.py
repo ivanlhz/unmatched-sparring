@@ -185,7 +185,7 @@ def prompt_text(game, req: ChoiceRequest) -> str:
         return t("choice.prompt.doubloon_action", held=req.extra["held"], treasury=req.extra["treasury"])
     if req.kind == "optional" and "rival_value" in req.extra:      # Sherlock's Deduce Strategy
         return t("choice.prompt.deduce", now=req.extra["rival_value"]["now"], to=req.extra["rival_value"]["to"])
-    if req.kind == "amount" and req.extra.get("confirm") is not None:      # Sherlock's Confirm Suspicion: the value to name
+    if req.kind == "amount" and req.extra.get("name_value"):      # Sherlock's Confirm Suspicion: the value to name
         return t("choice.prompt.name_value")
     if req.kind == "amount" and req.extra.get("queens"):           # Queen Anne's Revenge: how many doubloons to pay
         return t("choice.prompt.queens", treasury=req.extra["treasury"], n=req.extra["queens"])
