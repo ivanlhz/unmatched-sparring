@@ -8,3 +8,9 @@ config/table.json  sherlock  docs, features and lists for the hero  2026-11-22 1
 
 sparring/effects/ops_core.py  little-red  the question names the top card Large Hands returns  2026-11-22 12:17Z
 sparring/effects/table.py  elektra  ENGINE_RUN_TRIGGERS resurrect  2026-11-22 12:18Z
+sparring/session.py  elektra  table story: removal and flip dial, wording  2026-11-22 12:19Z
+sparring/play.py  elektra  table story: removal and flip dial, wording  2026-11-22 12:19Z
+sparring/effects/narrate.py  elektra  table story: removal and flip dial, wording  2026-11-22 12:19Z
+data/i18n/en.json  elektra  table story: removal and flip dial, wording  2026-11-22 12:19Z
+data/i18n/es.json  elektra  table story: removal and flip dial, wording  2026-11-22 12:19Z
+sparring/session_translators.py  elektra  table story: removal and flip dial, wording  2026-11-22 12:19Z
