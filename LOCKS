@@ -5,7 +5,3 @@ docs/live-checklist.md  sherlock  docs, features and lists for the hero  2026-11
 features.json  sherlock  docs, features and lists for the hero  2026-11-22 12:10Z
 README.md  sherlock  docs, features and lists for the hero  2026-11-22 12:10Z
 config/table.json  sherlock  docs, features and lists for the hero  2026-11-22 12:10Z
-sparring/effects/ops_core.py  sherlock  plugin import, scheme wording of the manual look  2026-11-22 12:28Z
-sparring/session_hidden.py  sherlock  plugin import, scheme wording of the manual look  2026-11-22 12:28Z
-data/i18n/en.json  sherlock  plugin import, scheme wording of the manual look  2026-11-22 12:28Z
-data/i18n/es.json  sherlock  plugin import, scheme wording of the manual look  2026-11-22 12:28Z

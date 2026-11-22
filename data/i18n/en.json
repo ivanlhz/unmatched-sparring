@@ -199,6 +199,7 @@
  "choice.prompt.ability.ruse": "ESPIONAGE: do you put a ruse token on this attack?",
  "choice.prompt.ability.espionage_remove": "ESPIONAGE: there is a ruse token on the attack. Do you discard 1 random card from your hand to remove it?",
  "hidden.bot_predicts": "The bot plays {card} face up and predicts that the printed value of your card is {n}.",
+ "hidden.start_scheme": "{card}: you look at the bot's hand and choose {cards} for it to discard. Take it out of the green hand zone (Green) yourself to see it; put the chosen card face up on the bot's discard pile, put the rest back in its hand and press [[btn.done]].",
  "hidden.ask_elementary": "{card}: say with the panel buttons the printed attack value of the bot's card (you play yours face up). The bot's card stays face down until you do.",
  "hidden.elementary_predicted": "You say the bot's attack card has printed value {value}: your card is played face up.",
  "hidden.bot_elementary": "The bot plays {card} face up and says the printed attack value of your card is {n}.",

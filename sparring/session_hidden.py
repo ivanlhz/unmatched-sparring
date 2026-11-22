@@ -35,7 +35,7 @@ from .effects.model import EffectError, load_effects, walk_ops
 from .effects.ops_combat import FACE_DOWN, PERFECT_SHOT, PREDICT_OP, PREDICT_VALUES
 from .effects.plugins_sherlock import ELEMENTARY, VALUES as ELEMENTARY_VALUES
 from .i18n import plural, t
-from .session_choices import panel_text
+from .session_choices import panel_text, request_card
 from .tts import lua
 from .tts.client import TTSLuaError
 from .tts.lua import ChatKind
@@ -101,6 +101,10 @@ def is_ruse(req: ChoiceRequest | None) -> bool:
 def manual_start(session, req: ChoiceRequest) -> None:
     if is_ruse(req):
         session.say(t("hidden.ruse.start", n=req.max), ChatKind.YOUR_TURN)
+        return
+    card = request_card(session.game, req)
+    if card is not None and card.is_scheme:          # a scheme (Eliminate the Impossible) is not a combat lost
+        session.say(t("hidden.start_scheme", card=card.title, cards=plural(req.max, "noun.card")), ChatKind.YOUR_TURN)
         return
     session.say(t("hidden.start", cards=plural(req.max, "noun.card")), ChatKind.YOUR_TURN)
 

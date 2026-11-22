@@ -96,7 +96,8 @@ def test_eliminate_the_impossible_has_the_human_look_at_the_bots_hand_on_the_tab
     session, table, game, fake, cfg = rig
     human_hand(table, game, "Eliminate the Impossible", "Counterpunch", "Feint")
     msgs = human_scheme(session, table, game, "Eliminate the Impossible")
-    assert hidden.manual_request(session) is not None and said(msgs, "pulsa Hecho"), msgs
+    assert hidden.manual_request(session) is not None and said(msgs, "Eliminate the Impossible: miras la mano del bot") and said(msgs, "pulsa Hecho"), msgs
+    assert not said(msgs, "Has perdido el combate"), msgs
     assert session.panel_labels() == {"btn_choice_1": "Hecho"}
     chosen = table.bot_hand[0]
     table.bot_hand.remove(chosen)

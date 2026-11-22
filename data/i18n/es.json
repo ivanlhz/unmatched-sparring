@@ -199,6 +199,7 @@
  "choice.prompt.ability.ruse": "ESPIONAGE: pones una ficha de engano en este ataque?",
  "choice.prompt.ability.espionage_remove": "ESPIONAGE: hay una ficha de engano en el ataque. Descartas 1 carta al azar de tu mano para quitarla?",
  "hidden.bot_predicts": "El bot juega {card} boca arriba y predice que el valor impreso de tu carta es {n}.",
+ "hidden.start_scheme": "{card}: miras la mano del bot y eliges {cards} para que la descarte. Sacala tu de la zona de mano verde (Green) para verla; pon la carta elegida boca arriba en el descarte del bot, devuelve el resto a su mano y pulsa [[btn.done]].",
  "hidden.ask_elementary": "{card}: di con los botones del panel el valor impreso de ataque de la carta del bot (tu la juegas boca arriba). La carta del bot sigue boca abajo hasta que lo digas.",
  "hidden.elementary_predicted": "Dices que la carta de ataque del bot tiene valor impreso {value}: tu carta se juega boca arriba.",
  "hidden.bot_elementary": "El bot juega {card} boca arriba y dice que el valor impreso de ataque de tu carta es {n}.",

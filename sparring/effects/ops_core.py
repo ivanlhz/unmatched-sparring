@@ -793,4 +793,5 @@ from . import plugins_elektra  # noqa: E402,F401  (registers elektra:flip, elekt
 from . import plugins_pandora  # noqa: E402,F401  (registers pandora:reveal, pandora:look, pandora:close)
 from . import plugins_blackbeard  # noqa: E402,F401  (registers blackbeard:random_discard, blackbeard:queens_revenge)
 from . import plugins_little_red  # noqa: E402,F401  (registers the test red:basket and red:stones)
+from . import plugins_sherlock  # noqa: E402,F401  (registers holmes:elementary, holmes:deduce_strategy, holmes:confirm_suspicion)
 from . import plugins_loki  # noqa: E402,F401  (registers loki:swap_values, loki:laevateinn, loki:looking_for_trouble, loki:return_trick)
