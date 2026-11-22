@@ -17,3 +17,5 @@ sparring/ai_effects.py  blackbeard  ransom/doubloon hooks: can_pay, prompts, AI,
 data/i18n/en.json  blackbeard  ransom/doubloon hooks: can_pay, prompts, AI, narration  2026-11-22 10:18Z
 data/i18n/es.json  blackbeard  ransom/doubloon hooks: can_pay, prompts, AI, narration  2026-11-22 10:18Z
 sparring/effects/narrate.py  blackbeard  ransom/doubloon hooks: can_pay, prompts, AI, narration  2026-11-22 10:18Z
+data/i18n/en.json  pandora  narration tags of the Box (human stop notice, trigger title)  2026-11-22 10:19Z
+data/i18n/es.json  pandora  narration tags of the Box (human stop notice, trigger title)  2026-11-22 10:19Z
