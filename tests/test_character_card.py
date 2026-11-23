@@ -90,6 +90,44 @@ def test_a_loose_character_card_is_not_part_of_any_count_and_the_gathering_never
     assert card.type == "Card" and (card.pos.x, card.pos.z) == (DEST[0], DEST[2]) and card.moved_count is None
 
 
+def test_a_second_character_card_of_the_same_hero_is_taken_out_and_laid_beside_the_first(rt):  # noqa: F811
+    """Elektra's deck leaves the bag with 22 cards: the 20, her character card 340 and Elektra Resurrected 341. Live
+    2026-11-23: with only 340 known the deck was foreign, nothing was taken and Prepare found 0 of her 20 cards."""
+    bag_deck(rt, face_down=True)
+    rt.execute("""
+local d = getObjectFromGUID('d42056')
+table.insert(d.cards, 1, {cid = 341, guid = 'char2', owner = 'medusachar2'})
+""")
+    assert run(rt, lua.take_character_cards([SIDE])) == [{"found": False, "taken": False}], "without `keep` the deck is foreign"
+    assert run(rt, lua.take_character_cards([(*SIDE, (), (341,))])) == [{"found": True, "taken": True}]
+    assert sorted(deck_ids(rt)) == list(range(17600, 17630))
+    second, first = rt.globals().getObjectFromGUID("char2"), rt.globals().getObjectFromGUID("char1")
+    assert second.type == "Card" and second.cid == 341
+    assert (second.pos.x, second.pos.y, second.pos.z) == DEST, "under the first, at its own slot: beside it was the human's hero dial"
+    assert (first.pos.x, first.pos.z) == (DEST[0], DEST[2]) and first.pos.y == pytest.approx(DEST[1] + lua.KEEP_STACK)
+    assert run(rt, lua.reset_plan([PLAN], scope=EVERYWHERE)) == [{"deck": True, "loose": 0, "total": 30}]
+    assert run(rt, lua.take_character_cards([(*SIDE, (), (341,))])) == [{"found": True, "taken": False}], "a second press is harmless"
+
+
+def test_clean_table_removes_the_second_character_card_too(rt):  # noqa: F811
+    """Once out of the deck, card 341 is loose: Clean table must know it is the hero's (the reviewer's run left it behind)."""
+    bag_deck(rt, face_down=True)
+    rt.execute("""
+local d = getObjectFromGUID('d42056')
+table.insert(d.cards, 1, {cid = 341, guid = 'char2', owner = 'medusachar2'})
+""")
+    run(rt, lua.take_character_cards([(*SIDE, (), (341,))]))
+    res = run(rt, lua.clear_setup([(lua.BOT_CARD_IDS, BOT_ID, MEDUSA.character_card_id, (341,))], [], [], [], (26.0, 36.0)))
+    assert res["mixed"] == []
+    for guid in ("d42056", "char1", "char2"):
+        assert rt.globals().getObjectFromGUID(guid) is None, guid
+
+
+def test_elektra_declares_her_resurrected_character_card():
+    elektra = load_hero_table("elektra")
+    assert elektra.character_card_id == 340 and elektra.extra_character_card_ids == (341,)
+
+
 def test_the_new_script_is_a_registered_builder_and_asks_for_one_or_two_sides():
     assert lua.is_sendable(lua.take_character_cards([SIDE]))
     for bad in ([], [SIDE, SIDE, SIDE]):
@@ -266,6 +304,26 @@ def test_raptors_lay_their_third_dial_down_the_column_of_the_other_two():
         assert echo[2] - delta[2] == pytest.approx(delta[2] - blue[2]), side
     bot = {p.guids[0]: p.slot.pos for p in table_layout.plan(raw, "bot", load_hero_table("raptors")).placements}
     assert bot["deff03"] == pytest.approx((2.30, 1.66, 19.95), abs=0.01)
+
+
+def test_elektra_lays_her_fourth_hand_along_the_row_and_her_9_dial_beside_her_7():
+    """Live 23/11: on the bot's half the fourth Hand (d72373) had no piece slot and her Resurrected dial (c32f50) was not
+    in the layout at all; both stayed where they came out of the bag."""
+    raw = config_raw()
+    for side in ("bot", "human"):
+        plan = table_layout.plan(raw, side, load_hero_table("elektra"))
+        assert plan.unplaced == [], side
+        pos = {p.guids[0]: p.slot.pos for p in plan.placements}
+        first, third, fourth, fifth = pos["b771c8"], pos["9bdc1d"], pos["8f67bf"], pos["d72373"]
+        assert first[0] - fifth[0] == pytest.approx(fourth[0] - third[0]), side      # one row step before the first token slot
+        assert first[2] - fifth[2] == pytest.approx(fourth[2] - third[2]), side
+        assert "c32f50" in pos and {p.role for p in plan.placements if p.guids[0] == "c32f50"} == {"sidekick_dials"}, side
+    bot = {p.guids[0]: p.slot.pos for p in table_layout.plan(raw, "bot", load_hero_table("elektra")).placements}
+    assert bot["d72373"] == pytest.approx((0.26, 1.72, 23.57), abs=0.01)
+    human = {p.guids[0]: p.slot.pos for p in table_layout.plan(raw, "human", load_hero_table("elektra")).placements}
+    assert human["d72373"] == pytest.approx((-3.58, 1.72, 27.53), abs=0.01)
+    assert human["c32f50"] == pytest.approx((-3.77, 1.66, 17.68), abs=0.01)
+    assert bot["c32f50"] == pytest.approx((2.30, 1.66, 17.39), abs=0.01)
 
 
 def test_hellboy_keeps_one_sidekick_dial_and_one_counter_dial():

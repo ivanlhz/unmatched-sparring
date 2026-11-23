@@ -4528,7 +4528,9 @@ class Session:
         if self._snap_spec is None:
             c = self.cfg
             pieces = sorted({g for v in c.pieces.values() for g in piece_guids(v)})
-            dials = sorted({*c.dials.values(), *([c.destiny_dial] if c.destiny_dial else []), *c.counter_dials.values()})
+            # the flipped dial (Elektra Resurrected) is read from the start: the spec is built once and the panel carries it, so a dial added at
+            # the Resurrect would never reach the snapshot and every check of it would fail (Ivan, 23/11)
+            dials = sorted({*c.dials.values(), *c.flip_dials.values(), *([c.destiny_dial] if c.destiny_dial else []), *c.counter_dials.values()})
             self._snap_spec = lua.SnapSpec(
                 self.game.board, c.bot_seat, c.human_seat, c.bot_discard_zone, (c.bot_deck_guid,),
                 (tuple(c.bot_deck_spot),), c.human_discard_zone,

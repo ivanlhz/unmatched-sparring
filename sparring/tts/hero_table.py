@@ -57,6 +57,7 @@ class HeroTable:
     token_slots: dict[str, dict] = field(default_factory=dict)     # own resting places of a token by side, ((x, y, z), (rx, ry, rz)) each, measured on the table: win over the layout's `tokens`
     ignored_tokens: tuple[str, ...] = ()                          # GUIDs in the hero's bag the bot does not use (Jill Trent's gadget token): still the hero's, so a bag holding them is recognised
     human_extras: tuple[str, ...] = ()                            # ignored objects the HUMAN plays with (Pandora's Misery deck, the real Box): unpacked next to their deck only when the human plays the hero
+    extra_character_card_ids: tuple[int, ...] = ()                # other character cards of the SAME hero riding in the deck (Elektra Resurrected, 341): taken out with the first and laid beside it
 
     def unpack_items(self) -> list[tuple[str, tuple[str, ...]]]:
         """(kind, GUID of each state) of everything that has to be taken out of the inner bag to play with the hero.
@@ -117,7 +118,8 @@ def parse_hero_table(raw: dict, hero: HeroDef, where: str = "tts") -> HeroTable:
                                for side, rows in v.items()}
                            for k, v in (raw.get("token_slots") or {}).items()},
                           tuple(_guid_list(raw["ignored_tokens"], f"{where}: ignored_tokens")) if raw.get("ignored_tokens") else (),
-                          tuple(_guid_list(raw["human_extras"], f"{where}: human_extras")) if raw.get("human_extras") else ())
+                          tuple(_guid_list(raw["human_extras"], f"{where}: human_extras")) if raw.get("human_extras") else (),
+                          tuple(int(c) for c in deck.get("extra_character_card_ids") or ()))
     except (KeyError, TypeError, ValueError, IndexError) as e:
         raise HeroTableError(f"{where}: invalid TTS data ({e!r})") from None
     _validate(table, hero, where)

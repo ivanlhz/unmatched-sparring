@@ -278,7 +278,7 @@ def clear_script(raw: dict) -> str:
         names |= {f.nickname.lower() for f in table.fighters.values() if f.nickname}
         names |= {nick.lower() for name, nick in TOKEN_NICKNAMES.items() if name in table.tokens}   # the one split off a stack has a new GUID
         names |= {"ruse" for name in table.tokens if name == "ruse"}      # Washington's Ruse copies (takeObject from the stack: new GUID, nickname "Ruse"); not in TOKEN_NICKNAMES: that would split the stack
-    return lua.clear_setup([(table.card_ids, table.identity, table.character_card_id) for table in tables],
+    return lua.clear_setup([(table.card_ids, table.identity, table.character_card_id, table.extra_character_card_ids) for table in tables],
                            sorted({g for table in tables for g in (*table.all_guids(), *table.ignored_tokens)}),
                            sorted(n for n in names if _safe(n)), [e.image_key for e in board_catalog()],
                            table_prep.removal_limits(raw), tuple(sorted({g for table in tables for g in table.ignored_tokens})))

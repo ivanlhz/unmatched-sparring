@@ -31,7 +31,7 @@ from sparring.heroes import DECK_SIZE, HeroDef, available_heroes, hero_path, loa
 from sparring.tts.hero_table import TTS_DIR, HeroTableError, parse_hero_table  # noqa: E402
 
 MAX_VALUE_RE = re.compile(r"MAX_VALUE\s*=\s*(\d+)")
-KEPT_FIELDS = ("_notes", "token_faces", "token_sources", "token_slots", "ignored_tokens", "human_extras")
+KEPT_FIELDS = ("_notes", "token_faces", "token_sources", "token_slots", "ignored_tokens", "extras", "box")
 
 
 class SaveImportError(Exception):
@@ -211,8 +211,10 @@ def extract_hero(objects: list[dict], hero: HeroDef, raw_hero: dict, report: Rep
     else:
         deck, ((lo, hi), char_id) = decks[0]
         sheet = (deck.get("CustomDeck") or {}).get(str(lo // 100)) or {}
-        out["deck"] = {"guid": deck["GUID"], "card_ids": [lo, hi], "character_card_id": char_id,
-                       "identity": [{"face": sheet.get("FaceURL", ""), "back": sheet.get("BackURL", "")}]}
+        out["deck"] = {"guid": deck["GUID"], "card_ids": [lo, hi], "character_card_id": char_id}
+        if hero.tts.get("flip_dial"):            # one hero with two sides (Elektra Resurrected): the other character card is hers too
+            out["deck"]["extra_character_card_ids"] = [c for c in hero.tts.get("character_cards", ()) if c != char_id]
+        out["deck"]["identity"] = [{"face": sheet.get("FaceURL", ""), "back": sheet.get("BackURL", "")}]
         claimed.add(deck["GUID"])
         report.derived.append("deck")
         if hero.card_base is not None and lo != hero.card_base:
@@ -360,8 +362,9 @@ def merge(derived: dict, existing: dict | None, report: Report) -> dict:
     out["counter_dials"] = derived["counter_dials"]
     if existing.get("ignored_tokens"):            # objects of the bag the bot never uses (a loose rules card, Pandora's Miseries): hand-written
         out["ignored_tokens"] = list(existing["ignored_tokens"])
-    if existing.get("human_extras"):
-        out["human_extras"] = list(existing["human_extras"])
+    for key in ("extras", "box"):
+        if existing.get(key):
+            out[key] = existing[key]
     report.kept += [k for k in KEPT_FIELDS if k in out and k in existing]
     for key in ("bag", "deck", "fighters", "tokens", "counter_dials"):
         if key in existing and key in derived and existing[key] != derived[key]:

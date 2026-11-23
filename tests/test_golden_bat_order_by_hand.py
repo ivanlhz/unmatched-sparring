@@ -218,6 +218,11 @@ def test_the_row_stays_on_the_human_side_clear_of_every_slot_of_every_map(n):
     hz = abs(math.sin(rot)) * w / 2 + abs(math.cos(rot)) * d / 2
     boxes = [(x, z, h) for layout in [table["layout"], *(m["layout"] for m in maps.values())] for x, z, h in _slots(layout)]
     boxes += [(p["pos"][0], p["pos"][2], 1.6) for side in jill["token_slots"]["gadget"].values() for p in side]
+    from sparring import table_layout
+    from sparring.tts.hero_table import load_hero_table
+    boxes += [(p.slot.pos[0], p.slot.pos[2], 1.0)                   # the pieces laid past the calibrated slots (Elektra's 4th Hand)
+              for layout in [table["layout"], *(m["layout"] for m in maps.values())] for slug in ("elektra", "eredin", "robin-hood")
+              for p in table_layout.plan({"layout": layout}, "human", load_hero_table(slug)).placements if p.role == "pieces"]
     boxes += [(table["dead_spot"][0], table["dead_spot"][2], 1.6), (table["human_dead_spot"][0], table["human_dead_spot"][2], 1.6),
               (table["look_spot"][0], table["look_spot"][2], 1.6)]
     from sparring.session_order import parking

@@ -390,7 +390,7 @@ def take_character_cards(client, session, raw: dict) -> None:
             raise SessionError(t("gate.layout_missing", side=side))
         table = load_hero_table(session.game.hero_def(owner).slug)
         sides.append((guid, rng, table.identity, table.character_card_id, *_lifted(slot),
-                      tuple(o.character_card_id for o in other_variants(table.slug))))
+                      tuple(o.character_card_id for o in other_variants(table.slug)), table.extra_character_card_ids))
     client.call_lua(lua.take_character_cards(sides))
 
 
