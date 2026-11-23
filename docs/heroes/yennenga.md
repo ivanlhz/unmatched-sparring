@@ -1,6 +1,6 @@
 # Yennenga (Battle of Legends, Volume Two)
 
-Playable by the bot and by the human, either side, against every other hero. Data read from the real card images (sheet 176 of the tournament savegame, character card 319 on sheet 3) on 2026-11-20. Verified on FakeTTS only: nothing of Yennenga has been seen on a real table (see `docs/live-checklist.md`).
+Playable by the bot and by the human, either side, against every other hero. Data read from the real card images (sheet 176 of the tournament savegame, character card 319 on sheet 3) on 2026-11-20. Played live by Ivan (by 2026-11-23); see `docs/live-checklist.md` for the per-item list.
 
 ## Summary
 - Ranged hero, 15 life, move 2. Sidekick **Archer**: two of them (fids `archer1`, `archer2`), ranged, 2 life each, move 2. Hero fid `yennenga`. The hero card prints the move once (2) for both.
