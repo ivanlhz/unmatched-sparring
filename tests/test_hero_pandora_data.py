@@ -104,7 +104,7 @@ def test_effects_validate_and_every_card_has_ops(effects):
         assert any(card["effects"].get(m) for m in MOMENTS) or card.get("may_boost"), card["title"]
         assert (REAL_CARDS[card["title"]][2] == "scheme") == bool(card["effects"]["scheme"])
     assert [c["title"] for c in effects["cards"] if c.get("may_boost")] == ["Offering to the Gods"]
-    assert sorted(p["id"] for p in effects["plugins"]) == ["pandora:close", "pandora:look", "pandora:reveal"]
+    assert sorted(p["id"] for p in effects["plugins"]) == ["pandora:close", "pandora:look", "pandora:reveal", "pandora:shuffle"]
 
 
 def test_the_box_is_a_start_of_turn_loop_and_its_miseries_are_the_ones_on_the_cards(effects):
@@ -121,8 +121,9 @@ def test_the_box_is_a_start_of_turn_loop_and_its_miseries_are_the_ones_on_the_ca
     assert effect_of[5] == [{"op": "plugin", "id": "pandora:look"}]
     assert effect_of[6] == [{"op": "draw", "player": "owner", "amount": 1}]
     assert effect_of[7] == [{"op": "move", "target": "hero", "amount": 1, "up_to": True}]
-    assert {o["name"] for o in shuffle["ops"]} == set(effects["ability"]["counters"]) - set()
-    assert all(o["set"] == 0 for o in shuffle["ops"])
+    assert shuffle["ops"][0] == {"op": "plugin", "id": "pandora:shuffle"}           # says it to the table before the counters are emptied
+    assert {o["name"] for o in shuffle["ops"][1:]} == set(effects["ability"]["counters"])
+    assert all(o["set"] == 0 for o in shuffle["ops"][1:])
 
 
 def test_the_miseries_have_the_printed_feathers():

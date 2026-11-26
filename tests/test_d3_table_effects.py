@@ -56,6 +56,89 @@ class FxTable(Table):
         self.missing_tokens: set[str] = set()               # GUIDs of tokens the player took off the table
         self.archer_rot: dict[str, float] = {}              # Z rotation of each Archer token (Yennenga: 0 shows 2 health, 180 shows 1); absent = 0
         self.archer_writes: list[tuple[str, float]] = []    # (GUID, rotation) the bot turned a token to
+        self.box_deck: list[int] = list(range(17700, 17707))   # Pandora's Misery deck on the table (CardIDs, any order); empty and `box_gone` = no deck there
+        self.box_row: list[tuple[int, int]] = []            # (CardID, slot) of each Misery laid face up beside it, in order
+        self.box_crowded = False                            # the row has no free place: the reply says so
+        self.box_pile_side = "below"                        # the side of her deck the pile lies on: the reply says it ("side" and "above" when below is taken)
+        self.box_gone = False                               # the deck is not on the table
+        self.box_returned: list[list[tuple[int, int]]] = []  # the row each put-back found on the table, before the cards went home
+        self.human_box: list[int] = []                      # the HUMAN's Misery deck, CardIDs top first (empty: nothing to deal)
+        self.human_row: list[int] = []                      # what lies face up in their reveal zone, in order
+        self.human_slots: list[int] = []                    # the place each card the bot dealt was laid in
+        self.human_returned: list[list[int]] = []           # the row each put-back of their Box found
+        self.human_reveal_guid = "hrevz"                    # the reveal zone that exists; a script that reads another sees no zone
+        self.human_zones_missing: set[str] = set()          # zones the script names that are not on the table
+        self.human_hand: list[int] = []                     # Miseries that came out of their Box into a hand zone
+        self.human_row_in_hand = False                      # the row's places lie in a hand zone: what is dealt goes to the hand
+
+    def do_box_reveal(self, s):
+        card_id = int(re.search(r"CardID ~= (\d+)", s).group(1))
+        slot = int(re.search(r"local SLOT = (\d+)", s).group(1))
+        if self.box_gone:
+            return {"taken": False, "deck": False}
+        if card_id not in self.box_deck:
+            return {"taken": False}
+        self.box_deck.remove(card_id)
+        self.box_row.append((card_id, slot))
+        return {"taken": True, "guid": f"misery{card_id}", "crowded": self.box_crowded, "side": self.box_pile_side}
+
+    def _human_zones(self, s) -> dict | None:
+        """What the script of the human's Box asks of the table, as real TTS answers it: the zones it names must be the ones that exist
+        (a script that looks for the Box or the row in a zone that is not there finds nothing), and the Box must be on the table."""
+        if self.box_gone:
+            return {"deck": False}
+        for guid in self.human_zones_missing:
+            if f'"{guid}"' in s:
+                return {"zone": False}
+        return None
+
+    def do_box_draw_top(self, s):
+        """Real TTS: `takeObject` with no GUID gives the card on TOP of the Box, wherever the script says; the card is laid at a place of
+        the row, and a place that lies in a hand zone puts it in the hand (`human_hand`), where the reveal zone does not see it. The
+        id answered is the one of the card that came out. An empty Box has no card to take."""
+        out = self._human_zones(s)
+        if out is not None:
+            return {"taken": False, **out}
+        if not self.human_box:
+            return {"taken": False, "deck": False}
+        slot = int(re.search(r"local SLOT = (\d+)", s).group(1))
+        card = self.human_box.pop(0)
+        if self.human_row_in_hand:
+            self.human_hand.append(card)
+            return {"taken": True, "id": card, "guid": f"misery{card}"}
+        self.human_slots.append(slot)
+        self.human_row.append(card)
+        return {"taken": True, "id": card, "guid": f"misery{card}"}
+
+    def do_box_read(self, s):
+        if f'"{self.human_reveal_guid}"' not in s or self.human_reveal_guid in self.human_zones_missing:
+            return {"zone": False, "cards": []}
+        return {"zone": True, "cards": [{"id": card, "guid": f"misery{card}"} for card in self.human_row]}
+
+    def do_box_peek_top(self, s):
+        out = self._human_zones(s)
+        if out is not None or not self.human_box:
+            return {"found": False, **(out or {})}
+        return {"found": True, "id": self.human_box[0]}
+
+    def do_box_put_back(self, s):
+        if '"hboxz"' in s:                                  # the human's Box: only what lies in the reveal zone goes back, never the hand
+            added = len(self.human_row)
+            self.human_returned.append(list(self.human_row))
+            self.human_box += self.human_row
+            self.human_row.clear()
+            return {"added": added, "deck": True, "quantity": len(self.human_box)}
+        if self.box_gone:
+            return {"added": 0, "deck": False}
+        added = len(self.box_row)
+        if added:
+            self.box_returned.append(list(self.box_row))
+        self.box_deck += [c for c, _ in self.box_row]
+        self.box_row.clear()
+        return {"added": added, "deck": True, "quantity": len(self.box_deck)}
+
+    def do_box_shuffle(self, s):
+        return {"deck": not self.box_gone, "shuffled": not self.box_gone}
 
     def snapshot_state(self):
         snap = super().snapshot_state()

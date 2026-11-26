@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from .i18n import t
 
 DISCARD_ZONE_KEYS = ("bot_discard_zone", "human_discard_zone")
+BOX_ZONE_KEYS = ("box_zone", "human_box_zone", "human_reveal_zone")     # Pandora's Misery decks get a zone of their own on each side (and the human's a reveal zone), made around where they lie (not from a spawn transform)
+ZONE_KEYS = (*DISCARD_ZONE_KEYS, *BOX_ZONE_KEYS)   # the zones the bot creates and saves in the session file (`zones_live`)
 SPAWN_SUFFIX = "_spawn"                 # config key of each zone's default transform: bot_discard_zone_spawn
 DEFAULT_ZONE_ROT_Y = 270.0              # straight: the long side of both zones runs along z
 DEFAULT_REMOVE_LIMITS = (26.0, 36.0)    # the central table: the hands sit at |x| 30, the hero bags past |z| 37
