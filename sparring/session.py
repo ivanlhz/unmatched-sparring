@@ -416,6 +416,9 @@ class Session:
         # of that baseline, the cards that went back to their hand before Scheme (off the pile AND the hand grew at
         # that read), with the hand count then: {"cards": [...], "hand": n}
         self.scheme_returned: dict | None = None
+        # schemes that entered the human's pile at the very read of the Scheme press (laid face up BEFORE pressing, live
+        # 22/11): taken as the scheme played only when End action sees no newer one
+        self.scheme_early: list[int] | None = None
         self.maneuver_baseline: list[int] | None = None    # their discard at Maneuver: a BOOST 0 card put there is warned
         self.maneuver_from: dict | None = None             # the human's John Henry in their Maneuver: start space, spaces the reads saw, provisional paths
         self.maneuver_boosted: int | None = None           # the card this Maneuver was boosted with (once; its effects already ran)
@@ -1758,6 +1761,7 @@ class Session:
             "destiny_seen": None if self.destiny_seen is None else list(self.destiny_seen),
             "scheme_baseline": self.scheme_baseline, "dial_debt": self.dial_debt, "setup": self.setup,
             **({"scheme_returned": self.scheme_returned} if self.scheme_returned else {}),
+            **({"scheme_early": self.scheme_early} if self.scheme_early else {}),
             **({"maneuver_baseline": self.maneuver_baseline} if self.maneuver_baseline is not None else {}),
             **({"maneuver_boosted": self.maneuver_boosted} if self.maneuver_boosted is not None else {}),
             **({"maneuver_from": self.maneuver_from} if self.maneuver_from is not None else {}),
@@ -1845,6 +1849,7 @@ class Session:
             self.table_stale = {k: int(v) for k, v in (d.get("table_stale") or {}).items()}
             self.scheme_baseline = d.get("scheme_baseline")
             self.scheme_returned = d.get("scheme_returned")
+            self.scheme_early = d.get("scheme_early")
             self.maneuver_baseline = d.get("maneuver_baseline")
             self.maneuver_boosted = d.get("maneuver_boosted")
             self.maneuver_from = d.get("maneuver_from") if isinstance(d.get("maneuver_from"), dict) else None
@@ -2289,11 +2294,16 @@ class Session:
     def _scheme(self, _: dict) -> None:
         if not self._require_human_turn() or not self._require_paid_action():
             return
+        # The pile BEFORE the press's read of the table: a scheme laid face up before pressing (live 22/11, Working Things
+        # Out) enters the engine's pile at `_begin_action`'s sync; End action takes it when no newer scheme shows up.
+        before = {c.card_id for c in self.game.players[self.human].discard}
         if not self._begin_action():
             return
         self.game.use_action()
         self.moving = True
         self.scheme_baseline = [c.card_id for c in self.game.players[self.human].discard]
+        self.scheme_early = [c.card_id for c in self.game.players[self.human].discard
+                             if c.card_id not in before and c.is_scheme] or None
         # A card the table stopped showing at this very button is still in the engine's pile (a removal needs two
         # buttons). If their hand grew by as much at this same button it went back to the hand (Wildfire's burning
         # card): laid on the pile again it IS the scheme played. A lone missed read (hand unchanged) proves nothing.
@@ -2306,19 +2316,22 @@ class Session:
         else:
             self.say(t("scheme.prompt"), ChatKind.YOUR_TURN)
 
-    def _resolve_human_scheme(self, wait: bool) -> bool:
+    def _resolve_human_scheme(self, wait: bool, at_end: bool = False) -> bool:
         """Waits (bounded) for the human's scheme card to appear face up in their discard pile, identifies it by
-        the table's CardID and applies what needs no choice from the human. True if it found the card."""
+        the table's CardID and applies what needs no choice from the human. True if it found the card. `at_end` (End action):
+        with no scheme newer than the press, one laid on the pile before pressing (`scheme_early`) is the one played."""
         base = set(self.scheme_baseline or [])
         found: list[Card] = []
 
         def seen() -> bool:
             self.sync_human()
             found[:] = human_effects.recognize_scheme(self, base, self.scheme_returned)
+            if not found and at_end and self.scheme_early:        # nothing newer: the one laid before pressing
+                found[:] = human_effects.recognize_scheme(self, base - set(self.scheme_early), self.scheme_returned)
             return bool(found)
         if not (self._settle(seen) if wait else seen()):
             return False
-        self.scheme_baseline, self.scheme_returned = None, None
+        self.scheme_baseline, self.scheme_returned, self.scheme_early = None, None, None
         discarding = [c for c in found if self._scheme_traits(c).get("discards_hand")]
         if discarding:                            # a card that discards the hand: the rest that appears is not a played scheme
             found[:] = discarding[:1]
@@ -3382,9 +3395,9 @@ class Session:
             self.game.hand_moves.clear()          # the action is over: what an effect let the human walk is spent
         else:
             walks_open = {fid for fid in self.game.hand_moves if self.game.fighters[fid].alive}
-        if self.scheme_baseline is not None and not self._resolve_human_scheme(wait=False):
+        if self.scheme_baseline is not None and not self._resolve_human_scheme(wait=False, at_end=True):
             self.say(t("end.no_scheme"), ChatKind.WARNING)
-        self.scheme_baseline, self.scheme_returned = None, None
+        self.scheme_baseline, self.scheme_returned, self.scheme_early = None, None, None
         if self._paused() is not None:            # the plan asks you something: the turn cannot end (nor its actions be counted) before the answer
             return
         if self.maneuver_baseline is not None:

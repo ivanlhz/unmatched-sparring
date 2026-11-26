@@ -101,6 +101,19 @@ def test_working_things_out_leaves_the_three_moves_to_the_human_and_gives_the_ac
 
 
 @with_rig("hellboy", "raptors", *HAND)
+def test_working_things_out_laid_on_the_pile_before_pressing_scheme_still_gives_the_action(rig):
+    """Live 22/11: the card was face up on the discard when Plan was pressed; the read at the press took it in as an old
+    card and End action said no scheme was seen (no action gained)."""
+    session, table, game, fake, cfg = rig
+    human_hand(table, game, "Working Things Out", "Eviscerate")
+    table.human_discard.append(card_ids(game, 1, "Working Things Out")[0])
+    table.human_count -= 1
+    msgs = click(session, table, Event.SCHEME) + click(session, table, Event.END_ACTION)
+    assert not said(msgs, "No he visto ninguna carta de plan"), msgs
+    assert said(msgs, "ganas 1 accion") and game.actions_left == 2 and session.effect_run is None
+
+
+@with_rig("hellboy", "raptors", *HAND)
 def test_coordinated_attack_pattern_asks_for_the_chosen_raptor_by_the_name_of_its_miniature(rig):
     session, table, game, fake, cfg = rig
     human_hand(table, game, "Coordinated Attack Pattern", "Eviscerate")
