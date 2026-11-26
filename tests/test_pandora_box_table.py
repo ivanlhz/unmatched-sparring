@@ -30,7 +30,6 @@ from test_review9 import STUB, conv, run
 
 MISERIES = "4581f8"
 BOX = load_hero_table("pandora").box
-IDS = BOX.card_ids
 TEST_IDENTITY = (("https://img.test/misery/face", "https://img.test/misery/back"),)      # what the Lua stub gives the cards of owner "misery"
 SPOT = (24.0, 2.0)
 ROOT = Path(__file__).resolve().parent.parent
@@ -47,7 +46,7 @@ def _taken(plan):
 
 def test_the_misery_deck_is_a_box_the_table_can_find():
     table = load_hero_table("pandora")
-    assert table.extras == (MISERIES,) and BOX.guid == MISERIES and IDS == (17700, 17706) and len(BOX.identity) == 1
+    assert table.extras == (MISERIES,) and BOX.guid == MISERIES and len(BOX.identity) == 1
 
 
 def real_config(bot, human):
@@ -59,16 +58,28 @@ def box_row(plan):
     return next(r for r in plan if MISERIES in r[1])
 
 
-@pytest.mark.parametrize("bot, human, side, spot, yaw", [("pandora", "medusa", "bot", (1.53, 17.71), 90.0), ("medusa", "pandora", "human", (-3.1, 17.55), 270.0)])
-def test_either_pandora_gets_her_misery_deck_unpacked_beside_her_own_deck_face_down(bot, human, side, spot, yaw):
-    """Ivan 26/11/2026: the Box lies next to her normal deck, face down, in the yaw of her deck: on the side away from her discard zone."""
-    row = box_row(play.unpack_plan(real_config(bot, human)))
+def test_the_human_pandora_s_box_lies_to_the_left_of_her_deck_from_her_seat_face_down_in_the_yaw_of_her_deck():
+    """Ivan 26/11/2026: the Box goes to the LEFT of her own deck as she sees it from her seat. White sits at -x looking +x: her left is +z."""
+    row = box_row(play.unpack_plan(real_config("medusa", "pandora")))
     assert row[0] == "token" and row[2] == load_hero_table("pandora").inner_bag
-    assert (row[3][0], row[3][2]) == pytest.approx(spot) and row[6] == (0.0, yaw, 180.0)
-    deck = RAW[f"{side}_deck_spot"]
-    assert abs(row[3][2] - deck[1]) < 1e-6 and abs(row[3][0] - deck[0]) == pytest.approx(lua.BOX_CARD_LONG + lua.BOX_GAP), "side by side along x, a gap apart"
-    away = -1 if side == "bot" else 1
-    assert (row[3][0] - deck[0]) * away > 0, "the side away from her discard zone, which lies between her deck and her seat"
+    assert (row[3][0], row[3][2]) == pytest.approx((-6.7, 17.55 + lua.BOX_CARD_SHORT + lua.BOX_GAP)) and row[6] == (0.0, 270.0, 180.0)
+    assert row[3][2] > RAW["human_deck_spot"][1], "+z: the left of a player looking toward +x"
+
+
+def test_the_bot_pandora_s_box_would_lie_to_the_left_of_its_deck_toward_minus_z_but_its_layout_is_there_so_it_falls_back_beside_the_deck():
+    """Green sits at +x looking -x: its left is -z, where its character card (5.28, 15.0) and dial lie, so the Box takes the side away from its
+    discard zone as before: (1.53, 17.71)."""
+    cfg = real_config("pandora", "medusa")
+    assert cfg.seat_geo("bot").left == (0.0, -1.0) and cfg.seat_geo("human").left == (0.0, 1.0)
+    row = box_row(play.unpack_plan(cfg))
+    assert (row[3][0], row[3][2]) == pytest.approx((1.53, 17.71)) and row[6] == (0.0, 90.0, 180.0)
+
+
+def test_the_bot_s_box_is_to_the_left_of_its_deck_when_nothing_of_its_layout_is_there():
+    raw = {**RAW, "layout": {"bot": {"deck": RAW["layout"]["bot"]["deck"]}, "human": RAW["layout"]["human"]}}
+    geo = box_layout.seat_geo(raw, "bot")
+    x, z, yaw = box_layout.box_place(raw, "bot", geo)
+    assert (x, z, yaw) == pytest.approx((RAW["bot_deck_spot"][0], RAW["bot_deck_spot"][1] - lua.BOX_CARD_SHORT - lua.BOX_GAP, 90.0))
 
 
 @pytest.mark.parametrize("bot, human, side", [("pandora", "medusa", "bot"), ("medusa", "pandora", "human")])
@@ -76,7 +87,7 @@ def test_the_box_beside_the_deck_touches_no_hand_discard_zone_or_piece_of_her_la
     cfg = real_config(bot, human)
     x, _, z = box_row(play.unpack_plan(cfg))[3]
     geo = cfg.seat_geo(side)
-    hx, hz = box_layout._card_half(geo.up_yaw)
+    hx, hz = box_layout.card_half(geo.up_yaw)
     box = (x, z, hx, hz)
     blocked = [*geo.keep, *(box_layout._discard_rect(RAW, o) for o in ("bot", "human"))]
     assert not any(box_layout._overlap(box, b) for b in blocked)
@@ -133,11 +144,11 @@ def pile_at(x=10.0, z=2.0, up=90.0, down=(1.0, 0.0), **kw):
 
 
 def reveal(card, slot, pile=None, **kw):
-    return lua.box_reveal(MISERIES, card, slot, IDS, identity=TEST_IDENTITY, spot=SPOT, pile=pile or pile_at(), **kw)
+    return lua.box_reveal(MISERIES, card % 100, slot, identity=TEST_IDENTITY, spot=SPOT, pile=pile or pile_at(), **kw)
 
 
 def put_back():
-    return lua.box_put_back(MISERIES, IDS, identity=TEST_IDENTITY, spot=SPOT)
+    return lua.box_put_back(MISERIES, identity=TEST_IDENTITY, spot=SPOT)
 
 
 def make_deck(rt, ids=range(17700, 17707), guid=MISERIES, at=(24, 2), yaw=90):
@@ -215,7 +226,7 @@ def zone_around(rt, x, z, guid=ZONE, half=1.9, half_z=None):
 
 
 def make_zone(candidates=(), recenter=False):
-    return lua.box_zone(list(candidates), MISERIES, IDS, identity=TEST_IDENTITY, spot=SPOT, recenter=recenter)
+    return lua.box_zone(list(candidates), MISERIES, identity=TEST_IDENTITY, spot=SPOT, recenter=recenter)
 
 
 def test_the_zone_is_made_around_where_the_box_lies_now_face_down_or_up(rt):  # noqa: F811
@@ -331,7 +342,7 @@ def lay_the_real_table(rt, session, human):
     geo = session.cfg.human_seat_geo if human else session.cfg.bot_seat_geo
     x, z, yaw = box_layout.box_place(RAW, side, geo)
     make_deck(rt, at=(x, z), yaw=yaw)
-    zone = run(rt, lua.box_zone([], MISERIES, IDS, identity=TEST_IDENTITY, spot=(x, z), avoid=AVOID))["guid"]
+    zone = run(rt, lua.box_zone([], MISERIES, identity=TEST_IDENTITY, spot=(x, z), avoid=AVOID))["guid"]
     setattr(session.cfg, "human_box_zone" if human else "box_zone", zone)
     return session_pandora.pile_of(session, human), zone
 
@@ -342,9 +353,9 @@ def lay_pile(rt, pile, zone, reveal=None, order=ORDER, spot=None):
     answers = []
     for slot, card in enumerate(order, 1):
         if reveal is None:
-            answers.append(run(rt, lua.box_reveal(MISERIES, card, slot, IDS, identity=TEST_IDENTITY, spot=spot, zone=zone, pile=pile)))
+            answers.append(run(rt, lua.box_reveal(MISERIES, card % 100, slot, identity=TEST_IDENTITY, spot=spot, zone=zone, pile=pile)))
         else:
-            answers.append(run(rt, lua.box_draw_top(MISERIES, slot, IDS, identity=TEST_IDENTITY, spot=spot, zone=zone, reveal_zone=reveal, pile=pile)))
+            answers.append(run(rt, lua.box_draw_top(MISERIES, slot, identity=TEST_IDENTITY, spot=spot, zone=zone, reveal_zone=reveal, pile=pile)))
     objs = [rt.globals().getObjectFromGUID(f"c{card}") for card in order]
     return answers, [(o.pos.x, o.pos.z, o.rot.y, o.pos.y, o.hand) for o in objs]
 
@@ -382,19 +393,30 @@ def test_the_bot_s_pile_lies_below_her_deck_toward_her_seat_on_the_real_table(rt
     assert 0.45 <= steps.pop() <= 0.6, "each card shows at least a strip of the one under it"
 
 
-def test_the_human_s_pile_lies_beside_their_deck_upright_for_their_seat_when_their_discard_zone_is_where_below_would_be(rt):  # noqa: F811
-    """White's seat is at -x, so below is -x: that is where the human discard zone lies against their deck (-6.7, 17.55), so the pile takes
-    the next side, +z (Ivan 26/11/2026: BESIDE their deck), the cards upright for their seat (yaw 270, like their deck) and the cascade still
-    running toward the seat, so the strip of each earlier card that shows is its top edge as they see it."""
+def test_the_human_s_pile_lies_below_their_box_toward_their_seat_on_the_real_table(rt):  # noqa: F811
+    """Ivan 26/11/2026: the human's pile is anchored on the Box (-6.7, 20.05), not on their deck: starting just below it from the White seat
+    (toward -x), upright (yaw 270), the cascade toward the seat. It clears their discard zone (which ends at z 17.246 and x -9.986), the
+    hand zones, their deck, the Box's zone, their layout and the edge of the table."""
     session = real_session("hellboy", "pandora")
     pile, zone = lay_the_real_table(rt, session, human=True)
-    answers, spots = lay_pile(rt, pile, zone)
-    assert [a["side"] for a in answers] == ["side"] * 7 and not any(a["crowded"] for a in answers)
+    assert pile.anchor == pytest.approx((-6.7, 20.05))
+    answers, spots = lay_pile(rt, pile, zone, spot=(-6.7, 20.05))
+    assert [a["side"] for a in answers] == ["below"] * 7 and not any(a["crowded"] for a in answers)
     assert_pile_is_clear(rt, spots, pile, zone, session.cfg.human_seat_geo.keep)
-    assert {round(z, 3) for _, z, *_ in spots} == {round(17.55 + 1.1 + lua.BOX_PILE_GAP + 1.1, 3)}, "beside their deck, along z"
-    xs = [x for x, *_ in spots]
-    assert xs == sorted(xs, reverse=True) and xs[0] == -6.7, "the first card level with their deck, the next ones toward their seat (-x)"
-    assert {round(yaw % 360) for _, _, yaw, *_ in spots} == {270}, "upright for the White seat, the yaw of their deck"
+    assert {round(z, 3) for _, z, *_ in spots} == {20.05}
+    xs = [round(x, 2) for x, *_ in spots]
+    assert xs == [-10.2, -10.8, -11.4, -12.0, -12.6, -13.2, -13.8], "just below the Box (gap 0.2), every 0.6 toward their seat (-x)"
+    assert {round(yaw % 360) for _, _, yaw, *_ in spots} == {270}
+    assert min(z for _, z, *_ in spots) - 1.1 > 17.246 and max(xs) + 1.65 < -8.0, "clear of the discard zone (to z 17.246) and of the Box"
+
+
+def test_the_human_s_pile_goes_to_a_side_of_the_box_and_then_above_it_when_below_is_blocked(rt):  # noqa: F811
+    for keep, side in ((((-11.0, 20.05, 1.0, 1.0),), "side"), (((-11.0, 20.05, 1.0, 1.0), (-8.0, 22.9, 5.0, 0.9), (-8.0, 17.2, 5.0, 0.9)), "above")):
+        make_deck(rt, at=(-6.7, 20.05), yaw=270)
+        out = run(rt, lua.box_reveal(MISERIES, 1, 1, identity=TEST_IDENTITY, spot=(-6.7, 20.05),
+                                     pile=pile_at(x=-6.7, z=20.05, up=270.0, down=(-1.0, 0.0), keep=keep)))
+        assert out["side"] == side and out["crowded"] is False
+        rt.execute("getObjectFromGUID('c17701'):destruct()") if False else rt.execute("for _, o in ipairs(getObjects()) do o.destruct() end")
 
 
 @pytest.mark.parametrize("human", [False, True])
@@ -463,16 +485,16 @@ def test_the_pile_of_the_other_seat_runs_toward_minus_x_upright_for_that_seat(rt
 
 
 def put_back_in(zone):
-    return lua.box_put_back(MISERIES, IDS, identity=TEST_IDENTITY, spot=SPOT, zone=zone)
+    return lua.box_put_back(MISERIES, identity=TEST_IDENTITY, spot=SPOT, zone=zone)
 
 
 def test_nothing_revealed_lies_in_the_zone_and_the_end_of_the_turn_gathers_it_all_back(rt):  # noqa: F811
     make_deck(rt)
     zone_around(rt, 24, 2, half=1.75, half_z=1.2)
     for slot, card in enumerate((17701, 17703, 17706), 1):
-        assert run(rt, lua.box_reveal(MISERIES, card, slot, IDS, identity=TEST_IDENTITY, spot=SPOT, zone=ZONE, pile=pile_at(x=10.0)))["taken"]
+        assert run(rt, lua.box_reveal(MISERIES, card % 100, slot, identity=TEST_IDENTITY, spot=SPOT, zone=ZONE, pile=pile_at(x=10.0)))["taken"]
     assert [o.guid for o in rt.globals().getObjectFromGUID(ZONE).getObjects().values()] == [MISERIES], "only the Box is in its zone"
-    assert run(rt, lua.box_put_back(MISERIES, IDS, identity=TEST_IDENTITY, spot=SPOT, zone=ZONE)) == {"added": 3, "deck": True, "quantity": 7}
+    assert run(rt, lua.box_put_back(MISERIES, identity=TEST_IDENTITY, spot=SPOT, zone=ZONE)) == {"added": 3, "deck": True, "quantity": 7}
     assert rt.eval("getObjectFromGUID('4581f8').shuffled") is True
 
 
@@ -480,17 +502,17 @@ def test_with_no_box_left_the_first_misery_back_is_laid_at_the_centre_of_the_zon
     zone_around(rt, 5, 6)
     for slot, cid in enumerate((17702, 17703), 1):
         loose(rt, cid, 24, 2 + 3 * slot)
-    out = run(rt, lua.box_put_back(MISERIES, IDS, identity=TEST_IDENTITY, spot=SPOT, zone=ZONE))
+    out = run(rt, lua.box_put_back(MISERIES, identity=TEST_IDENTITY, spot=SPOT, zone=ZONE))
     assert out["added"] == 2 and out["deck"] is True and out["quantity"] == 2
 
 
 def test_the_box_is_shuffled_at_set_up_and_a_single_card_has_nothing_to_shuffle(rt):  # noqa: F811
     make_deck(rt)
     zone_around(rt, 24, 2, half=1.2)
-    assert run(rt, lua.box_shuffle(MISERIES, IDS, identity=TEST_IDENTITY, spot=SPOT, zone=ZONE)) == {"deck": True, "shuffled": True}
+    assert run(rt, lua.box_shuffle(MISERIES, identity=TEST_IDENTITY, spot=SPOT, zone=ZONE)) == {"deck": True, "shuffled": True}
     assert rt.eval("getObjectFromGUID('4581f8').shuffled") is True
     rt.execute("getObjectFromGUID('4581f8').destruct()")
-    assert run(rt, lua.box_shuffle(MISERIES, IDS, identity=TEST_IDENTITY, spot=SPOT, zone=ZONE)) == {"deck": False, "shuffled": False}
+    assert run(rt, lua.box_shuffle(MISERIES, identity=TEST_IDENTITY, spot=SPOT, zone=ZONE)) == {"deck": False, "shuffled": False}
 
 
 # ---------------------------------------------------------------- the human's Box in Lua
@@ -503,7 +525,7 @@ def reveal_zone_at(rt, x, z, half_x=8.95, half_z=1.85):
 
 
 def draw(slot=1, zone=ZONE, pile=None):
-    return lua.box_draw_top(MISERIES, slot, IDS, identity=TEST_IDENTITY, spot=SPOT, zone=zone, reveal_zone=REVEAL, pile=pile or pile_at())
+    return lua.box_draw_top(MISERIES, slot, identity=TEST_IDENTITY, spot=SPOT, zone=zone, reveal_zone=REVEAL, pile=pile or pile_at())
 
 
 def make_reveal_zone(rt, pile, guid=REVEAL):
@@ -575,13 +597,13 @@ def test_the_button_takes_the_top_card_face_up_into_the_next_place_of_the_pile_a
     rt.execute("local d = getObjectFromGUID('4581f8'); local take = d.takeObject\n"
                "d.takeObject = function(t) TAKEN = {pos = t.position, guid = t.guid, rot = t.rotation}; return take(t) end")
     out = run(rt, draw(1, pile=pile))
-    assert out == {"taken": True, "id": 17704, "guid": "c17704", "crowded": False, "side": "below"}, "the top card, not one chosen by the engine"
+    assert out == {"taken": True, "idx": 4, "guid": "c17704", "crowded": False, "side": "below"}, "the top card, not one chosen by the engine"
     assert rt.eval("TAKEN.guid") is None and rt.eval("TAKEN.rot.y") == 90 and rt.eval("TAKEN.rot.z") == 0, "no GUID asked for: the top; face up, upright for her seat"
     first = 10 + 1.65 + lua.BOX_PILE_GAP + 1.65
     assert round(rt.eval("TAKEN.pos.x"), 3) == round(first, 3) and rt.eval("TAKEN.pos.z") == 2
-    assert run(rt, draw(2, pile=pile))["id"] == 17701 and round(rt.eval("TAKEN.pos.x"), 3) == round(first + lua.BOX_PILE_STEPS[0], 3)
+    assert run(rt, draw(2, pile=pile))["idx"] == 1 and round(rt.eval("TAKEN.pos.x"), 3) == round(first + lua.BOX_PILE_STEPS[0], 3)
     assert rt.eval("getObjectFromGUID('4581f8').getQuantity()") == 5
-    assert run(rt, lua.box_read(REVEAL, IDS, identity=TEST_IDENTITY)) == {"zone": True, "cards": [{"id": 17704, "guid": "c17704"}, {"id": 17701, "guid": "c17701"}]}
+    assert run(rt, lua.box_read(REVEAL, identity=TEST_IDENTITY)) == {"zone": True, "cards": [{"idx": 4, "guid": "c17704"}, {"idx": 1, "guid": "c17701"}]}
 
 
 def test_the_last_loose_card_of_the_box_is_dealt_and_an_empty_or_missing_box_or_zone_is_not(rt):  # noqa: F811
@@ -590,7 +612,7 @@ def test_the_last_loose_card_of_the_box_is_dealt_and_an_empty_or_missing_box_or_
     loose(rt, 17703, 24, 2, guid="lastone", up=False)
     assert run(rt, draw()) == {"taken": False, "zone": False}, "no reveal zone: nothing is taken"
     make_reveal_zone(rt, pile_at())
-    assert run(rt, draw()) == {"taken": True, "id": 17703, "guid": "lastone", "crowded": False, "side": "below"}
+    assert run(rt, draw()) == {"taken": True, "idx": 3, "guid": "lastone", "crowded": False, "side": "below"}
     assert rt.globals().getObjectFromGUID("lastone").pos.x > 10 + 1.65
     assert run(rt, draw(2)) == {"taken": False, "deck": False}, "the Box lies in the zone no more"
 
@@ -601,16 +623,16 @@ def test_the_reveal_zone_read_lists_the_miseries_face_up_and_only_those(rt):  # 
     loose(rt, 17703, 31, 2, up=False)                                          # face down: not revealed
     loose(rt, 17700, 32, 2, guid="houdini", owner="houdini", up=True)          # Houdini's character card shares 17700
     loose(rt, 17704, 5, 5, up=True)                                            # face up but elsewhere
-    out = run(rt, lua.box_read(REVEAL, IDS, identity=TEST_IDENTITY))
-    assert out == {"zone": True, "cards": [{"id": 17702, "guid": "c17702"}]}
-    assert run(rt, lua.box_read("nozone", IDS, identity=TEST_IDENTITY)) == {"zone": False, "cards": []}
+    out = run(rt, lua.box_read(REVEAL, identity=TEST_IDENTITY))
+    assert out == {"zone": True, "cards": [{"idx": 2, "guid": "c17702"}]}
+    assert run(rt, lua.box_read("nozone", identity=TEST_IDENTITY)) == {"zone": False, "cards": []}
 
 
 def test_a_face_up_deck_in_the_reveal_zone_counts_card_by_card_and_only_its_own(rt):  # noqa: F811
     reveal_zone_at(rt, 34.7, 2)
     rt.execute("mkobj({guid = 'stack', type = 'Deck', is_face_down = false, pos = Vector(30, 2, 2), cards = {"
                "{cid = 17702, guid = 'a', owner = 'misery'}, {cid = 17703, guid = 'b', owner = 'houdini'}, {cid = 17704, guid = 'c', owner = 'misery'}}})")
-    assert run(rt, lua.box_read(REVEAL, IDS, identity=TEST_IDENTITY))["cards"] == [{"id": 17702, "guid": "a"}, {"id": 17704, "guid": "c"}]
+    assert run(rt, lua.box_read(REVEAL, identity=TEST_IDENTITY))["cards"] == [{"idx": 2, "guid": "a"}, {"idx": 4, "guid": "c"}]
 
 
 @pytest.mark.parametrize("up", [False, True])
@@ -618,8 +640,8 @@ def test_the_top_card_is_peeked_without_moving_it_inside_the_box_zone_face_up_or
     make_deck(rt, ids=[17705, 17701, 17700], guid="regrouped")
     rt.execute(f"local d = getObjectFromGUID('regrouped'); d.is_face_down = {str(not up).lower()}")
     zone_around(rt, 24, 2, half=1.2)
-    out = run(rt, lua.box_peek_top(MISERIES, IDS, identity=TEST_IDENTITY, spot=SPOT, zone=ZONE))
-    assert out == {"found": True, "id": 17705} and rt.eval("getObjectFromGUID('regrouped').getQuantity()") == 3
+    out = run(rt, lua.box_peek_top(MISERIES, identity=TEST_IDENTITY, spot=SPOT, zone=ZONE))
+    assert out == {"found": True, "idx": 5} and rt.eval("getObjectFromGUID('regrouped').getQuantity()") == 3
 
 
 class OnTable:
@@ -716,16 +738,16 @@ def test_the_human_s_box_is_shuffled_at_set_up_too(rig, rt, monkeypatch):  # noq
 @with_rig("hellboy", "pandora", *HAND)
 def test_the_human_pandora_s_box_gets_a_zone_and_a_reveal_zone_saved_on_resume(rig, rt, monkeypatch):  # noqa: F811
     session = rig[0]
-    on_the_stub(session, rt, monkeypatch, bot_box=None, human_box=(-24.0, 10.5))
+    on_the_stub(session, rt, monkeypatch, bot_box=None, human_box=(-6.7, 20.05))
     session.cfg.human_deck_spot = (-6.7, 17.55)
-    make_deck(rt, at=(-24, 10.5), yaw=270)
+    make_deck(rt, at=(-6.7, 20.05), yaw=270)
     session.prepare_table(resume=False)
     guid, reveal_guid = session.cfg.human_box_zone, session.cfg.human_reveal_zone
     zone, reveal_zone = rt.globals().getObjectFromGUID(guid), rt.globals().getObjectFromGUID(reveal_guid)
-    assert guid and reveal_guid and session.cfg.box_zone is None and (zone.pos.x, zone.pos.z) == (-24, 10.5)
+    assert guid and reveal_guid and session.cfg.box_zone is None and (zone.pos.x, zone.pos.z) == (-6.7, 20.05)
     length = lua.BOX_CARD_LONG + 6 * lua.BOX_PILE_STEPS[0] + 2 * lua.BOX_PILE_MARGIN
     first = -6.7 - 1.65 - lua.BOX_PILE_GAP
-    assert (reveal_zone.pos.x, reveal_zone.pos.z) == pytest.approx((first - length / 2 + lua.BOX_PILE_MARGIN, 17.55)), "below their deck, toward their seat at -x"
+    assert (reveal_zone.pos.x, reveal_zone.pos.z) == pytest.approx((first - length / 2 + lua.BOX_PILE_MARGIN, 20.05)), "below their Box, toward their seat at -x"
     assert (reveal_zone.scale.x, reveal_zone.scale.z) == pytest.approx((length, lua.BOX_CARD_SHORT + 2 * lua.BOX_PILE_MARGIN)), "the pile of seven cards"
     assert session.to_dict()["zones_live"] == {"human_box_zone": guid, "human_reveal_zone": reveal_guid}
     spawned = len(rt.globals().SPAWNS)
@@ -738,17 +760,17 @@ def test_the_human_pandora_s_box_gets_a_zone_and_a_reveal_zone_saved_on_resume(r
 
 
 @with_rig("hellboy", "pandora", *HAND)
-def test_the_human_s_start_up_lays_the_reveal_zone_around_the_pile_and_says_once_that_it_is_not_below_their_deck(rig, rt, monkeypatch):  # noqa: F811
-    """The real table: the human's discard zone lies against their deck on the side of their seat, so the pile takes the next side and the chat says it."""
-    session = on_the_stub(rig[0], rt, monkeypatch, bot_box=None, human_box=(-3.1, 17.55))
+def test_the_human_s_start_up_lays_the_reveal_zone_around_the_pile_below_their_box_and_says_nothing(rig, rt, monkeypatch):  # noqa: F811
+    """The real table: the pile lies just below the Box (toward -x), clear of their discard zone, so nothing needs saying."""
+    session = on_the_stub(rig[0], rt, monkeypatch, bot_box=None, human_box=(-6.7, 20.05))
     session.cfg.bot_discard_zone, session.cfg.human_discard_zone = "906a7a", "b7a0b8"
     table_zones(rt)
-    make_deck(rt, at=(-3.1, 17.55), yaw=270)
+    make_deck(rt, at=(-6.7, 20.05), yaw=270)
     session.prepare_table(resume=False)
-    reveal = zone_rect(rt, session.cfg.human_reveal_zone)
-    assert reveal[0] < -6.7 < reveal[1] and reveal[2] > 18.6, "the pile runs along +z from their deck (-6.7, 17.55)"
-    moved = [text for text, _ in session._startup_notes if t("pandora.pile_moved", where=t("pandora.pile_where.side")) == text]
-    assert len(moved) == 1 and session._pile_moved_said
+    made = rt.globals().getObjectFromGUID(session.cfg.human_reveal_zone)
+    assert made.pos.x + made.scale.x / 2 < -8.0 and made.pos.z == pytest.approx(20.05), "from just below the Box toward their seat (-x)"
+    assert not [text for text, _ in session._startup_notes if t("pandora.pile_moved", where=t("pandora.pile_where.above")) == text or "pile_moved" in text]
+    assert not session._pile_moved_said
 
 
 @with_rig("pandora", "hellboy", *BOT_HAND)
@@ -1020,7 +1042,7 @@ def test_the_builders_refuse_what_is_not_a_slot_or_a_spot():
     with pytest.raises(ValueError):
         reveal(17700, 0)
     with pytest.raises(TypeError):
-        lua.box_put_back(MISERIES, IDS, identity=BOX.identity, spot=(1.0,))
+        lua.box_put_back(MISERIES, identity=BOX.identity, spot=(1.0,))
 
 
 # ---------------------------------------------------------------- the session (FakeTTS, batch mode)
@@ -1118,7 +1140,7 @@ def test_the_pile_goes_back_into_the_box_and_it_is_shuffled_at_the_end_of_the_tu
     pile, zone = lay_the_real_table(rt, session, human)
     _, spots = lay_pile(rt, pile, zone, order=ORDER[:5])
     assert all(hand is None for *_, hand in spots)
-    out = run(rt, lua.box_put_back(MISERIES, IDS, identity=TEST_IDENTITY, spot=tuple(RAW["human_deck_spot"]), zone=zone))
+    out = run(rt, lua.box_put_back(MISERIES, identity=TEST_IDENTITY, spot=tuple(RAW["human_deck_spot"]), zone=zone))
     assert out == {"added": 5, "deck": True, "quantity": 7}
     assert rt.eval("(function() local n = 0 for _, o in ipairs(getObjects()) do if o.type == 'Card' then n = n + 1 end end return n end)()") == 0
     assert any(o.shuffled for o in rt.globals().getObjects().values() if o.type == "Deck")
@@ -1198,7 +1220,7 @@ def test_the_human_s_first_misery_is_taken_from_the_real_box_in_the_real_order_a
     session._announce_human_start()                                           # the start of their turn, as the session runs it
     assert game.fx.counter_value(1, "box_mask") == 1 << IDX["Misfortune"], "the top card of the real Box, whatever the engine would have drawn"
     x, z, yaw, hand = card_at(rt, 17703)
-    assert (x, round(z, 2), yaw % 360, hand) == (-6.7, 19.95, 270, None), "+z, beside their deck (below it is their discard zone), upright for their seat"
+    assert (round(x, 2), round(z, 2), yaw % 360, hand) == (-10.2, 20.05, 270, None), "just below their Box, upright for their seat"
     assert session.effect_run.awaiting.kind == "optional"
     press(session, table, True)
     assert game.fx.counter_value(1, "box_mask") == 1 << IDX["Misfortune"] | 1 << IDX["Toil"]
@@ -1244,11 +1266,11 @@ def test_no_script_of_the_box_uses_what_exists_only_from_lua_5_3():
     import re
     pile = lua.BoxPile((5.0, 17.0), 90.0, (1.0, 0.0), keep=((1.0, 1.0, 1.0, 1.0),))
     plan = play.unpack_plan(real_config("pandora", "medusa"))
-    scripts = [lua.box_zone([], "abc", IDS, identity=TEST_IDENTITY, spot=SPOT), lua.box_reveal("abc", 17700, 1, IDS, identity=TEST_IDENTITY, spot=SPOT, pile=pile),
-               lua.box_put_back("abc", IDS, identity=TEST_IDENTITY, spot=SPOT), lua.box_shuffle("abc", IDS, identity=TEST_IDENTITY, spot=SPOT),
-               lua.box_peek_top("abc", IDS, identity=TEST_IDENTITY, spot=SPOT), lua.box_reveal_zone([], pile), lua.box_read("abc", IDS, identity=TEST_IDENTITY),
-               lua.box_draw_top("abc", 1, IDS, identity=TEST_IDENTITY, spot=SPOT, zone=None, reveal_zone="def", pile=pile),
-               lua.box_lay("abc", IDS, identity=TEST_IDENTITY, at=SPOT, yaw=90.0), lua.unpack_from_bags([box_row(plan)])]
+    scripts = [lua.box_zone([], "abc", identity=TEST_IDENTITY, spot=SPOT), lua.box_reveal("abc", 0, 1, identity=TEST_IDENTITY, spot=SPOT, pile=pile),
+               lua.box_put_back("abc", identity=TEST_IDENTITY, spot=SPOT), lua.box_shuffle("abc", identity=TEST_IDENTITY, spot=SPOT),
+               lua.box_peek_top("abc", identity=TEST_IDENTITY, spot=SPOT), lua.box_reveal_zone([], pile), lua.box_read("abc", identity=TEST_IDENTITY),
+               lua.box_draw_top("abc", 1, identity=TEST_IDENTITY, spot=SPOT, zone=None, reveal_zone="def", pile=pile),
+               lua.box_lay("abc", identity=TEST_IDENTITY, at=SPOT, yaw=90.0), lua.unpack_from_bags([box_row(plan)])]
     for script in scripts:
         code = re.sub(r'"[^"\\\n]*"', '""', script)
         assert not re.search(r"math\.atan\s*\([^()]*,", code), "two-argument math.atan"
@@ -1384,3 +1406,261 @@ def test_a_bot_pandora_who_goes_first_reveals_from_the_box_when_the_game_opens(r
     session._open(announce_turn=True)
     assert game.fx.counter_value(0, "box_mask") != 0 or table.box_returned or table.box_row, "the first Misery was revealed at the start"
     assert any(c == 17701 for c, _ in table.box_row) or any(17701 == c for row in table.box_returned for c, _ in row)
+
+
+# ---------------------------------------------------------------- TTS renumbers the DeckID of the Misery deck (live 26/11/2026: 17800-17806)
+
+RENUMBERED = [178, 2345]       # what TTS gave the sheet when it came out of the bag (177 is Houdini's character card), and something arbitrary
+
+
+def misery_ids(base, order=range(7)):
+    """CardIDs of a Misery deck whose DeckID TTS renumbered to `base`, the cards in `order` (their places in the sheet), top first."""
+    return [base * 100 + i for i in order]
+
+
+def lay_renumbered(rt, base, order=range(7), at=(24, 2), yaw=90):
+    make_deck(rt, ids=misery_ids(base, order), at=at, yaw=yaw)
+    zone_around(rt, at[0], at[1], half=1.75, half_z=1.2)
+    reveal_zone_at(rt, 34.7, 2)
+
+
+@pytest.mark.parametrize("base", RENUMBERED)
+def test_a_renumbered_box_is_found_and_shuffled_dealt_read_peeked_and_gathered_by_image_and_place_in_the_sheet(rt, base):  # noqa: F811
+    lay_renumbered(rt, base, order=[4, 1, 6, 0, 3, 2, 5])                       # the live deck came out unshuffled and in the wrong order for the first Reveal
+    loose(rt, 17700, 24, 8, guid="houdini", owner="houdini", up=False)          # Houdini's character card: CardID 17700, another image
+    loose(rt, base * 100 + 3, 26, 8, guid="stranger", owner="medusa", up=False)  # a card of another deck in a Misery's CardID
+    assert run(rt, lua.box_shuffle(MISERIES, identity=TEST_IDENTITY, spot=SPOT, zone=ZONE)) == {"deck": True, "shuffled": True}
+    assert run(rt, lua.box_peek_top(MISERIES, identity=TEST_IDENTITY, spot=SPOT, zone=ZONE)) == {"found": True, "idx": 4}
+    pile = pile_at()
+    out = run(rt, lua.box_draw_top(MISERIES, 1, identity=TEST_IDENTITY, spot=SPOT, zone=ZONE, reveal_zone=REVEAL, pile=pile))
+    assert out["taken"] is True and out["idx"] == 4 and out["guid"] == f"c{base * 100 + 4}"
+    out = run(rt, lua.box_reveal(MISERIES, 6, 2, identity=TEST_IDENTITY, spot=SPOT, zone=ZONE, pile=pile))
+    assert out["taken"] is True and out["guid"] == f"c{base * 100 + 6}", "the engine's Misery number 6 is the card at place 6 of the sheet"
+    out = run(rt, lua.box_read(REVEAL, identity=TEST_IDENTITY))
+    assert out["zone"] is True
+    assert run(rt, lua.box_put_back(MISERIES, identity=TEST_IDENTITY, spot=SPOT, zone=ZONE)) == {"added": 2, "deck": True, "quantity": 7}
+    assert rt.globals().getObjectFromGUID("houdini") is not None and rt.globals().getObjectFromGUID("stranger") is not None
+    assert run(rt, lua.box_reveal(MISERIES, 3, 1, identity=TEST_IDENTITY, spot=SPOT, zone=ZONE, pile=pile))["guid"] == f"c{base * 100 + 3}"
+
+
+@pytest.mark.parametrize("base", RENUMBERED)
+def test_a_renumbered_box_face_up_in_the_reveal_zone_is_read_by_its_place_in_the_sheet(rt, base):  # noqa: F811
+    reveal_zone_at(rt, 34.7, 2)
+    loose(rt, base * 100 + 2, 30, 2, up=True)
+    loose(rt, base * 100 + 5, 31, 2, up=False)
+    loose(rt, 17700, 32, 2, guid="houdini", owner="houdini", up=True)
+    assert run(rt, lua.box_read(REVEAL, identity=TEST_IDENTITY)) == {"zone": True, "cards": [{"idx": 2, "guid": f"c{base * 100 + 2}"}]}
+
+
+@pytest.mark.parametrize("base", RENUMBERED)
+def test_a_renumbered_box_is_laid_beside_the_deck_and_its_zone_made_around_it(rt, base):  # noqa: F811
+    make_deck(rt, ids=misery_ids(base), at=(-3.1, 17.55), yaw=270)                # where the live Box lay, away from its new place
+    assert run(rt, lua.box_lay(MISERIES, identity=TEST_IDENTITY, at=(-6.7, 20.05), yaw=270.0)) == {"found": True, "moved": True}
+    box = rt.globals().getObjectFromGUID(MISERIES)
+    assert (box.pos.x, box.pos.z, box.rot.y, box.rot.z) == (pytest.approx(-6.7), pytest.approx(20.05), 270, 180)
+    made = run(rt, lua.box_zone([], MISERIES, identity=TEST_IDENTITY, spot=SPOT))
+    assert made["box"] is True and made["status"] == "created"
+    assert zone_rect(rt, made["guid"])[0] < -6.7 < zone_rect(rt, made["guid"])[1]
+
+
+def test_a_misery_deck_with_a_card_outside_the_seven_places_is_not_the_box(rt):  # noqa: F811
+    make_deck(rt, ids=[17800, 17801, 17807])
+    assert run(rt, lua.box_shuffle(MISERIES, identity=TEST_IDENTITY, spot=SPOT)) == {"deck": False, "shuffled": False}
+
+
+@pytest.mark.parametrize("base", RENUMBERED)
+def test_clean_table_removes_a_renumbered_box_and_the_loose_miseries_but_not_a_card_outside_the_seven_places(rt, base):  # noqa: F811
+    rt.execute(f"""
+local cards = {{}}
+for i = 0, 6 do table.insert(cards, {{cid = {base} * 100 + i, guid = 'm' .. i, owner = 'misery'}}) end
+mkobj({{guid = 'newdeckguid', type = 'Deck', cards = cards, pos = {{x = -9, y = 1, z = 9}}}})
+mkobj({{guid = 'looseone', type = 'Card', cid = {base} * 100 + 2, owner = 'misery', pos = {{x = -9, y = 1, z = 12}}}})
+""")
+    loose(rt, base * 100 + 7, -9, 14, guid="notamisery", owner="misery")
+    medusa = load_hero_table("medusa")
+    run(rt, lua.clear_setup([(medusa.card_ids, medusa.identity, medusa.character_card_id)], [], [], [], (26.0, 36.0), (), (TEST_IDENTITY,)))
+    assert rt.globals().getObjectFromGUID("newdeckguid") is None and rt.globals().getObjectFromGUID("looseone") is None
+    assert rt.globals().getObjectFromGUID("notamisery") is not None
+
+
+@pytest.mark.parametrize("base", [177, *RENUMBERED])
+@on_the_real_stub(*HAND)
+def test_the_human_s_renumbered_box_is_dealt_through_the_real_start_of_turn_and_the_keep_revealing_loop(stub_rig, base):
+    session, table, game, rt = stub_table(stub_rig, misery_ids(base, [3, 1, 6, 0, 2, 5, 4]))
+    session._announce_human_start()
+    assert game.fx.counter_value(1, "box_mask") == 1 << IDX["Misfortune"], "the top card is Misery number 3 of the sheet, whatever the DeckID"
+    x, z, yaw, hand = card_at(rt, base * 100 + 3)
+    assert hand is None and yaw % 360 == 270
+    press(session, table, True)
+    assert game.fx.counter_value(1, "box_mask") == 1 << IDX["Misfortune"] | 1 << IDX["Toil"]
+    assert rt.eval("getObjectFromGUID('4581f8').getQuantity()") == 5
+
+
+@pytest.mark.parametrize("base", [177, *RENUMBERED])
+@on_the_real_stub(*HAND)
+def test_the_human_s_hope_looks_at_a_renumbered_top_card(stub_rig, base):
+    session, table, game, rt = stub_table(stub_rig, misery_ids(base, [IDX["Hope"], IDX["Greed"], 0, 1, 2, 3, 6]))
+    session._announce_human_start()                                        # the bot deals HOPE, the question "reveal another?" has a third button, Look
+    assert game.fx.counter_value(1, "box_mask") == 1 << IDX["Hope"]
+    button(session, table, 3)
+    assert game.fx.counter_value(1, "box_top") == IDX["Greed"] + 1 and rt.eval("getObjectFromGUID('4581f8').getQuantity()") == 6, "looked at, not moved"
+
+
+class StubBotBoxTable(StubBoxTable):
+    """The same, with the BOT's Misery deck on the Lua stub as well."""
+    do_box_reveal = StubBoxTable._stub
+
+    def do_box_put_back(self, s):
+        return self._stub(s)
+
+
+@pytest.fixture
+def stub_bot_rig(tmp_path, monkeypatch):
+    from sparring import session_box
+    from test_d3_table_effects import build
+    real = session_pandora._table_of
+    with_test_image = lambda s, p: (lambda tb: tb and replace(tb, box=tb.box and replace(tb.box, identity=TEST_IDENTITY)))(real(s, p))
+    monkeypatch.setattr(session_pandora, "_table_of", with_test_image)
+    monkeypatch.setattr(session_box, "_table_of", with_test_image)
+    session, table, game, fake, cfg, client = build(tmp_path, "pandora", "hellboy", BOT_HAND, table_cls=StubBotBoxTable)
+    yield session, table, game, fake, cfg
+    client.close()
+    fake.close()
+
+
+@pytest.mark.parametrize("base", [177, *RENUMBERED])
+def test_the_bot_s_renumbered_box_is_revealed_card_by_card_and_gathered_at_the_end_of_its_turn(stub_bot_rig, order, monkeypatch, base):
+    session, table, game, fake, cfg = stub_bot_rig
+    rt = table.rt
+    table_zones(rt)
+    x, z, yaw = box_layout.box_place(RAW, "bot", session.cfg.bot_seat_geo)
+    make_deck(rt, ids=misery_ids(base, [3, 1, 6, 0, 2, 5, 4]), at=(x, z), yaw=yaw)
+    made = run(rt, lua.box_zone([], MISERIES, identity=TEST_IDENTITY, spot=(x, z), avoid=AVOID))
+    session.cfg.box_zone, session.cfg.box_spot = made["guid"], (x, z)
+    order.extend([IDX["Toil"], IDX["Pain"], IDX["Greed"]])
+    keeps(monkeypatch, True, True)
+    seen = []
+    take = rt.eval("function(f) return f end")
+    msgs = bot_turn(session, table, [])
+    assert not said(msgs, t("pandora.box_missing")) and not said(msgs, t("pandora.box_card_missing"))
+    assert rt.eval("getObjectFromGUID('4581f8').getQuantity()") == 7 and rt.eval("getObjectFromGUID('4581f8').shuffled") is True
+    assert not [o for o in rt.globals().getObjects().values() if o.type == "Card"], "the three Miseries of the turn went back into the Box"
+
+
+# ---------------------------------------------------------------- a new game: the Box is where Ivan wants it, shuffled, and the reveal zone is where the pile goes
+
+@pytest.mark.parametrize("base", RENUMBERED)
+@with_rig("hellboy", "pandora", *HAND)
+def test_a_new_game_lays_a_renumbered_box_to_the_left_of_their_deck_shuffles_it_and_moves_a_stale_reveal_zone(rig, rt, monkeypatch, base):  # noqa: F811
+    """The live table of 26/11/2026: the Box face down at (-3.1, 17.55), unshuffled, CardIDs 17800-17806; a reveal zone of yesterday's version at
+    (-12, 17.55) adopted from the session file."""
+    session = rig[0]
+    on_the_stub(session, rt, monkeypatch, bot_box=None, human_box=session.cfg.human_box_spot)
+    assert session.cfg.human_box_spot == pytest.approx((-6.7, 20.05)) and session.cfg.human_deck_spot == (-6.7, 17.55)
+    table_zones(rt)
+    session.cfg.bot_discard_zone, session.cfg.human_discard_zone = "906a7a", "b7a0b8"
+    make_deck(rt, ids=misery_ids(base, [6, 5, 4, 3, 2, 1, 0]), at=(-3.1, 17.55), yaw=270)
+    zone_around(rt, -3.1, 17.55, guid="oldboxz", half=1.3, half_z=1.15)
+    reveal_zone_at(rt, -12, 17.55)
+    rt.execute(f"getObjectFromGUID('{REVEAL}').guid = 'oldrevz'")
+    saved = {"human_box_zone": "oldboxz", "human_reveal_zone": "oldrevz"}
+    session.prepare_table(resume=False, saved_zones=saved)
+    box = rt.globals().getObjectFromGUID(MISERIES)
+    assert (box.pos.x, box.pos.z, box.rot.y, box.is_face_down) == (pytest.approx(-6.7), pytest.approx(20.05), 270, True)
+    assert rt.eval("getObjectFromGUID('4581f8').shuffled") is True, "a new game shuffles the Box"
+    assert session.cfg.human_box_zone == "oldboxz" and session.cfg.human_reveal_zone == "oldrevz", "the saved zones are the ones used"
+    boxzone = zone_rect(rt, "oldboxz")
+    assert boxzone[0] < -6.7 < boxzone[1] and boxzone[2] < 20.05 < boxzone[3], "its zone follows the Box"
+    pile = session_pandora.pile_of(session, human=True)
+    answers, spots = lay_pile(rt, pile, "oldboxz", reveal="oldrevz", order=misery_ids(base), spot=(-6.7, 20.05))
+    made = rt.globals().getObjectFromGUID("oldrevz")                                    # a zone is its position and its scale
+    revealed = (made.pos.x - made.scale.x / 2, made.pos.x + made.scale.x / 2, made.pos.z - made.scale.z / 2, made.pos.z + made.scale.z / 2)
+    assert all(revealed[0] <= x - 1.65 and x + 1.65 <= revealed[1] and revealed[2] <= z - 1.1 and z + 1.1 <= revealed[3] for x, z, *_ in spots),         "the reveal zone holds the whole pile: it was moved and resized to the pile plan"
+    assert revealed[3] > 19.5, "no longer where yesterday's version left it, around z 17.55"
+    held = {o.getGUID() for o in made.getObjects().values()}
+    assert {f"c{cid}" for cid in misery_ids(base)} <= held, "and it HOLDS every card of the pile"
+
+
+@pytest.mark.parametrize("out, moved", [(0, True), (1 << IDX["Toil"], False)])
+@with_rig("hellboy", "pandora", *HAND)
+def test_a_resumed_game_moves_a_stale_reveal_zone_only_while_no_misery_lies_out(rig, rt, monkeypatch, out, moved):  # noqa: F811
+    session = rig[0]
+    on_the_stub(session, rt, monkeypatch, bot_box=None, human_box=session.cfg.human_box_spot)
+    table_zones(rt)
+    session.cfg.bot_discard_zone, session.cfg.human_discard_zone = "906a7a", "b7a0b8"
+    make_deck(rt, ids=misery_ids(178), at=(-6.7, 20.05), yaw=270)
+    reveal_zone_at(rt, -12, 17.55)
+    session._saved_zones = {"human_reveal_zone": REVEAL}
+    session.game.fx.set_counter(session.human, "box_mask", out)
+    monkeypatch.setattr(type(session), "effect_run", property(lambda self: None))           # no question pending: between two questions
+    session.prepare_table(resume=True)
+    assert (rt.globals().getObjectFromGUID(REVEAL).pos.z != 17.55) == moved
+
+
+def stale_zone_with_a_misery_face_up(rt, session, cid=17803):
+    table_zones(rt)
+    session.cfg.bot_discard_zone, session.cfg.human_discard_zone = "906a7a", "b7a0b8"
+    make_deck(rt, ids=[c for c in misery_ids(178) if c != cid], at=(-6.7, 20.05), yaw=270)
+    reveal_zone_at(rt, -12, 17.55)
+    loose(rt, cid, -12, 17.55, up=True)                              # the bot's deal that the game never counted: it lies in the stale zone
+    session._saved_zones = {"human_reveal_zone": REVEAL}
+
+
+@with_rig("hellboy", "pandora", *HAND)
+def test_a_resume_with_which_misery_pending_does_not_move_the_zone_away_from_a_misery_waiting_in_it(rig, rt, monkeypatch):  # noqa: F811
+    """`session_box.adopt` (after the zone is made) reads the pile for the card the deal left there: moving the zone first would hide it."""
+    session = on_the_stub(rig[0], rt, monkeypatch, bot_box=None, human_box=rig[0].cfg.human_box_spot)
+    stale_zone_with_a_misery_face_up(rt, session)
+    assert session.effect_run.awaiting.extra.get("tag") == "misery"
+    session.prepare_table(resume=True)
+    zone = rt.globals().getObjectFromGUID(REVEAL)
+    assert zone.pos.z == 17.55 and "c17803" in {o.getGUID() for o in zone.getObjects().values()}
+    assert run(rt, lua.box_read(REVEAL, identity=TEST_IDENTITY))["cards"] == [{"idx": 3, "guid": "c17803"}], "so the read still sees the card the deal left"
+
+
+def test_the_reveal_zone_is_kept_where_it_is_only_when_asked_and_a_face_up_misery_lies_in_it(rt):  # noqa: F811
+    for held, moved in ((True, False), (False, True)):
+        reveal_zone_at(rt, -12, 17.55)
+        if held:
+            loose(rt, 17703, -12, 17.55, up=True)
+        out = run(rt, lua.box_reveal_zone([REVEAL], pile_at(x=-6.7, z=20.05, up=270.0, down=(-1.0, 0.0)), identity=TEST_IDENTITY,
+                                          recenter=True, only_if_empty=True))
+        assert (out["status"] == "moved") == moved and (rt.globals().getObjectFromGUID(REVEAL).pos.z == 17.55) == (not moved)
+        rt.execute("for _, o in ipairs(getObjects()) do o.destruct() end")
+
+
+@with_rig("hellboy", "pandora", *HAND)
+def test_an_old_save_resumed_with_miseries_out_gets_its_reveal_zone_moved_at_the_put_back_that_empties_the_pile(rig, rt, monkeypatch):  # noqa: F811
+    session = on_the_stub(rig[0], rt, monkeypatch, bot_box=None, human_box=session_cfg_box(rig[0]))
+    session.cfg.batch = False
+    table_zones(rt)
+    session.cfg.bot_discard_zone, session.cfg.human_discard_zone = "906a7a", "b7a0b8"
+    make_deck(rt, ids=misery_ids(178)[:6], at=(-6.7, 20.05), yaw=270)
+    reveal_zone_at(rt, -12, 17.55)
+    loose(rt, 17806, -12, 17.55, up=True)
+    session._saved_zones = {"human_reveal_zone": REVEAL}
+    session.game.fx.set_counter(session.human, "box_mask", 1 << 6)
+    monkeypatch.setattr(type(session), "effect_run", property(lambda self: None))
+    session.prepare_table(resume=True)
+    assert rt.globals().getObjectFromGUID(REVEAL).pos.z == 17.55, "cards out: the zone stays where they lie"
+    for check in session_pandora._put_back(session, human=True):
+        check()
+    zone = rt.globals().getObjectFromGUID(REVEAL)
+    assert zone.pos.z == pytest.approx(20.05) and rt.eval("getObjectFromGUID('4581f8').getQuantity()") == 7
+
+
+def session_cfg_box(session):
+    return session.cfg.human_box_spot
+
+
+@with_rig("hellboy", "pandora", *HAND)
+def test_their_own_deck_is_an_obstacle_for_the_pile_that_hangs_on_the_box(rig, rt, monkeypatch):  # noqa: F811
+    """Below the Box, above it and its +z side blocked: the only side left runs into their deck, so the pile is said to be crowded."""
+    session = real_session("hellboy", "pandora")
+    session.cfg.human_box_zone = None
+    pile = session_pandora.pile_of(session, human=True)
+    assert any(abs(k[0] - -6.7) < 1e-6 and abs(k[1] - 17.55) < 1e-6 for k in pile.keep), "their deck is in the plan"
+    blockers = ((-12.0, 20.05, 3.5, 1.2), (-9.0, 22.45, 5.0, 1.3), (-1.5, 20.05, 4.0, 1.2))
+    make_deck(rt, at=(-6.7, 20.05), yaw=270)
+    out = run(rt, lua.box_reveal(MISERIES, 1, 1, identity=TEST_IDENTITY, spot=(-6.7, 20.05), pile=replace(pile, keep=pile.keep + blockers)))
+    assert out["crowded"] is True and out["side"] == "side"

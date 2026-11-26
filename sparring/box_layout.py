@@ -1,7 +1,7 @@
 """Pandora's Box beside her deck, and the side of the table her pile of revealed Miseries lies on.
 
-Iván (26/11/2026): the Misery deck goes next to her own deck, face down, and the Miseries she reveals lie face up in a cascade BELOW her deck
-from her player's point of view, so the effects of the turn are seen at a glance. This module is the part of that which is known before the
+Iván (26/11/2026): the Misery deck goes to the LEFT of her own deck as seen from her seat, face down, and the Miseries she reveals lie face up in a
+cascade (the human's below the Box, the bot's below its deck, from her player's point of view), so the effects of the turn are seen at a glance. This module is the part of that which is known before the
 game is on the table: where the unpack lays the Box (`box_place`, from the deck spot, the discard zones, the hand zones and the slots of her
 layout, all read from config/table.json) and which way her seat faces (`SeatGeo`: `down` is the way to her seat, `up_yaw` the yaw her cards
 lie at upright for her). The pile itself is planned on the live table by `lua.BoxPile` (it reads the real hand zones)."""
@@ -31,6 +31,11 @@ class SeatGeo:
     def down(self) -> tuple[float, float]:
         return (float(self.sign), 0.0)
 
+    @property
+    def left(self) -> tuple[float, float]:
+        """The unit step to the LEFT of her deck as she sees it from her seat (she looks toward the table's centre: White at -x looks +x, so her left is +z)."""
+        return (0.0, -float(self.sign))
+
 
 def _sign(raw: dict, side: str) -> int:
     seats = {**SEAT_X, **(raw.get("seat_x") or {})}
@@ -38,7 +43,7 @@ def _sign(raw: dict, side: str) -> int:
     return value if value in (1, -1) else (1 if side == "bot" else -1)
 
 
-def _card_half(yaw: float) -> tuple[float, float]:
+def card_half(yaw: float) -> tuple[float, float]:
     """Half x and half z of a card lying at `yaw`."""
     c, s = abs(math.cos(math.radians(yaw))), abs(math.sin(math.radians(yaw)))
     return (lua.BOX_CARD_SHORT * c + lua.BOX_CARD_LONG * s) / 2, (lua.BOX_CARD_SHORT * s + lua.BOX_CARD_LONG * c) / 2
@@ -62,7 +67,7 @@ def seat_geo(raw: dict, side: str, pieces: int = 0) -> SeatGeo:
     keep: list[Rect] = []
     card = _slot(layout.get("character_card") or {})
     if card is not None:
-        keep.append((card[0], card[1], *_card_half(card[2])))
+        keep.append((card[0], card[1], *card_half(card[2])))
     dial = _slot(layout.get("dial") or {})
     if dial is not None:
         keep.append((dial[0], dial[1], DIAL_HALF, DIAL_HALF))
@@ -109,12 +114,12 @@ def _away(deck: tuple[float, float], zone: Rect | None, fallback: float) -> tupl
 
 
 def box_place(raw: dict, side: str, geo: SeatGeo) -> tuple[float, float, float] | None:
-    """(x, z, yaw) where the unpack lays `side`'s Misery deck, face down: beside her own deck, in the yaw of her deck.
+    """(x, z, yaw) where the unpack lays `side`'s Misery deck, face down: to the LEFT of her own deck as she sees it from her seat (Ivan
+    26/11/2026), in the yaw of her deck.
 
-    Of the four sides of the deck it takes the first free one, trying first the side away from her discard zone (the side of her seat is the
-    pile's), then the two others along the discard, then the discard's own; free means no hand zone, no discard zone, nothing of her layout
-    and the table's edge in the way (a side where something is in the way is only taken when none is free: the least crowded). None when her
-    deck spot is not known: the unpack then keeps its row."""
+    Free means no hand zone, no discard zone, nothing of her layout and the table's edge in the way. If the left is not free it falls back to
+    the other sides as before (first the side away from her discard zone, then the two others along the discard, then the discard's own) and
+    takes the first free one; with none free, the least crowded. None when her deck spot is not known: the unpack then keeps its row."""
     deck = raw.get(f"{side}_deck_spot")
     if not deck:
         return None
@@ -122,8 +127,9 @@ def box_place(raw: dict, side: str, geo: SeatGeo) -> tuple[float, float, float] 
     discard = _discard_rect(raw, side)
     away = _away((dx, dz), discard, -float(geo.sign))
     outward = (0.0, math.copysign(1.0, dz)) if away[1] == 0 else (math.copysign(1.0, dx), 0.0)         # of the two sides across `away`, the one toward the table's edge first
-    sides = [away, outward, (-outward[0], -outward[1]), (-away[0], -away[1])]
-    hx, hz = _card_half(geo.up_yaw)
+    left = geo.left
+    sides = [left, *(v for v in (away, outward, (-outward[0], -outward[1]), (-away[0], -away[1])) if v != left)]
+    hx, hz = card_half(geo.up_yaw)
     edge = float(raw.get("hand_edge", HAND_EDGE))
     obstacles: list[Rect] = [(edge + 40, 0.0, 40.0, 80.0), (-edge - 40, 0.0, 40.0, 80.0), *geo.keep]
     for other in ("bot", "human"):

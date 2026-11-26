@@ -42,8 +42,8 @@ class FighterTable:
 
 @dataclass(frozen=True)
 class BoxDeck:
+    """The Misery deck, known by its image and by the place of each card in its sheet (0-6): TTS renumbers its DeckID (177 -> 178: Houdini's character card is 177), so no absolute CardID."""
     guid: str
-    card_ids: tuple[int, int]
     identity: tuple[tuple[str, str], ...]
 
 
@@ -64,7 +64,7 @@ class HeroTable:
     token_slots: dict[str, dict] = field(default_factory=dict)     # own resting places of a token by side, ((x, y, z), (rx, ry, rz)) each, measured on the table: win over the layout's `tokens`
     ignored_tokens: tuple[str, ...] = ()                          # GUIDs in the hero's bag the bot does not use (Jill Trent's gadget token): still the hero's, so a bag holding them is recognised
     extras: tuple[str, ...] = ()                                  # ignored objects of the bag that still come out on the table, in the row of the hero's other pieces, for either side (Pandora's Misery deck, her Box)
-    box: BoxDeck | None = None                                    # the deck of `extras` the bot plays with at the table (Pandora's Misery deck): found by its own CardIDs and image
+    box: BoxDeck | None = None                                    # the deck of `extras` the bot plays with at the table (Pandora's Misery deck): found by its image and the place of each card in the sheet
     extra_character_card_ids: tuple[int, ...] = ()                # other character cards of the SAME hero riding in the deck (Elektra Resurrected, 341): taken out with the first and laid beside it
 
     def unpack_items(self) -> list[tuple[str, tuple[str, ...]]]:
@@ -106,8 +106,7 @@ def _guid_list(value, where: str) -> tuple[str, ...]:
 
 
 def _parse_box(raw: dict) -> BoxDeck:
-    ids = raw["card_ids"]
-    return BoxDeck(raw["guid"], (int(ids[0]), int(ids[1])), tuple((i["face"], i["back"]) for i in raw["identity"]))
+    return BoxDeck(raw["guid"], tuple((i["face"], i["back"]) for i in raw["identity"]))
 
 
 def parse_hero_table(raw: dict, hero: HeroDef, where: str = "tts") -> HeroTable:
