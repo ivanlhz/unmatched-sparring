@@ -43,7 +43,7 @@ def _sign(raw: dict, side: str) -> int:
     return value if value in (1, -1) else (1 if side == "bot" else -1)
 
 
-def _card_half(yaw: float) -> tuple[float, float]:
+def card_half(yaw: float) -> tuple[float, float]:
     """Half x and half z of a card lying at `yaw`."""
     c, s = abs(math.cos(math.radians(yaw))), abs(math.sin(math.radians(yaw)))
     return (lua.BOX_CARD_SHORT * c + lua.BOX_CARD_LONG * s) / 2, (lua.BOX_CARD_SHORT * s + lua.BOX_CARD_LONG * c) / 2
@@ -67,7 +67,7 @@ def seat_geo(raw: dict, side: str, pieces: int = 0) -> SeatGeo:
     keep: list[Rect] = []
     card = _slot(layout.get("character_card") or {})
     if card is not None:
-        keep.append((card[0], card[1], *_card_half(card[2])))
+        keep.append((card[0], card[1], *card_half(card[2])))
     dial = _slot(layout.get("dial") or {})
     if dial is not None:
         keep.append((dial[0], dial[1], DIAL_HALF, DIAL_HALF))
@@ -129,7 +129,7 @@ def box_place(raw: dict, side: str, geo: SeatGeo) -> tuple[float, float, float] 
     outward = (0.0, math.copysign(1.0, dz)) if away[1] == 0 else (math.copysign(1.0, dx), 0.0)         # of the two sides across `away`, the one toward the table's edge first
     left = geo.left
     sides = [left, *(v for v in (away, outward, (-outward[0], -outward[1]), (-away[0], -away[1])) if v != left)]
-    hx, hz = _card_half(geo.up_yaw)
+    hx, hz = card_half(geo.up_yaw)
     edge = float(raw.get("hand_edge", HAND_EDGE))
     obstacles: list[Rect] = [(edge + 40, 0.0, 40.0, 80.0), (-edge - 40, 0.0, 40.0, 80.0), *geo.keep]
     for other in ("bot", "human"):

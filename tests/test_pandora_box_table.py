@@ -87,7 +87,7 @@ def test_the_box_beside_the_deck_touches_no_hand_discard_zone_or_piece_of_her_la
     cfg = real_config(bot, human)
     x, _, z = box_row(play.unpack_plan(cfg))[3]
     geo = cfg.seat_geo(side)
-    hx, hz = box_layout._card_half(geo.up_yaw)
+    hx, hz = box_layout.card_half(geo.up_yaw)
     box = (x, z, hx, hz)
     blocked = [*geo.keep, *(box_layout._discard_rect(RAW, o) for o in ("bot", "human"))]
     assert not any(box_layout._overlap(box, b) for b in blocked)
@@ -1577,6 +1577,8 @@ def test_a_new_game_lays_a_renumbered_box_to_the_left_of_their_deck_shuffles_it_
     revealed = (made.pos.x - made.scale.x / 2, made.pos.x + made.scale.x / 2, made.pos.z - made.scale.z / 2, made.pos.z + made.scale.z / 2)
     assert all(revealed[0] <= x - 1.65 and x + 1.65 <= revealed[1] and revealed[2] <= z - 1.1 and z + 1.1 <= revealed[3] for x, z, *_ in spots),         "the reveal zone holds the whole pile: it was moved and resized to the pile plan"
     assert revealed[3] > 19.5, "no longer where yesterday's version left it, around z 17.55"
+    held = {o.getGUID() for o in made.getObjects().values()}
+    assert {f"c{cid}" for cid in misery_ids(base)} <= held, "and it HOLDS every card of the pile"
 
 
 @pytest.mark.parametrize("out, moved", [(0, True), (1 << IDX["Toil"], False)])
@@ -1590,5 +1592,75 @@ def test_a_resumed_game_moves_a_stale_reveal_zone_only_while_no_misery_lies_out(
     reveal_zone_at(rt, -12, 17.55)
     session._saved_zones = {"human_reveal_zone": REVEAL}
     session.game.fx.set_counter(session.human, "box_mask", out)
+    monkeypatch.setattr(type(session), "effect_run", property(lambda self: None))           # no question pending: between two questions
     session.prepare_table(resume=True)
     assert (rt.globals().getObjectFromGUID(REVEAL).pos.z != 17.55) == moved
+
+
+def stale_zone_with_a_misery_face_up(rt, session, cid=17803):
+    table_zones(rt)
+    session.cfg.bot_discard_zone, session.cfg.human_discard_zone = "906a7a", "b7a0b8"
+    make_deck(rt, ids=[c for c in misery_ids(178) if c != cid], at=(-6.7, 20.05), yaw=270)
+    reveal_zone_at(rt, -12, 17.55)
+    loose(rt, cid, -12, 17.55, up=True)                              # the bot's deal that the game never counted: it lies in the stale zone
+    session._saved_zones = {"human_reveal_zone": REVEAL}
+
+
+@with_rig("hellboy", "pandora", *HAND)
+def test_a_resume_with_which_misery_pending_does_not_move_the_zone_away_from_a_misery_waiting_in_it(rig, rt, monkeypatch):  # noqa: F811
+    """`session_box.adopt` (after the zone is made) reads the pile for the card the deal left there: moving the zone first would hide it."""
+    session = on_the_stub(rig[0], rt, monkeypatch, bot_box=None, human_box=rig[0].cfg.human_box_spot)
+    stale_zone_with_a_misery_face_up(rt, session)
+    assert session.effect_run.awaiting.extra.get("tag") == "misery"
+    session.prepare_table(resume=True)
+    zone = rt.globals().getObjectFromGUID(REVEAL)
+    assert zone.pos.z == 17.55 and "c17803" in {o.getGUID() for o in zone.getObjects().values()}
+    assert run(rt, lua.box_read(REVEAL, identity=TEST_IDENTITY))["cards"] == [{"idx": 3, "guid": "c17803"}], "so the read still sees the card the deal left"
+
+
+def test_the_reveal_zone_is_kept_where_it_is_only_when_asked_and_a_face_up_misery_lies_in_it(rt):  # noqa: F811
+    for held, moved in ((True, False), (False, True)):
+        reveal_zone_at(rt, -12, 17.55)
+        if held:
+            loose(rt, 17703, -12, 17.55, up=True)
+        out = run(rt, lua.box_reveal_zone([REVEAL], pile_at(x=-6.7, z=20.05, up=270.0, down=(-1.0, 0.0)), identity=TEST_IDENTITY,
+                                          recenter=True, only_if_empty=True))
+        assert (out["status"] == "moved") == moved and (rt.globals().getObjectFromGUID(REVEAL).pos.z == 17.55) == (not moved)
+        rt.execute("for _, o in ipairs(getObjects()) do o.destruct() end")
+
+
+@with_rig("hellboy", "pandora", *HAND)
+def test_an_old_save_resumed_with_miseries_out_gets_its_reveal_zone_moved_at_the_put_back_that_empties_the_pile(rig, rt, monkeypatch):  # noqa: F811
+    session = on_the_stub(rig[0], rt, monkeypatch, bot_box=None, human_box=session_cfg_box(rig[0]))
+    session.cfg.batch = False
+    table_zones(rt)
+    session.cfg.bot_discard_zone, session.cfg.human_discard_zone = "906a7a", "b7a0b8"
+    make_deck(rt, ids=misery_ids(178)[:6], at=(-6.7, 20.05), yaw=270)
+    reveal_zone_at(rt, -12, 17.55)
+    loose(rt, 17806, -12, 17.55, up=True)
+    session._saved_zones = {"human_reveal_zone": REVEAL}
+    session.game.fx.set_counter(session.human, "box_mask", 1 << 6)
+    monkeypatch.setattr(type(session), "effect_run", property(lambda self: None))
+    session.prepare_table(resume=True)
+    assert rt.globals().getObjectFromGUID(REVEAL).pos.z == 17.55, "cards out: the zone stays where they lie"
+    for check in session_pandora._put_back(session, human=True):
+        check()
+    zone = rt.globals().getObjectFromGUID(REVEAL)
+    assert zone.pos.z == pytest.approx(20.05) and rt.eval("getObjectFromGUID('4581f8').getQuantity()") == 7
+
+
+def session_cfg_box(session):
+    return session.cfg.human_box_spot
+
+
+@with_rig("hellboy", "pandora", *HAND)
+def test_their_own_deck_is_an_obstacle_for_the_pile_that_hangs_on_the_box(rig, rt, monkeypatch):  # noqa: F811
+    """Below the Box, above it and its +z side blocked: the only side left runs into their deck, so the pile is said to be crowded."""
+    session = real_session("hellboy", "pandora")
+    session.cfg.human_box_zone = None
+    pile = session_pandora.pile_of(session, human=True)
+    assert any(abs(k[0] - -6.7) < 1e-6 and abs(k[1] - 17.55) < 1e-6 for k in pile.keep), "their deck is in the plan"
+    blockers = ((-12.0, 20.05, 3.5, 1.2), (-9.0, 22.45, 5.0, 1.3), (-1.5, 20.05, 4.0, 1.2))
+    make_deck(rt, at=(-6.7, 20.05), yaw=270)
+    out = run(rt, lua.box_reveal(MISERIES, 1, 1, identity=TEST_IDENTITY, spot=(-6.7, 20.05), pile=replace(pile, keep=pile.keep + blockers)))
+    assert out["crowded"] is True and out["side"] == "side"

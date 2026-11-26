@@ -15,6 +15,7 @@ A table with no Misery deck is said once and the chat carries the Box alone, as 
 from __future__ import annotations
 
 from .effects import plugins_pandora as box
+from . import box_layout
 from .i18n import t
 from .session_translators import BOT, DOMAIN, ERRORS, HUMAN, Ctx, register, result_of
 from .tts import lua
@@ -57,8 +58,13 @@ def _put_back(session, human: bool) -> list:
         session._box_by_panel = session._box_looked = None          # the turn is over: its markers with it
     if human and not zone:
         return []
-    return _on_table(session, lambda deck, spot: lua.box_put_back(deck.guid, identity=deck.identity, spot=spot, zone=zone),
-                     lambda res: res.get("deck") is True, human)
+    emptied = _on_table(session, lambda deck, spot: lua.box_put_back(deck.guid, identity=deck.identity, spot=spot, zone=zone),
+                        lambda res: res.get("deck") is True, human)
+    if not human or not session.cfg.human_reveal_zone:
+        return emptied
+    return emptied + _on_table(session, lambda deck, spot: lua.box_reveal_zone([session.cfg.human_reveal_zone], pile_of(session, human=True, box_spot=spot),
+                                                                                identity=deck.identity, recenter=True, only_if_empty=True),
+                               lambda res: res.get("guid") is not None, human)
 
 
 def pile_of(session, human: bool, box_spot: tuple[float, float] | None = None) -> lua.BoxPile:
@@ -70,10 +76,11 @@ def pile_of(session, human: bool, box_spot: tuple[float, float] | None = None) -
     deck = c.human_deck_spot if human else c.bot_deck_spot
     anchor = (box_spot or c.human_box_spot or deck) if human else (deck or box_spot or c.box_spot)
     discard = _human_discard(session) if human else [(c.bot_discard_spot[0], c.bot_discard_spot[2])]
+    keep = (*geo.keep, (deck[0], deck[1], *box_layout.card_half(geo.up_yaw))) if human and deck else geo.keep
     own = {c.human_deck_zone, c.human_reveal_zone} if human else {c.bot_deck_zone}
     zones = (c.bot_discard_zone, c.human_discard_zone, c.bot_deck_zone, c.human_deck_zone, c.box_zone, c.human_box_zone)
     return lua.BoxPile(tuple(anchor), geo.up_yaw, geo.down, tuple(discard), tuple(dict.fromkeys(g for g in zones if g and g not in own)),
-                       geo.keep, tuple(c.remove_limits))
+                       keep, tuple(c.remove_limits))
 
 
 def _human_discard(session) -> list[tuple[float, float]]:
@@ -133,9 +140,17 @@ def prepare_zone(session, resume: bool) -> None:
         if guid and not resume:                  # the bag hands the Box out in the order it was saved in: the human's first Reveal takes its top card
             _shuffle(session, deck, spot, guid)
         if key == "human_box_zone" and guid:
+            move = not resume or (not box.mask_of(session.game, session.human) and not _misery_pending(session))
             _make_zone(session, resume, "human_reveal_zone",
-                       lambda found: lua.box_reveal_zone(found, pile_of(session, human=True, box_spot=spot),
-                                                         recenter=not resume or not box.mask_of(session.game, session.human)), REVEAL_ZONE_NOTES)
+                       lambda found: lua.box_reveal_zone(found, pile_of(session, human=True, box_spot=spot), identity=deck.identity,
+                                                         recenter=move, only_if_empty=resume), REVEAL_ZONE_NOTES)
+
+
+def _misery_pending(session) -> bool:
+    """The question "which Misery?" is waiting: a card the last deal left on the pile may be its answer (`session_box.adopt`), so the pile stays."""
+    run = session.effect_run
+    req = None if run is None else run.awaiting
+    return req is not None and req.kind == "effect" and req.extra.get("tag") == "misery"
 
 
 def _lay_beside_deck(session, deck, human: bool) -> None:

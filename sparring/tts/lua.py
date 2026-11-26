@@ -3797,9 +3797,9 @@ MAX_PILE_KEEP = 24
 @dataclass(frozen=True)
 class BoxPile:
     """Where the Miseries Pandora reveals lie: face up in a cascade (each new one overlapping the last, offset along its own bottom edge
-    so only the top strip of each earlier card shows, its name and not its feathers: Ivan 26/11/2026), starting just below HER deck from her player's point of view.
+    so only the top strip of each earlier card shows, its name and not its feathers: Ivan 26/11/2026), starting just below HER deck (the human's: below their Box) from her player's point of view.
 
-    `anchor` (x, z) is her deck; `up_yaw` the yaw her cards lie at upright for her player; `down` the unit (dx, dz) toward that player's
+    `anchor` (x, z) is her deck (the human's: the Box); `up_yaw` the yaw her cards lie at upright for her player; `down` the unit (dx, dz) toward that player's
     seat (the cards' bottom edges point there at `up_yaw`; the cascade always runs that way, every card upright for her seat, whichever side of her deck the pile takes); `away_from` her piles (deck, discard) the fall-back sides are ordered by;
     `avoid` the GUIDs of the zones the pile must not touch (discards, the rival's deck, the Box zones; the hands are read from the table);
     `keep` (cx, cz, half x, half z) rectangles of what else lies there (her character card, dial, pieces); `limits` (|x|, |z|) the table.
@@ -4054,7 +4054,7 @@ return JSON.encode({{guid = guid, status = status, box = box ~= nil and inside}}
 def box_reveal(deck_guid: str, index: int, slot: int, *, identity,
                spot: tuple[float, float], pile: BoxPile, zone: str | None = None, radius: float = DECK_RADIUS) -> str:
     """Pandora's Box at the table: takes the Misery number `index` (0-6, its place in the sheet: the one the engine drew; the table's
-    order is not the engine's) out of the Box and lays it FACE UP in place `slot` (1 = the first, up to `MAX_BOX_SLOTS`) of the `pile` below her deck:
+    order is not the engine's) out of the Box and lays it FACE UP in place `slot` (1 = the first, up to `MAX_BOX_SLOTS`) of the `pile` below her deck (the human's: below their Box):
     a cascade along the cards' own bottom edge, each new one a little further than the last and above it, in the yaw of her side
     (see `BoxPile`). Of the four sides of her deck (below first, then the two sides, then above) it takes the first whose WHOLE pile of
     seven places touches no hand zone, none of the `pile.avoid` zones and none of `pile.keep`, and does not leave the table; with none
@@ -4166,17 +4166,20 @@ return JSON.encode({{found = true, idx = first.CardID % 100}})
 
 
 @_registered
-def box_reveal_zone(candidates: list[str], pile: BoxPile, *, recenter: bool = False) -> str:
+def box_reveal_zone(candidates: list[str], pile: BoxPile, *, identity=None, recenter: bool = False, only_if_empty: bool = False) -> str:
     """The human Pandora's REVEAL zone: a Scripting zone around the pile her Miseries lie in (`box_reveal` lays the bot's the same way, in
     the very place `box_draw_top` lays the human's): the axis-aligned box of its seven places plus `BOX_PILE_MARGIN`. Where the pile goes
-    is the plan of `BoxPile` (below her deck if it is free, else the next free side; with none free the least crowded). The first of
+    is the plan of `BoxPile` (below her deck, the human's below their Box, if it is free, else the next free side; with none free the least crowded). The first of
     `candidates` that is a Scripting zone is used, else one already there at that place and size that is not in `pile.avoid` is adopted,
-    else it is created; with `recenter` one that is somewhere else is moved and resized. Returns `{guid, status, crowded, side}` (`found`,
+    else it is created; with `recenter` one that is somewhere else is moved and resized, unless `only_if_empty` and a Misery of `identity` lies face
+    up in it (a resumed game: a card the deal left there is still to be read before the zone can go). Returns `{guid, status, crowded, side}` (`found`,
     `moved`, `adopted`, `created`; `no_guid`)."""
     if not isinstance(candidates, (list, tuple)):
         raise TypeError("GUID list expected")
+    if only_if_empty and identity is None:
+        raise ValueError("only_if_empty needs the identity of the Miseries")
     return f"""-- sparring:box_reveal_zone
-{ZONE_LUA}{_PILE_LUA}local PLAN = pilePlan({pile.args()})
+{_box_ours(identity) if only_if_empty else ""}{ZONE_LUA}{_PILE_LUA}local PLAN = pilePlan({pile.args()})
 local AVOID = {{}}
 for _, g in ipairs({_guid_list(pile.avoid)}) do AVOID[g] = true end
 local x0, x1, z0, z1 = pileBounds(PLAN)
@@ -4206,7 +4209,13 @@ if zone == nil then
 end
 local guid = zone ~= nil and zone.getGUID() or nil
 if guid == nil or guid == "" then return JSON.encode({{guid = "", status = "no_guid"}}) end
-if {"true" if recenter else "false"} and status == "found" then
+local held = false
+if {"true" if only_if_empty else "false"} then
+  for _, o in ipairs(zoneObjects(zone)) do
+    if (o.type == "Card" or o.type == "Deck") and not o.is_face_down and ours(o) then held = true end
+  end
+end
+if {"true" if recenter else "false"} and status == "found" and not held then
   local p, s = zone.getPosition(), zone.getScale()
   if math.abs(p.x - at.x) > {_f(ZONE_MATCH_TOLERANCE)} or math.abs(p.z - at.z) > {_f(ZONE_MATCH_TOLERANCE)}
      or math.abs(s.x - sx) > {_f(ZONE_MATCH_TOLERANCE)} or math.abs(s.z - sz) > {_f(ZONE_MATCH_TOLERANCE)} then

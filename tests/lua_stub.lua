@@ -133,6 +133,8 @@ function mkobj(o)
     end
   end
   if o.type == "Scripting" then
+    o.setPosition = function(p) o.pos = Vector(p); o.cx, o.cz = o.pos.x, o.pos.z end         -- a zone holds what lies in its position and scale
+    o.setScale = function(v) o.scale = Vector(v); o.hw, o.hd = o.scale.x / 2, o.scale.z / 2 end
     o.getBounds = o.getBounds or function() return {center = vec(o.cx, 1, o.cz), size = vec(o.hw * 2, 1, o.hd * 2)} end
     o.getObjects = function()
       local t = {}

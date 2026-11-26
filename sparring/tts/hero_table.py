@@ -64,7 +64,7 @@ class HeroTable:
     token_slots: dict[str, dict] = field(default_factory=dict)     # own resting places of a token by side, ((x, y, z), (rx, ry, rz)) each, measured on the table: win over the layout's `tokens`
     ignored_tokens: tuple[str, ...] = ()                          # GUIDs in the hero's bag the bot does not use (Jill Trent's gadget token): still the hero's, so a bag holding them is recognised
     extras: tuple[str, ...] = ()                                  # ignored objects of the bag that still come out on the table, in the row of the hero's other pieces, for either side (Pandora's Misery deck, her Box)
-    box: BoxDeck | None = None                                    # the deck of `extras` the bot plays with at the table (Pandora's Misery deck): found by its own CardIDs and image
+    box: BoxDeck | None = None                                    # the deck of `extras` the bot plays with at the table (Pandora's Misery deck): found by its image and the place of each card in the sheet
     extra_character_card_ids: tuple[int, ...] = ()                # other character cards of the SAME hero riding in the deck (Elektra Resurrected, 341): taken out with the first and laid beside it
 
     def unpack_items(self) -> list[tuple[str, tuple[str, ...]]]:
