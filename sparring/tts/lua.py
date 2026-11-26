@@ -324,17 +324,19 @@ def _range(id_range) -> tuple[str, str]:
     return _i(id_range[0]), _i(id_range[1])
 
 
-def _ours_lua(identity, id_range) -> str:
+def _ours_lua(identity, id_range, slots: int | None = None) -> str:
     """Defines in Lua `cardOurs(entry, fallback)` and `ours(o)`: a card is ours if its CardID falls in the range AND the
     image of ITS DeckID is one of the identities. The image is looked up in the card's own CustomDeck and, if the key of
     the CardID's DeckID is not there, in that of the deck containing it (in the real save 20 of Hellboy's 30
     cards carry a CustomDeck with another key); if the card DOES carry it, its own wins. A Deck is only ours if
-    EVERY ONE of its cards IS."""
-    lo, hi = _range(id_range)
+    EVERY ONE of its cards IS. With `slots` (Pandora's Box) the range is not used: TTS renumbers the DeckID of a deck that comes out of a
+    bag beside another with the same one (178xx for 177xx), so the card must be the image AND its place in the sheet, CardID % 100
+    below `slots`."""
+    cond = f"id < 0 or id % 100 >= {_i(slots)}" if slots is not None else "id < {} or id > {}".format(*_range(id_range))
     return f"""local IDENT = {_identity(identity)}
 {_IMAGE_LUA}local function cardOurs(entry, fallback)
   local id = entry.CardID
-  if type(id) ~= "number" or id < {lo} or id > {hi} then return false end
+  if type(id) ~= "number" or {cond} then return false end
   local images = imagesOf(entry, fallback)
   if #images == 0 then return false end
   for _, info in ipairs(images) do
@@ -1914,7 +1916,7 @@ MAX_CLEAR_MAPS = 64
 
 @_registered
 def clear_setup(heroes: list[tuple], guids: list[str], names: list[str], map_keys: list[str],
-                limits: tuple[float, float], extras: tuple[str, ...] = ()) -> str:
+                limits: tuple[float, float], extras: tuple[str, ...] = (), boxes: tuple = ()) -> str:
     """Destroys what a previous game left of its heroes and its map, and nothing else ("Clean table" of the pre-game gate).
 
     `heroes` = (CardID range, identity, CardID of the character card[, CardIDs of the hero's other character cards: Elektra
@@ -1929,7 +1931,9 @@ def clear_setup(heroes: list[tuple], guids: list[str], names: list[str], map_key
       - any other loose object inside the limits and not an infinite bag whose GUID is a hero's or whose name is one of
         `names` (an object spawned from a copy may have a GUID of its own);
       - a Deck whose GUID is in `extras` (a hero's deck the bot never reads, Pandora's Miseries), whatever its cards: their
-        CardIDs may collide with another hero's character card (Houdini's 17700 is the first Misery's).
+        CardIDs may collide with another hero's character card (Houdini's 17700 is the first Misery's);
+      - a Card or Deck of the Misery images of `boxes` (identities, CardID % 100 below `MAX_BOX_SLOTS`: TTS renumbers the DeckID, so no
+        absolute CardID), whatever its GUID: the loose Miseries a game left on the table.
     Answers `{cards, boards, bags, objects, mixed}` (counts; `mixed` = GUIDs of piles left alone)."""
     if not isinstance(heroes, (list, tuple)) or not 1 <= len(heroes) <= MAX_CLEAR_HEROES:
         raise ValueError(f"between 1 and {MAX_CLEAR_HEROES} heroes expected")
@@ -1942,12 +1946,14 @@ def clear_setup(heroes: list[tuple], guids: list[str], names: list[str], map_key
                      for rng, identity, card, *more in heroes)
     mine = "{" + ", ".join(f"[{_guid(g)}] = true" for g in guids) + "}"
     extra = "{" + ", ".join(f"[{_guid(g)}] = true" for g in extras) + "}"
+    miseries = "{" + ", ".join(_identity(identity) for identity in boxes) + "}"
     wanted = "{" + ", ".join(f"[{lua_str(n)}] = true" for n in names) + "}"
     keys = "{" + ", ".join(lua_str(k.upper()) for k in map_keys) + "}"
     return f"""-- sparring:clear_setup
 {_IMAGE_LUA}local HEROES = {{{rows}}}
 local MINE, NAMES, MAPS = {mine}, {wanted}, {keys}
 local EXTRA = {extra}
+local MISERIES = {miseries}
 local LIMIT_X, LIMIT_Z = {_f(limits[0])}, {_f(limits[1])}
 local function heroCard(c, fallback)
   local id = c.CardID
@@ -1972,6 +1978,20 @@ local function plain(name)
   n = (string.gsub(n, "^ ", ""))
   return (string.gsub(n, " $", ""))
 end
+local function misery(c, fallback)
+  local id = c.CardID
+  if type(id) ~= "number" or id < 0 or id % 100 >= {MAX_BOX_SLOTS} then return false end
+  local images = imagesOf(c, fallback)
+  if #images == 0 then return false end
+  for _, info in ipairs(images) do
+    local known = false
+    for _, ident in ipairs(MISERIES) do
+      if ident[tostring(info.FaceURL) .. "|" .. tostring(info.BackURL)] == true then known = true end
+    end
+    if not known then return false end
+  end
+  return true
+end
 local out = {{cards = 0, boards = 0, bags = 0, objects = 0, mixed = {{}}}}
 local doomed = {{}}
 for _, o in ipairs(getObjects()) do
@@ -1982,7 +2002,7 @@ for _, o in ipairs(getObjects()) do
     local cards = (ty == "Card") and {{data}} or (data.ContainedObjects or {{}})
     local hero, other = 0, 0
     for _, c in ipairs(cards) do
-      if heroCard(c, data.CustomDeck) then hero = hero + 1 else other = other + 1 end
+      if heroCard(c, data.CustomDeck) or misery(c, data.CustomDeck) then hero = hero + 1 else other = other + 1 end
     end
     if EXTRA[o.getGUID()] or (hero > 0 and other == 0) then
       table.insert(doomed, {{o, "cards"}})
@@ -3782,7 +3802,8 @@ class BoxPile:
     `anchor` (x, z) is her deck; `up_yaw` the yaw her cards lie at upright for her player; `down` the unit (dx, dz) toward that player's
     seat (the cards' bottom edges point there at `up_yaw`; the cascade always runs that way, every card upright for her seat, whichever side of her deck the pile takes); `away_from` her piles (deck, discard) the fall-back sides are ordered by;
     `avoid` the GUIDs of the zones the pile must not touch (discards, the rival's deck, the Box zones; the hands are read from the table);
-    `keep` (cx, cz, half x, half z) rectangles of what else lies there (her character card, dial, pieces); `limits` (|x|, |z|) the table."""
+    `keep` (cx, cz, half x, half z) rectangles of what else lies there (her character card, dial, pieces); `limits` (|x|, |z|) the table.
+    The anchor is her deck for the bot and the Box for the human (Ivan 26/11/2026: their pile lies below the Box)."""
     anchor: tuple[float, float]
     up_yaw: float
     down: tuple[float, float]
@@ -3838,7 +3859,6 @@ end
 """
 
 _PILE_LUA = """local CARD_S, CARD_L, GAP, TOL, SLOTS, STEPS, MARGIN = @S@, @L@, @GAP@, @TOL@, @SLOTS@, @STEPS@, @MARGIN@
-local SIDES = {"below", "side", "side", "above"}
 local function aabb(o)
   local b = o.getBounds()
   return {cx = b.center.x, cz = b.center.z, hx = b.size.x / 2, hz = b.size.z / 2}
@@ -3885,26 +3905,27 @@ local function pilePlan(P)
     if sa ~= sb then return sa > sb end
     return a[2] > b[2]
   end)
+  local tries = {{"below"}, {"side", sides[1]}, {"side", sides[2]}, {"above"}}
   local best = nil
-  for i = 1, 4 do
+  for i, try in ipairs(tries) do
     for _, step in ipairs(STEPS) do
       local ox, oz = 0, 0
-      if i == 1 then
+      if try[1] == "below" then
         local r = deckAlong / 2 + GAP + CARD_L / 2
         ox, oz = P.dx * r, P.dz * r
-      elseif i == 4 then
+      elseif try[1] == "above" then
         local r = deckAlong / 2 + GAP + CARD_L / 2 + (SLOTS - 1) * step
         ox, oz = -P.dx * r, -P.dz * r
       else
         local r = deckAcross / 2 + GAP + CARD_S / 2
-        ox, oz = sides[i - 1][1] * r, sides[i - 1][2] * r
+        ox, oz = try[2][1] * r, try[2][2] * r
       end
       local rects, area = {}, 0
       for k = 1, SLOTS do
         rects[k] = {cx = P.ax + ox + P.dx * (k - 1) * step, cz = P.az + oz + P.dz * (k - 1) * step, hx = hx, hz = hz}
         area = area + crowd({cx = rects[k].cx, cz = rects[k].cz, hx = hx + MARGIN, hz = hz + MARGIN}, obs, P.limits)
       end
-      local plan = {step = step, rects = rects, area = area, side = SIDES[i]}
+      local plan = {step = step, rects = rects, area = area, side = try[1]}
       if best == nil or area < best.area then best = plan end
       if area == 0 then break end
     end
@@ -3927,12 +3948,18 @@ _PILE_LUA = (_PILE_LUA.replace("@S@", repr(BOX_CARD_SHORT)).replace("@L@", repr(
              .replace("@STEPS@", "{" + ", ".join(repr(v) for v in BOX_PILE_STEPS) + "}"))
 
 
-def _box_lua(deck_guid: str, id_range, identity, spot, radius, zone) -> str:
+def _box_ours(identity) -> str:
+    """`cardOurs` / `ours` of a Misery deck: its image and its place in the sheet (CardID % 100 below `MAX_BOX_SLOTS`), never the absolute
+    CardID: TTS gave the deck DeckID 178 when it came out of the bag (177 is Houdini's character card), so its cards are 17800-17806."""
+    return _ours_lua(identity, None, slots=MAX_BOX_SLOTS)
+
+
+def _box_lua(deck_guid: str, identity, spot, radius, zone) -> str:
     """Lua that finds the Box in `deck`: inside its Scripting `zone` when the zone is on the table (whatever the deck's GUID,
     face up or down; HOME is then the zone's centre), else by GUID and nearest to `spot` within `radius`."""
     x, z, r = _spot(spot, radius)
     zone_lua = "local ZONE = nil\n" if zone is None else f"local ZONE = getObjectFromGUID({_guid(zone)})\nif not isZone(ZONE) then ZONE = nil end\n"
-    return (_ours_lua(identity, id_range) + _LOOSE_LUA + DECK_FUNCS + ZONE_LUA + zone_lua
+    return (_box_ours(identity) + _LOOSE_LUA + DECK_FUNCS + ZONE_LUA + zone_lua
             + f"local HOME, RADIUS = {{x = {x}, y = 1.5, z = {z}}}, {r}\n"
             + "if ZONE ~= nil then local c = ZONE.getBounds().center; HOME = {x = c.x, y = 1.5, z = c.z} end\n"
             + _BOX_FINDER + f"local deck = findBox({_guid(deck_guid)})\n")
@@ -3952,12 +3979,12 @@ def _limits_lua(limits) -> str:
 
 
 @_registered
-def box_zone(candidates: list[str], deck_guid: str, id_range: tuple[int, int], *, identity, spot: tuple[float, float],
+def box_zone(candidates: list[str], deck_guid: str, *, identity, spot: tuple[float, float],
              recenter: bool = False, avoid: list[str] | tuple = ()) -> str:
     """Pandora's Box gets its own Scripting zone, the deck's footprint (as it lies: the card's two sides by its turn, plus
     `BOX_ZONE_MARGIN`; `BOX_ZONE_SIZE` square if it is not on the table yet), centred where the Box lies NOW.
-    The Box is the Deck (or its last loose Card) of `identity` and `id_range` outside every hand (found by GUID, else anywhere on the
-    table: the image tells it from another hero's cards), face up or down; if it is not on the table yet (still in the bag) the zone
+    The Box is the Deck (or its last loose Card) of `identity` outside every hand, its cards told by image and place in the sheet, not by
+    CardID (found by GUID, else anywhere on the table: the image tells it from another hero's cards), face up or down; if it is not on the table yet (still in the bag) the zone
     goes where the unpack lays it, `spot`. The first of `candidates` that is a Scripting zone is used; else one already there whose
     position and size match (an earlier run's whose GUID was never saved) is adopted, except the zones of `avoid` (the discard, deck and
     other Box zones: they are somebody else's); else it is created. With `recenter` a zone that does not hold the Box is moved to it (a
@@ -3967,7 +3994,7 @@ def box_zone(candidates: list[str], deck_guid: str, id_range: tuple[int, int], *
         raise TypeError("GUID lists expected")
     sx, sz, _ = _spot(spot, DECK_RADIUS)
     return f"""-- sparring:box_zone
-{_ours_lua(identity, id_range)}{_LOOSE_LUA}{ZONE_LUA}local AVOID = {{}}
+{_box_ours(identity)}{_LOOSE_LUA}{ZONE_LUA}local AVOID = {{}}
 for _, g in ipairs({_guid_list(avoid)}) do AVOID[g] = true end
 local box = getObjectFromGUID({_guid(deck_guid)})
 if box ~= nil and not ((box.type == "Deck" or box.type == "Card") and ours(box) and not inHand(box)) then box = nil end
@@ -4024,22 +4051,24 @@ return JSON.encode({{guid = guid, status = status, box = box ~= nil and inside}}
 
 
 @_registered
-def box_reveal(deck_guid: str, card_id: int, slot: int, id_range: tuple[int, int], *, identity,
+def box_reveal(deck_guid: str, index: int, slot: int, *, identity,
                spot: tuple[float, float], pile: BoxPile, zone: str | None = None, radius: float = DECK_RADIUS) -> str:
-    """Pandora's Box at the table: takes the Misery `card_id` out of the Box (the one the engine drew, by CardID: the table's
-    order is not the engine's) and lays it FACE UP in place `slot` (1 = the first, up to `MAX_BOX_SLOTS`) of the `pile` below her deck:
+    """Pandora's Box at the table: takes the Misery number `index` (0-6, its place in the sheet: the one the engine drew; the table's
+    order is not the engine's) out of the Box and lays it FACE UP in place `slot` (1 = the first, up to `MAX_BOX_SLOTS`) of the `pile` below her deck:
     a cascade along the cards' own bottom edge, each new one a little further than the last and above it, in the yaw of her side
     (see `BoxPile`). Of the four sides of her deck (below first, then the two sides, then above) it takes the first whose WHOLE pile of
     seven places touches no hand zone, none of the `pile.avoid` zones and none of `pile.keep`, and does not leave the table; with none
-    free it takes the least crowded and says so (`crowded`). The Box is the Deck (or its last loose Card) of `identity` and `id_range`
-    (a Misery deck's CardIDs collide with another hero's character card: only the image tells them apart), found inside `zone` (see
+    free it takes the least crowded and says so (`crowded`). The Box is the Deck (or its last loose Card) of `identity` (a Misery deck's
+    CardIDs collide with another hero's character card and TTS renumbers them: only the image and the place in the sheet tell), found inside `zone` (see
     `box_zone`) and, with no zone on the table, by GUID and nearest to `spot` within `radius`, face up or down. Instant. Returns
     `{taken, guid, crowded, side}` (`side` is `below`, `side` or `above`; `deck = false`: no Box on the table; `taken = false`: it does
     not hold the card)."""
     if isinstance(slot, bool) or not isinstance(slot, int) or not 1 <= slot <= MAX_BOX_SLOTS:
         raise ValueError(f"slot between 1 and {MAX_BOX_SLOTS} expected")
+    if isinstance(index, bool) or not isinstance(index, int) or not 0 <= index < MAX_BOX_SLOTS:
+        raise ValueError(f"Misery index between 0 and {MAX_BOX_SLOTS - 1} expected")
     return f"""-- sparring:box_reveal
-{_box_lua(deck_guid, id_range, identity, spot, radius, zone)}if deck == nil then return JSON.encode({{taken = false, deck = false}}) end
+{_box_lua(deck_guid, identity, spot, radius, zone)}if deck == nil then return JSON.encode({{taken = false, deck = false}}) end
 {_PILE_LUA}local PLAN = pilePlan({pile.args()})
 local SLOT = {_i(slot)}
 local home = deck.getPosition()
@@ -4048,14 +4077,14 @@ local at = Vector(where.cx, home.y + 1 + 0.25 * (SLOT - 1), where.cz)
 local turn = Vector(0, PLAN.yaw, 0)
 local card = nil
 if deck.type == "Card" then
-  if deck.getData().CardID ~= {_i(card_id)} then return JSON.encode({{taken = false}}) end
+  if deck.getData().CardID % 100 ~= {_i(index)} then return JSON.encode({{taken = false}}) end
   card = deck
   card.setRotation(turn)
   card.setPosition(at)
 else
   local data = deck.getData()
   for _, entry in ipairs(data.ContainedObjects or {{}}) do
-    if entry.CardID == {_i(card_id)} and cardOurs(entry, data.CustomDeck) then
+    if entry.CardID % 100 == {_i(index)} and cardOurs(entry, data.CustomDeck) then
       card = deck.takeObject({{guid = entry.GUID, position = at, rotation = turn, smooth = false}})
       break
     end
@@ -4067,14 +4096,14 @@ return JSON.encode({{taken = true, guid = card.getGUID(), crowded = PLAN.area > 
 
 
 @_registered
-def box_put_back(deck_guid: str, id_range: tuple[int, int], *, identity, spot: tuple[float, float],
+def box_put_back(deck_guid: str, *, identity, spot: tuple[float, float],
                  zone: str | None = None, radius: float = DECK_RADIUS) -> str:
-    """End of Pandora's turn: every loose Misery lying on the table (a Card of `identity` and `id_range` in no hand zone, which is
+    """End of Pandora's turn: every loose Misery lying on the table (a Card of `identity` and of the Box's sheet in no hand zone, which is
     what `box_reveal` leaves, so nothing has to be remembered: a game resumed mid-turn does it too) goes back into the Box and the
     Box is shuffled. With no Box left (all seven were out) the first card is laid face down at the centre of the `zone` (else at `spot`)
     and becomes it. Returns `{added, deck, quantity}` (`added = 0`: nothing was out; `deck = false`: no Box and nothing to make one of)."""
     return f"""-- sparring:box_put_back
-{_box_lua(deck_guid, id_range, identity, spot, radius, zone)}local loose = {{}}
+{_box_lua(deck_guid, identity, spot, radius, zone)}local loose = {{}}
 for _, o in ipairs(getObjects()) do
   if looseOurs(o) and (deck == nil or o.getGUID() ~= deck.getGUID()) then table.insert(loose, o) end
 end
@@ -4088,24 +4117,24 @@ return JSON.encode({{added = #loose, deck = true, quantity = qty(deck)}})
 
 
 @_registered
-def box_shuffle(deck_guid: str, id_range: tuple[int, int], *, identity, spot: tuple[float, float], zone: str | None = None,
+def box_shuffle(deck_guid: str, *, identity, spot: tuple[float, float], zone: str | None = None,
                 radius: float = DECK_RADIUS) -> str:
     """Set-up: shuffles the Box (the bag hands the deck out in the order it was saved in, and the human's first Reveal takes its top card).
     Returns `{deck, shuffled}` (`deck = false`: no Box on the table; a single card has nothing to shuffle)."""
     return f"""-- sparring:box_shuffle
-{_box_lua(deck_guid, id_range, identity, spot, radius, zone)}if deck == nil then return JSON.encode({{deck = false, shuffled = false}}) end
+{_box_lua(deck_guid, identity, spot, radius, zone)}if deck == nil then return JSON.encode({{deck = false, shuffled = false}}) end
 if deck.type == "Deck" then deck.shuffle() end
 return JSON.encode({{deck = true, shuffled = deck.type == "Deck"}})
 """
 
 
 @_registered
-def box_lay(deck_guid: str, id_range: tuple[int, int], *, identity, at: tuple[float, float], yaw: float) -> str:
+def box_lay(deck_guid: str, *, identity, at: tuple[float, float], yaw: float) -> str:
     """Set-up: a Misery deck that is already on the table but not beside her deck (face up, or more than `BOX_LAY_NEAR` from `at`) is laid
-    there face down in `yaw`, like the unpack lays it. The Box is the Deck (or last Card) of `identity` and `id_range` outside every hand, by
+    there face down in `yaw`, like the unpack lays it. The Box is the Deck (or last Card) of `identity` outside every hand, by
     GUID else anywhere. Returns `{found, moved}` (`found = false`: not on the table, e.g. still in the bag)."""
     return f"""-- sparring:box_lay
-{_ours_lua(identity, id_range)}{_LOOSE_LUA}local box = getObjectFromGUID({_guid(deck_guid)})
+{_box_ours(identity)}{_LOOSE_LUA}local box = getObjectFromGUID({_guid(deck_guid)})
 if box ~= nil and not ((box.type == "Deck" or box.type == "Card") and ours(box) and not inHand(box)) then box = nil end
 if box == nil then
   for _, o in ipairs(getObjects()) do
@@ -4123,16 +4152,16 @@ return JSON.encode({{found = true, moved = true}})
 
 
 @_registered
-def box_peek_top(deck_guid: str, id_range: tuple[int, int], *, identity, spot: tuple[float, float], zone: str | None = None,
+def box_peek_top(deck_guid: str, *, identity, spot: tuple[float, float], zone: str | None = None,
                  radius: float = DECK_RADIUS) -> str:
-    """Read only: the CardID of the top card of the Box (the first of its contents, the one `takeObject` gives), the Box being found
-    as `box_reveal` finds it (inside `zone`, face up or down). Returns `{found, id}` (`deck = false`: no Box on the table)."""
+    """Read only: which Misery (0-6, its place in the sheet) the top card of the Box is (the first of its contents, the one `takeObject`
+    gives), the Box being found as `box_reveal` finds it (inside `zone`, face up or down). Returns `{found, idx}` (`deck = false`: no Box on the table)."""
     return f"""-- sparring:box_peek_top
-{_box_lua(deck_guid, id_range, identity, spot, radius, zone)}if deck == nil then return JSON.encode({{found = false, deck = false}}) end
+{_box_lua(deck_guid, identity, spot, radius, zone)}if deck == nil then return JSON.encode({{found = false, deck = false}}) end
 local data = deck.getData()
 local first = deck.type == "Card" and data or (data.ContainedObjects or {{}})[1]
 if first == nil or not cardOurs(first, data.CustomDeck) then return JSON.encode({{found = false}}) end
-return JSON.encode({{found = true, id = first.CardID}})
+return JSON.encode({{found = true, idx = first.CardID % 100}})
 """
 
 
@@ -4191,20 +4220,21 @@ return JSON.encode({{guid = guid, status = status, crowded = PLAN.area > 0, side
 
 
 @_registered
-def box_read(reveal_zone: str, id_range: tuple[int, int], *, identity) -> str:
-    """Read only: the Miseries lying FACE UP in the human's reveal zone (Cards of `identity` and `id_range` in no hand, and the cards of
-    a face-up Deck of them, each checked): `{zone, cards = [{id, guid}]}` (`zone = false`: it is not a Scripting zone on the table)."""
+def box_read(reveal_zone: str, *, identity) -> str:
+    """Read only: the Miseries lying FACE UP in the human's reveal zone (Cards of `identity` and of the Box's sheet in no hand, and the cards of
+    a face-up Deck of them, each checked): `{zone, cards = [{idx, guid}]}`, `idx` 0-6 the place in the sheet (`zone = false`: it is not a
+    Scripting zone on the table)."""
     return f"""-- sparring:box_read
-{_ours_lua(identity, id_range)}{_LOOSE_LUA}{ZONE_LUA}local zone = getObjectFromGUID({_guid(reveal_zone)})
+{_box_ours(identity)}{_LOOSE_LUA}{ZONE_LUA}local zone = getObjectFromGUID({_guid(reveal_zone)})
 if not isZone(zone) then return JSON.encode({{zone = false, cards = {{}}}}) end
 local cards = {{}}
 for _, o in ipairs(zoneObjects(zone)) do
   if o.type == "Card" and ours(o) and not o.is_face_down and not inHand(o) then
-    table.insert(cards, {{id = o.getData().CardID, guid = o.getGUID()}})
+    table.insert(cards, {{idx = o.getData().CardID % 100, guid = o.getGUID()}})
   elseif o.type == "Deck" and not o.is_face_down and not inHand(o) then
     local data = o.getData()
     for _, entry in ipairs(data.ContainedObjects or {{}}) do
-      if cardOurs(entry, data.CustomDeck) then table.insert(cards, {{id = entry.CardID, guid = entry.GUID}}) end
+      if cardOurs(entry, data.CustomDeck) then table.insert(cards, {{idx = entry.CardID % 100, guid = entry.GUID}}) end
     end
   end
 end
@@ -4213,17 +4243,17 @@ return JSON.encode({{zone = true, cards = cards}})
 
 
 @_registered
-def box_draw_top(deck_guid: str, slot: int, id_range: tuple[int, int], *, identity, spot: tuple[float, float],
+def box_draw_top(deck_guid: str, slot: int, *, identity, spot: tuple[float, float],
                  zone: str | None, reveal_zone: str, pile: BoxPile, radius: float = DECK_RADIUS) -> str:
     """Pandora's Box, human side: takes the TOP card of their Box (the real shuffled order is the randomness) and lays it FACE UP in place
     `slot` (1 = the first) of the same `pile` `box_reveal` lays the bot's in (the `reveal_zone` is made around it: `box_reveal_zone`).
-    The Box is found like `box_reveal` finds it (inside `zone`). Returns `{taken, id, guid, crowded, side}`: `id` is the CardID of the
+    The Box is found like `box_reveal` finds it (inside `zone`). Returns `{taken, idx, guid, crowded, side}`: `idx` is the place in the sheet (0-6) of the
     card taken, read from the card itself (`deck = false`: no Box on the table; `zone = false`: no reveal zone, nothing is taken;
     `taken = false`: the Box is empty or what came out is not a Misery)."""
     if isinstance(slot, bool) or not isinstance(slot, int) or not 1 <= slot <= MAX_BOX_SLOTS:
         raise ValueError(f"slot between 1 and {MAX_BOX_SLOTS} expected")
     return f"""-- sparring:box_draw_top
-{_box_lua(deck_guid, id_range, identity, spot, radius, zone)}if deck == nil then return JSON.encode({{taken = false, deck = false}}) end
+{_box_lua(deck_guid, identity, spot, radius, zone)}if deck == nil then return JSON.encode({{taken = false, deck = false}}) end
 local rz = getObjectFromGUID({_guid(reveal_zone)})
 if not isZone(rz) then return JSON.encode({{taken = false, zone = false}}) end
 {_PILE_LUA}local PLAN = pilePlan({pile.args()})
@@ -4244,7 +4274,7 @@ end
 if card == nil then return JSON.encode({{taken = false}}) end
 local id = card.getData().CardID
 if type(id) ~= "number" or not ours(card) then return JSON.encode({{taken = false, guid = card.getGUID()}}) end
-return JSON.encode({{taken = true, id = id, guid = card.getGUID(), crowded = PLAN.area > 0, side = PLAN.side}})
+return JSON.encode({{taken = true, idx = id % 100, guid = card.getGUID(), crowded = PLAN.area > 0, side = PLAN.side}})
 """
 
 

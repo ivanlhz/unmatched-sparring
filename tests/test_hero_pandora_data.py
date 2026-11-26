@@ -129,7 +129,7 @@ def test_the_box_is_a_start_of_turn_loop_and_its_miseries_are_the_ones_on_the_ca
 def test_the_miseries_have_the_printed_feathers():
     assert box.NAMES == ("Woe", "Toil", "Pain", "Misfortune", "Hope", "Greed", "Confusion")
     assert box.FEATHERS == (0, 1, 1, 2, 0, 1, 0) and sum(box.FEATHERS) == 5
-    assert box.FIRST_CARD_ID == 17700 and box.STOP_AT == 3
+    assert box.STOP_AT == 3
 
 
 def test_card_effects_say_what_the_real_cards_say(effects):

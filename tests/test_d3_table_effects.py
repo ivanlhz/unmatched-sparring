@@ -72,7 +72,7 @@ class FxTable(Table):
         self.human_row_in_hand = False                      # the row's places lie in a hand zone: what is dealt goes to the hand
 
     def do_box_reveal(self, s):
-        card_id = int(re.search(r"CardID ~= (\d+)", s).group(1))
+        card_id = 17700 + int(re.search(r"CardID % 100 ~= (\d+)", s).group(1))
         slot = int(re.search(r"local SLOT = (\d+)", s).group(1))
         if self.box_gone:
             return {"taken": False, "deck": False}
@@ -105,21 +105,21 @@ class FxTable(Table):
         card = self.human_box.pop(0)
         if self.human_row_in_hand:
             self.human_hand.append(card)
-            return {"taken": True, "id": card, "guid": f"misery{card}"}
+            return {"taken": True, "idx": card % 100, "guid": f"misery{card}"}
         self.human_slots.append(slot)
         self.human_row.append(card)
-        return {"taken": True, "id": card, "guid": f"misery{card}"}
+        return {"taken": True, "idx": card % 100, "guid": f"misery{card}"}
 
     def do_box_read(self, s):
         if f'"{self.human_reveal_guid}"' not in s or self.human_reveal_guid in self.human_zones_missing:
             return {"zone": False, "cards": []}
-        return {"zone": True, "cards": [{"id": card, "guid": f"misery{card}"} for card in self.human_row]}
+        return {"zone": True, "cards": [{"idx": card % 100, "guid": f"misery{card}"} for card in self.human_row]}
 
     def do_box_peek_top(self, s):
         out = self._human_zones(s)
         if out is not None or not self.human_box:
             return {"found": False, **(out or {})}
-        return {"found": True, "id": self.human_box[0]}
+        return {"found": True, "idx": self.human_box[0] % 100}
 
     def do_box_put_back(self, s):
         if '"hboxz"' in s:                                  # the human's Box: only what lies in the reveal zone goes back, never the hand

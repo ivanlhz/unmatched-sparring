@@ -42,8 +42,8 @@ class FighterTable:
 
 @dataclass(frozen=True)
 class BoxDeck:
+    """The Misery deck, known by its image and by the place of each card in its sheet (0-6): TTS renumbers its DeckID (177 -> 178: Houdini's character card is 177), so no absolute CardID."""
     guid: str
-    card_ids: tuple[int, int]
     identity: tuple[tuple[str, str], ...]
 
 
@@ -106,8 +106,7 @@ def _guid_list(value, where: str) -> tuple[str, ...]:
 
 
 def _parse_box(raw: dict) -> BoxDeck:
-    ids = raw["card_ids"]
-    return BoxDeck(raw["guid"], (int(ids[0]), int(ids[1])), tuple((i["face"], i["back"]) for i in raw["identity"]))
+    return BoxDeck(raw["guid"], tuple((i["face"], i["back"]) for i in raw["identity"]))
 
 
 def parse_hero_table(raw: dict, hero: HeroDef, where: str = "tts") -> HeroTable:

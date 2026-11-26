@@ -3,7 +3,7 @@
  "_notes": [
   "Pandora's deck is sheet 176 (CardIDs 17600-17629, the 30 playing cards; the character card is 359 on sheet 3) like Medusa's, Sun Wukong's and the rest: only deck.identity tells the decks apart (docs/card-identity.md).",
   "The two Kakodaemons are Custom_Token objects (7cd57e Thanatos, fed318 Olethros) with no life dial (1 life each); they START IN THE BAG: the HeroDef has start_on_board 0. Real TTS may report them as Tile: nothing that reads or moves a piece filters on obj.type. Her miniature is the Custom_Assetbundle 8603fa and her life dial the Custom_Model eeaab5 (MAX_VALUE 14), both nicknamed 'Pandora'.",
-  "The seven MISERIES are a Deck of sheet 177 (4581f8, CardIDs 17700-17706, 8x2 sheet) inside the inner bag: the importer reports it as unused because the engine never reads it. `extras` unpacks it for either side and `box` is how the table finds it (CardIDs and image). The engine draws each Misery when it is revealed: for the bot the session gives the deck a Scripting zone of its own around where it lies at start-up (saved with the session, the deck is found only inside it, whatever its GUID), takes THAT card out of the deck and lays it face up in a row beside the zone pointing away from her deck and discard, then puts them back and shuffles at the end of its turn; for the human the physical deck is the Box too: it gets the same zone plus a reveal zone beside it, the panel's Reveal Misery button takes the top card into it (or the bot reads the card they turn up there) and the panel question with the names is the fallback (docs/heroes/pandora.md, table story)."
+  "The seven MISERIES are a Deck of sheet 177 (4581f8, sheet 177, 8x2 sheet; its CardIDs are 17700-17706 in the bag but TTS renumbers the DeckID (177 is Houdini's character card) and live they were 17800-17806) inside the inner bag: the importer reports it as unused because the engine never reads it. `extras` unpacks it for either side and `box` is how the table finds it: by IMAGE and by the place of each card in the sheet (CardID % 100, 0-6), never by absolute CardID or DeckID. The engine draws each Misery when it is revealed: for the bot the session gives the deck a Scripting zone of its own around where it lies at start-up (saved with the session, the deck is found only inside it, whatever its GUID), takes THAT card out of the deck and lays it face up in a cascade (below the bot's deck, below the human's Box), then puts them back and shuffles at the end of its turn; for the human the physical deck is the Box too: it gets the same zone (to the LEFT of her deck from her seat, Ivan 26/11/2026) plus a reveal zone around the pile, the panel's Reveal Misery button takes the top card into it (or the bot reads the card they turn up there) and the panel question with the names is the fallback (docs/heroes/pandora.md, table story)."
  ],
  "bag": {
   "guid": "15414a",
@@ -48,10 +48,6 @@
  ],
  "box": {
   "guid": "4581f8",
-  "card_ids": [
-   17700,
-   17706
-  ],
   "identity": [
    {
     "face": "https://steamusercontent-a.akamaihd.net/ugc/14136261322955497911/A909C1C27F235A7AD38145E0D622993E1EC50F88/",

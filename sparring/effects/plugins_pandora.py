@@ -16,7 +16,6 @@ from .ops_core import plugin
 
 NAMES = ("Woe", "Toil", "Pain", "Misfortune", "Hope", "Greed", "Confusion")
 FEATHERS = (0, 1, 1, 2, 0, 1, 0)
-FIRST_CARD_ID = 17700                       # sheet 177: the seven MISERIES are CardIDs 17700-17706 in this order
 STOP_AT = 3                                 # with this many feathers revealed she must stop
 
 

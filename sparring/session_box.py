@@ -2,7 +2,7 @@
 
 When the engine asks which Misery the human revealed and the table has their Box zone and its reveal zone (`prepare_zone` in
 session_pandora.py), the bot does not wait for a click: it takes the TOP card of the real Box (the shuffled order is the randomness), lays it
-face up in the next place of the pile below their deck (`lua.BoxPile`), reads its CardID from the card and answers the engine with that
+face up in the next place of the pile beside their deck (`lua.BoxPile`), reads its CardID from the card and answers the engine with that
 Misery (`auto`, called when the question is about to be shown: the first Misery of the turn is mandatory, and "reveal another?" answered Yes
 asks for the next one the same way). Only when the bot cannot read or move the real card the panel shows three buttons instead of the seven names:
 
@@ -136,6 +136,13 @@ def press(session, paused, index) -> None:
         session.say(t("choice.no_such_button"), ChatKind.WARNING)
 
 
+def _index(value) -> int | None:
+    """Which Misery (0-6) the table says a card is: its place in the sheet, whatever DeckID TTS gave the deck; None for anything else."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or int(value) != value or not 0 <= value < len(pandora.NAMES):
+        return None
+    return int(value)
+
+
 def _mask(session) -> int:
     return pandora.mask_of(session.game, session.human)
 
@@ -159,12 +166,11 @@ def _look(session, req: ChoiceRequest) -> None:
     c, deck, me = session.cfg, _deck(session), session.human
     session._box_looked = _asked(session, req)
     try:
-        res = session.client.call_lua(lua.box_peek_top(deck.guid, deck.card_ids, identity=deck.identity,
+        res = session.client.call_lua(lua.box_peek_top(deck.guid, identity=deck.identity,
                                                        spot=c.human_box_spot or (0.0, 0.0), zone=c.human_box_zone))
     except ERRORS + (ValueError, TypeError):
         res = None
-    cid = res.get("id") if isinstance(res, dict) and res.get("found") is True else None
-    idx = None if isinstance(cid, bool) or not isinstance(cid, (int, float)) else int(cid) - deck.card_ids[0]
+    idx = _index(res.get("idx") if isinstance(res, dict) and res.get("found") is True else None)
     if idx is None or idx not in pandora.unrevealed(_mask(session)):
         if not session._box_look_failed_said:
             session._box_look_failed_said = True
@@ -178,7 +184,7 @@ def _look(session, req: ChoiceRequest) -> None:
 
 
 def _deal(session, paused, req: ChoiceRequest, fallback: bool = True) -> bool:
-    """The top card of the Box, face up in the next place of the pile below their deck. True when the engine got its answer. When it did not,
+    """The top card of the Box, face up in the next place of the pile beside their deck. True when the engine got its answer. When it did not,
     `fallback` sends the human to the panel question with the names (the button); without it (the bot's own try) the three buttons stay."""
     c, deck = session.cfg, _deck(session)
     seen = _new(session, deck)                        # a card the table moved whose answer was lost: it is the one, a second is never drawn over it
@@ -186,15 +192,15 @@ def _deal(session, paused, req: ChoiceRequest, fallback: bool = True) -> bool:
         return _answer(session, paused, req, seen[0], "pandora.seen")
     slot = len(pandora.revealed(_mask(session))) + 1
     try:
-        res = session.client.call_lua(lua.box_draw_top(deck.guid, slot, deck.card_ids, identity=deck.identity,
+        res = session.client.call_lua(lua.box_draw_top(deck.guid, slot, identity=deck.identity,
                                                        spot=c.human_box_spot or (0.0, 0.0), zone=c.human_box_zone,
                                                        reveal_zone=c.human_reveal_zone, pile=pile_of(session, human=True)))
     except ERRORS + (ValueError, TypeError):
         res = None
     if isinstance(res, dict):
         say_pile(session, res)
-    cid = res.get("id") if isinstance(res, dict) and res.get("taken") is True else None
-    if isinstance(cid, bool) or not isinstance(cid, (int, float)) or not deck.card_ids[0] <= cid <= deck.card_ids[1]:
+    idx = _index(res.get("idx") if isinstance(res, dict) and res.get("taken") is True else None)
+    if idx is None:
         if not isinstance(res, dict):                 # the reply was lost: the card may have left the Box all the same
             new = _new(session, deck)
             if new is not None and len(new) == 1:
@@ -205,20 +211,20 @@ def _deal(session, paused, req: ChoiceRequest, fallback: bool = True) -> bool:
         if fallback:
             _panel(session, req)
         return False
-    return _answer(session, paused, req, int(cid) - deck.card_ids[0], "pandora.dealt")
+    return _answer(session, paused, req, idx, "pandora.dealt")
 
 
 def _new(session, deck) -> list[int] | None:
     """The Miseries face up in the reveal zone that the engine has not counted, by index; None if the zone could not be read."""
     try:
-        res = session.client.call_lua(lua.box_read(session.cfg.human_reveal_zone, deck.card_ids, identity=deck.identity))
+        res = session.client.call_lua(lua.box_read(session.cfg.human_reveal_zone, identity=deck.identity))
     except ERRORS + (ValueError, TypeError):
         return None
     if not isinstance(res, dict) or res.get("zone") is not True or not isinstance(res.get("cards"), list):
         return None
     counted = set(pandora.revealed(_mask(session)))
-    ids = {int(r["id"]) - deck.card_ids[0] for r in res["cards"] if isinstance(r, dict) and isinstance(r.get("id"), (int, float))}
-    return sorted(i for i in ids if 0 <= i < len(pandora.NAMES) and i not in counted)
+    ids = {_index(r.get("idx")) for r in res["cards"] if isinstance(r, dict)}
+    return sorted(i for i in ids if i is not None and i not in counted)
 
 
 def _read(session, paused, req: ChoiceRequest) -> None:
