@@ -56,7 +56,7 @@ from . import session_reveal as reveal
 from . import session_counters
 from . import session_sinbad
 from . import session_tracks, tracks
-from . import session_archers, session_blackbeard, session_little_red, session_rosie
+from . import session_archers, session_blackbeard, session_box, session_little_red, session_pandora, session_rosie
 from . import session_sleight as sleight
 from . import session_translators as translators
 from .session_choices import panel_text
@@ -66,7 +66,8 @@ from .effects.model import EffectError, load_effects
 from .effects.ops_core import random_discard_alert
 from .effects.modifiers import boost_limit, grants_boost, has_boost_effect
 from .state import ANUNG, DETECTIVE, EXHAUST_DAMAGE, Fighter, Game, RuleError
-from .table_prep import DISCARD_ZONE_KEYS, ZoneSpawn
+from .box_layout import SeatGeo
+from .table_prep import DISCARD_ZONE_KEYS, ZONE_KEYS, ZoneSpawn
 from .tts import lua, ui
 from .tts.hero_table import HeroTableError, load_hero_table
 from .tts.lua import ChatKind
@@ -179,6 +180,13 @@ class SessionConfig:
     order_spot: tuple[float, float, float] = (-10.5, 2.5, 22.5)   # center of the row where the bot lays its top cards for the human to order (estimate: calibrate live)
     order_step: tuple[float, float] = (0.0, 3.4)                 # (dx, dz) between cards of that row
     look_rot_y: float | None = None                              # turn of the row's cards (default: the bot discard's)
+    box_spot: tuple[float, float] | None = None                  # (x, z) of the bot hero's Box deck (Pandora's Misery deck) where the unpack puts it: where its zone goes if the deck is not on the table yet
+    human_box_spot: tuple[float, float] | None = None            # the same for the human's Misery deck (their Box: only marked by its zone, they reveal it by hand)
+    box_zone: str | None = None                                  # Scripting zone of that deck, made at start-up around where it lies (adopted and saved like the discard zones): the deck is found ONLY inside it
+    human_box_zone: str | None = None                            # the human Pandora's Box zone
+    human_reveal_zone: str | None = None                         # the zone around the pile where the Miseries they reveal lie: the bot lays them there and reads them
+    bot_seat_geo: SeatGeo = SeatGeo(1, 90.0)                     # which way each seat faces and what lies around its deck: where Pandora's pile of revealed Miseries goes (box_layout.py)
+    human_seat_geo: SeatGeo = SeatGeo(-1, 270.0)
     token_spot: tuple[float, float, float] | None = None         # where the bot lays its active ability tokens (Abe); default: beside its deck
     bot_ongoing_spot: tuple[float, float, float] | None = None   # ONGOING zone below each combat zone (E2, Ivan): the bot lays its
     human_ongoing_spot: tuple[float, float] | None = None        # ONGOING scheme there; the human leaves theirs (recognized there)
@@ -437,6 +445,16 @@ class Session:
         self._gadget_shown: int | None = None              # the gadget Jill Trent's token was last put at (None: not placed yet this game)
         self._gadget_missing_said = False                  # the missing token was already told in chat
         self._gadget_failed_said = False                   # the failed write of the token was already told in chat
+        self._box_card_said = False                          # the bot's Box did not hold a card it was to lay out: said once
+        self._row_crowded_said = False                       # no free place for the pile of revealed Miseries: said once
+        self._pile_moved_said = False                        # the pile could not go below her deck and lies on another side: said once
+        self._box_auto: tuple | None = None                  # the human's Misery question the bot already tried to deal by itself
+        self._box_deferred = False                           # that question came up inside an answer: the bot deals it when the answer is done
+        self._answering = 0                                  # answers being delivered (`_answer_choice`, nested when the bot answers the human's Box itself)
+        self._box_looked: tuple | None = None   # the "reveal another?" after HOPE whose top card was already looked at (or could not be)
+        self._box_look_failed_said = False                  # the Box could not be read for HOPE: said once
+        self._box_by_panel: tuple | None = None   # the human's Misery question the panel names (the bot could not read the table for it)
+        self._box_missing_said = False                     # the bot's Misery deck not being on the table was already told in chat
         self._destiny_said: tuple[int, str] | None = None  # what was already announced (not repeated while retrying)
         self.placing: dict | None = None         # bot card put on the table whose reply never arrived
         self.dials_attempted: dict[str, int] = {}  # GUID -> last value tried to write (verified or not)
@@ -646,7 +664,8 @@ class Session:
             self.say(moves.reprompt(self, moves.manual_request(self)), ChatKind.YOUR_TURN)
         elif pile.manual_request(self) is not None:
             self.choice_ui = choices.ChoiceUI()
-            self.say(pile.reprompt(self, pile.manual_request(self)), ChatKind.YOUR_TURN)
+            if not session_box.adopt(self):               # Pandora's Box: a Misery already lying on the pile is the answer, never dealt twice
+                self.say(pile.reprompt(self, pile.manual_request(self)), ChatKind.YOUR_TURN)
         elif order_cards.manual_request(self) is not None:
             self.choice_ui = choices.ChoiceUI()
             self.say(order_cards.remind(self), ChatKind.YOUR_TURN)
@@ -1294,6 +1313,12 @@ class Session:
 
     def _show_choice(self, req) -> None:
         self.choice_ui.sync(req)
+        if session_box.wants(self, req):          # Pandora's Box, the human's: the bot takes the top card of the real Box and answers it
+            if self._answering:
+                self._box_deferred = True         # asked while an answer is still being delivered: the bot deals once that answer is done
+                return
+            if session_box.auto(self, req):
+                return
         if peek.wants(self, req):
             peek.open_row(self, req)          # the bot's top card face up in the row, pinged
         if order_cards.wants(self, req) and order_cards.open_row(self, req):
@@ -1367,7 +1392,22 @@ class Session:
         self._answer_choice(paused, value)
 
     def _answer_choice(self, paused: tuple, value: list) -> None:
-        """Delivers a validated answer (a button, or a ping on the bot's hand row) to the decision that waits."""
+        """Delivers a validated answer (a button, or a ping on the bot's hand row) to the decision that waits. Pandora's Box asks its next Misery
+        in the middle of that: the bot deals it when the answer is completely delivered, never inside it."""
+        if not self._answering:
+            self._box_deferred = False
+        self._answering += 1
+        try:
+            self._deliver_choice(paused, value)
+        finally:
+            self._answering -= 1
+        if not self._answering and self._box_deferred:
+            self._box_deferred = False
+            run = self.effect_run
+            if run is not None and run.awaiting is not None:
+                self._show_choice(run.awaiting)
+
+    def _deliver_choice(self, paused: tuple, value: list) -> None:
         kind, holder, run = paused
         if kind == "predict":
             hidden.answer_prediction(self, holder, value)
@@ -4360,8 +4400,8 @@ class Session:
                 self._adopt_deck(side, now)
 
     def _live_zones(self) -> dict[str, str]:
-        """Discard zones whose GUID is no longer the configured one (the bot created them, TTS gave them another)."""
-        return {key: getattr(self.cfg, key) for key in DISCARD_ZONE_KEYS if key in self._zone_origin}
+        """Zones whose GUID is no longer the configured one (the bot created them, TTS gave them another), Pandora's Box zone included."""
+        return {key: getattr(self.cfg, key) for key in ZONE_KEYS if key in self._zone_origin}
 
     @property
     def configured_zones(self) -> dict[str, str]:
@@ -4374,7 +4414,7 @@ class Session:
         if not isinstance(raw, dict):
             return {}
         return {key: g for key, g in raw.items()
-                if key in DISCARD_ZONE_KEYS and isinstance(g, str) and lua._GUID.fullmatch(g)}
+                if key in ZONE_KEYS and isinstance(g, str) and lua._GUID.fullmatch(g)}
 
     def _adopt_zone(self, key: str, guid: str) -> None:
         """The zone the table shows is the one the session uses from now on; the identity of the table keeps the
@@ -4400,7 +4440,7 @@ class Session:
         protected = {*self.guids_in_use(), *self.guids_in_use(configured=True), *self._saved_zones.values()}
         remove = [] if resume else [(g, name) for g, name in c.remove_plan if g not in protected]
         if not c.zone_spawns and not remove:
-            return
+            return session_pandora.prepare_zone(self, resume)
         before = dict(self._saved_zones)
         zones = []
         for key, spawn in c.zone_spawns.items():
@@ -4434,6 +4474,7 @@ class Session:
                                               if row.get("why") in ("type", "place", "zone") else ""), ChatKind.WARNING))
         if resume and self._live_zones() != before:
             self._persist()                   # the loaded game is complete: only the zones changed
+        session_pandora.prepare_zone(self, resume)
 
     def _say_startup_notes(self) -> None:
         for text, kind in self._startup_notes:

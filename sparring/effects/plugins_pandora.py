@@ -1,4 +1,4 @@
-"""Pandora's Box (docs/heroes/pandora.md): the plugins `pandora:reveal`, `pandora:look` and `pandora:close`.
+"""Pandora's Box (docs/heroes/pandora.md): the plugins `pandora:reveal`, `pandora:look`, `pandora:close` and `pandora:shuffle`.
 
 The Box is a deck of seven MISERIES that is shuffled back at the end of her turn, so the only thing that has to be remembered is WHICH
 ones are revealed: a bit mask in the ability counter `box_mask`, and `revealed` for the count the cards read ("for each revealed MISERY").
@@ -75,15 +75,25 @@ def _reveal(run, game, spec):
             table.intent(game, op="pandora_stop", owner=owner, damage=0, feathers=feathers(mask))
             return
     top = top_known(game, owner)
-    if top is not None:
+    if top is not None and not table.physical(game, owner):
         idx = top
-    elif table.physical(game, owner):
+    elif table.physical(game, owner):             # the human's real Box: a top card they looked at (HOPE) is still taken from it and read back
         idx = run.ask(game, "effect", owner, left, 1, 1, "which Misery?", labels=_labels(), tag="misery")[0]
     else:
         idx = run.random_sample(left, 1)[0]
     reveal_now(game, owner, idx)
     run.flags.setdefault("miseries", []).append(idx)
-    table.intent(game, op="pandora_reveal", owner=owner, idx=idx, feathers=feathers(mask_of(game, owner)))
+    mask = mask_of(game, owner)
+    table.intent(game, op="pandora_reveal", owner=owner, idx=idx, feathers=feathers(mask), out=len(revealed(mask)))
+
+
+@plugin("pandora:shuffle")
+def _shuffle(run, game, spec):
+    """End of her turn: the revealed Miseries go back into the Box. The counters are emptied by the trigger's next ops; this tells the table
+    (the bot puts the cards it laid out back in the deck and shuffles it)."""
+    owner = run.ctx.owner
+    if mask_of(game, owner):
+        table.intent(game, op="pandora_shuffle", owner=owner)
 
 
 @plugin("pandora:look")

@@ -197,6 +197,10 @@
     },
     "ops": [
      {
+      "op": "plugin",
+      "id": "pandora:shuffle"
+     },
+     {
       "op": "counter",
       "name": "box_mask",
       "set": 0
@@ -579,6 +583,10 @@
   {
    "id": "pandora:close",
    "why": "Three feathers: stop and 1 damage per revealed Misery; otherwise rewinds the run to its first op (the DSL has no loop)."
+  },
+  {
+   "id": "pandora:shuffle",
+   "why": "End of her turn: tells the table the revealed Miseries go back into the Box (the bot puts the cards it laid out back in the deck and shuffles it). Touches no state; the counters are emptied by the ops after it."
   }
  ],
  "hidden_info": [

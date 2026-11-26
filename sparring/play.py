@@ -34,7 +34,7 @@ from .board import Board, catalog as board_catalog
 from .board_detect import BoardError, choose_board
 from .hero_detect import HeroDetectionError, deck_shifts, detect_heroes, detected_decks, read_table
 from .heroes import HeroDataError, load_hero
-from . import decision_log, game_log, i18n, map_setup, persist, table_prep, table_reset
+from . import box_layout, decision_log, game_log, i18n, map_setup, persist, table_prep, table_reset
 from .i18n import t
 from . import session_counters
 from .session import DEFAULT_ACTION_ANNOUNCE_HOLD, DEFAULT_BOT_PAUSE, DEFAULT_ONGOING_HOLD, DEFAULT_WILDFIRE_HOLD, TABLE_ERRORS, Msg, Session, SessionConfig, SessionError, deck_where, piece_guids
@@ -212,6 +212,21 @@ class PlayConfig:
         """The human's fighters: one "Attack X" button each (the names come from the hero data)."""
         return tuple(f.fid for f in load_hero(self.heroes[1]).fighters())
 
+    def _box_spot(self, index: int = 0) -> tuple[float, float] | None:
+        """(x, z) where the unpack leaves the Box deck (Pandora's Miseries) of the bot (0) or human (1) hero: where its zone goes if it is not on the table yet."""
+        try:
+            table = load_hero_table(self.heroes[index])
+        except HeroTableError:
+            return None
+        if table.box is None:
+            return None
+        row = next((r for r in unpack_plan(self)[:: -1 if index else 1] if table.box.guid in r[1]), None)
+        return None if row is None else (row[3][0], row[3][2])
+
+    def seat_geo(self, side: str) -> box_layout.SeatGeo:
+        """Which way `side`'s seat faces and what its layout lays around its deck (Pandora's Box and the pile of her revealed Miseries)."""
+        return box_layout.seat_geo(self.raw, side, len(load_hero(self.heroes[0 if side == "bot" else 1]).fighters()))
+
     def session_config(self) -> SessionConfig:
         """The session configuration; it only exists if no TODO is left and everything validates."""
         if self.todos:
@@ -258,6 +273,8 @@ class PlayConfig:
                 order_step=tuple(float(v) for v in r.get("order_step", SessionConfig.order_step)),
                 look_rot_y=float(r["look_rot_y"]) if r.get("look_rot_y") is not None else None,
                 token_spot=tuple(float(v) for v in r["token_spot"]) if r.get("token_spot") else None,
+                box_spot=self._box_spot(), human_box_spot=self._box_spot(1),
+                bot_seat_geo=self.seat_geo("bot"), human_seat_geo=self.seat_geo("human"),
                 bot_ongoing_spot=tuple(float(v) for v in r["bot_ongoing_spot"]) if r.get("bot_ongoing_spot") else None,
                 human_ongoing_spot=tuple(float(v) for v in r["human_ongoing_spot"]) if r.get("human_ongoing_spot") else None,
                 bot_tuck_spot=tuple(float(v) for v in r["bot_tuck_spot"]) if r.get("bot_tuck_spot") else None,
@@ -992,10 +1009,13 @@ def unpack_plan(cfg: PlayConfig) -> list[tuple]:
                 continue
             out.append((kind, guids, table.inner_bag, tuple(float(o) + n * d for o, d in zip(origin, step)), None))
             n += 1
-        if side == "human":                 # what only the human plays with (Pandora's Misery deck: the real Box), in the same row
-            for g in table.human_extras:
-                out.append(("token", (g,), table.inner_bag, tuple(float(o) + n * d for o, d in zip(origin, step)), None))
-                n += 1
+        for g in table.extras:              # what is no piece but is played with (Pandora's Misery deck: her Box): beside her deck, face down; else in the same row
+            beside = box_layout.box_place(r, side, cfg.seat_geo(side)) if table.box is not None and g == table.box.guid else None
+            if beside is not None:
+                out.append(("token", (g,), table.inner_bag, (beside[0], float(origin[1]), beside[1]), None, None, (0.0, beside[2], 180.0)))
+                continue
+            out.append(("token", (g,), table.inner_bag, tuple(float(o) + n * d for o, d in zip(origin, step)), None))
+            n += 1
     return out
 
 

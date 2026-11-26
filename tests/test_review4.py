@@ -666,6 +666,7 @@ def _spec(board):
 
 def test_read_only_allowlist_is_exactly_the_pure_read_builders(bprd):
     import inspect
+    PANDORA_PILE = lua.BoxPile((5.0, 17.0), 90.0, (1.0, 0.0))
     builders = {
         "piece_spaces_by_guid": lambda: lua.piece_spaces_by_guid(bprd, ["04b2c9"]),
         "read_hand": lambda: lua.read_hand("Blue"), "count_hand": lambda: lua.count_hand("Blue"),
@@ -748,6 +749,15 @@ def test_read_only_allowlist_is_exactly_the_pure_read_builders(bprd):
         "pile_card_to_hand": lambda: lua.pile_card_to_hand("abc", 1, "Blue", identity=TEST_IDENT),
         "card_home": lambda: lua.card_home("abc", (0.0, 0.0, 0.0), (0.0, 0.0, 180.0), identity=TEST_IDENT),
         "archer_faces": lambda: lua.archer_faces({"abc": 180.0}, ["def"]),
+        "box_zone": lambda: lua.box_zone([], "abc", (17700, 17706), identity=TEST_IDENT, spot=(0.0, 0.0)),
+        "box_reveal": lambda: lua.box_reveal("abc", 17700, 1, (17700, 17706), identity=TEST_IDENT, spot=(0.0, 0.0), pile=PANDORA_PILE),
+        "box_put_back": lambda: lua.box_put_back("abc", (17700, 17706), identity=TEST_IDENT, spot=(0.0, 0.0)),
+        "box_shuffle": lambda: lua.box_shuffle("abc", (17700, 17706), identity=TEST_IDENT, spot=(0.0, 0.0)),
+        "box_peek_top": lambda: lua.box_peek_top("abc", (17700, 17706), identity=TEST_IDENT, spot=(0.0, 0.0)),
+        "box_reveal_zone": lambda: lua.box_reveal_zone([], PANDORA_PILE),
+        "box_lay": lambda: lua.box_lay("abc", (17700, 17706), identity=TEST_IDENT, at=(0.0, 0.0), yaw=90.0),
+        "box_read": lambda: lua.box_read("abc", (17700, 17706), identity=TEST_IDENT),
+        "box_draw_top": lambda: lua.box_draw_top("abc", 1, (17700, 17706), identity=TEST_IDENT, spot=(0.0, 0.0), zone=None, reveal_zone="def", pile=PANDORA_PILE),
     }
     registered = {n for n, f in inspect.getmembers(lua, inspect.isfunction) if hasattr(f, "__wrapped__")}
     assert registered == set(builders), registered ^ set(builders)

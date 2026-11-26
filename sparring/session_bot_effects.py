@@ -44,7 +44,7 @@ from .tts.lua import ChatKind
 
 
 
-DIRECT_OPS = ("tuck", "remove", "reveal_deck", "shuffle_deck", "stack_top", "hand_to_deck_all", "future_look", "reveal_top", "deck_order", "track", "pandora_reveal", "pandora_look", "pandora_stop",
+DIRECT_OPS = ("tuck", "remove", "reveal_deck", "shuffle_deck", "stack_top", "hand_to_deck_all", "future_look", "reveal_top", "deck_order", "track", "pandora_reveal", "pandora_look", "pandora_stop", "pandora_shuffle",
               "trick_given", "trick_to_discard", "trick_returned", "trick_to_deck", "trick_taken")     # translated as they were reported, no diff involved
 
 

@@ -9,6 +9,10 @@ DEFER = false
 -- advances n frames. Without it everything deferred runs at once (the old behaviour most tests rely on).
 FRAME_MODE = false
 NOW = 0
+-- TTS runs MoonSharp (Lua 5.2) while the tests run Lua 5.4: what exists only from 5.3 on must fail here too
+local atan = math.atan
+math.atan = function(y, x) assert(x == nil, "two-argument math.atan is Lua 5.3+: MoonSharp (Lua 5.2) wants math.atan2") return atan(y) end
+math.tointeger, utf8 = nil, nil
 WAITS = {}
 DYING = {}
 local function vec(x, y, z) return {x = x, y = y, z = z} end
@@ -110,8 +114,16 @@ function mkobj(o)
     for i, c in ipairs(o.cards or {}) do
       if c.guid == t.guid or (t.guid == nil and i == 1) then
         table.remove(o.cards, i)
+        -- like live TTS: the card comes out where and turned as asked, and one dropped inside a hand zone goes to that hand
         local card = mkobj({guid = c.guid, type = "Card", cid = c.cid, owner = c.owner, deck_key = c.deck_key, custom = c.custom, pos = Vector(t.position),
-                            rot = o.rot, is_face_down = o.is_face_down})
+                            rot = t.rotation and Vector(t.rotation) or o.rot,
+                            is_face_down = o.is_face_down})
+        if t.rotation then card.is_face_down = math.floor((t.rotation.z or 0) + 0.5) % 360 == 180 end
+        if HAND_ZONES then
+          for _, z in ipairs(HAND_ZONES) do
+            if math.abs(card.pos.x - z.cx) <= z.hw and math.abs(card.pos.z - z.cz) <= z.hd then card.hand = z.color end
+          end
+        end
         if #o.cards == 1 then          -- like live TTS: the last card of a deck is a loose Card with a GUID of its own
           local last = o.cards[1]
           o.type, o.guid, o.cid, o.owner, o.deck_key, o.custom, o.cards = "Card", last.guid, last.cid, last.owner, last.deck_key, last.custom, nil

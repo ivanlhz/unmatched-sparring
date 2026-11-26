@@ -44,6 +44,13 @@ def _prompt(kind: str) -> str:
     return t(f"choice.prompt.{kind}")
 
 
+def _known_top(game, req: ChoiceRequest) -> str:
+    """Pandora's Box: the question names the Misery on top of it when HOPE has looked at it."""
+    from .effects import plugins_pandora as pandora         # resolved at call time: it needs the effects package loaded
+    top = pandora.top_known(game, req.player) if req.extra.get("box") == "open" else None
+    return "" if top is None else " " + t("pandora.top_is", misery=t("pandora.misery." + pandora.NAMES[top].lower()))
+
+
 def has_prompt(kind: str) -> bool:
     return has(f"choice.prompt.{kind}")
 
@@ -172,7 +179,7 @@ def prompt_text(game, req: ChoiceRequest) -> str:
     base = _prompt(req.kind) if has_prompt(req.kind) else _prompt("default")
     ability = f"choice.prompt.ability.{req.key.split('/')[0]}"       # the question of a hero's own trigger (INVENTIVE)
     if req.kind == "optional" and req.card_id is None and has(ability):
-        return t(ability)
+        return t(ability) + _known_top(game, req)
     if req.kind == "optional" and "ransom" in req.extra:           # Blackbeard's ransom, named after the card that offers it
         card = request_card(game, req)
         return t("choice.prompt.ransom", n=req.extra["ransom"], treasury=req.extra["treasury"], what=ransom_what(game, req),

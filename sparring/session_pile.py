@@ -10,7 +10,7 @@ step (`session_translators.return_to_deck`) that the table already shows them in
 from __future__ import annotations
 
 from .effects.choose import ChoiceRequest
-from . import session_rage as rage
+from . import session_box as box, session_rage as rage
 from .i18n import t
 from .session_choices import panel_text, request_card
 from .tts.lua import ChatKind
@@ -22,6 +22,8 @@ def manual_request(session) -> ChoiceRequest | None:
     """The pending decision of the human when it picks cards out of their own discard pile to put them in the deck."""
     run = session.effect_run
     req = None if run is None else run.awaiting
+    if box.active(session, req):
+        return req                                   # Pandora's Box: the bot deals or reads the human's Miseries on the table
     if req is not None and req.player == session.human and rage.is_rage(req):
         return req                                   # Unbridled rage: cards INTO the discard pile, the same Done button
     if (req is None or req.kind != "cards" or req.player != session.human or req.extra.get("zone") != "discard"
@@ -47,6 +49,8 @@ def _how_many(req: ChoiceRequest) -> str:
 
 
 def instruction(session, req: ChoiceRequest) -> str:
+    if box.active(session, req):
+        return box.instruction(session, req)
     if rage.is_rage(req):
         return rage.instruction(session, req)
     st = session.game.players[session.human]
@@ -68,6 +72,8 @@ def reprompt(session, req: ChoiceRequest) -> str:
 
 
 def status(session, req: ChoiceRequest) -> str:
+    if box.active(session, req):
+        return box.status(session, req)
     if rage.is_rage(req):
         return rage.status(session, req)
     return panel_text(t("pile.status"))
@@ -75,6 +81,8 @@ def status(session, req: ChoiceRequest) -> str:
 
 def view(session, req: ChoiceRequest) -> tuple[dict, dict]:
     """The choice slots while the human acts on the table: a single Done button."""
+    if box.active(session, req):
+        return box.view(session, req)
     from .session_choices import CHOICE_IDS
     states = {ident: (False, False) for ident in CHOICE_IDS}
     states[CHOICE_IDS[0]] = (True, True)
@@ -141,6 +149,8 @@ def _settle_play(session, req: ChoiceRequest, ids: list[int]) -> None:
 def press(session, paused, index) -> None:
     """A click on the choice buttons while the human moves the cards by hand: 1 is Done."""
     req = manual_request(session)
+    if box.active(session, req):
+        return box.press(session, paused, index)
     if isinstance(index, float) and index.is_integer():
         index = int(index)
     if index != 1:
