@@ -27,13 +27,15 @@ defense may know (`attack_card`); the human puts it face down as always and it i
 from __future__ import annotations
 
 from . import session_espionage as espionage
+from .ai_sherlock import predict_attack_value
 from .effects.choose import ChoiceRequest
 from .effects.events import attack_revealed
 from .effects.modifiers import plays_face_up
 from .effects.model import EffectError, load_effects, walk_ops
 from .effects.ops_combat import FACE_DOWN, PERFECT_SHOT, PREDICT_OP, PREDICT_VALUES
+from .effects.plugins_sherlock import ELEMENTARY, VALUES as ELEMENTARY_VALUES
 from .i18n import plural, t
-from .session_choices import panel_text
+from .session_choices import panel_text, request_card
 from .tts import lua
 from .tts.client import TTSLuaError
 from .tts.lua import ChatKind
@@ -99,6 +101,10 @@ def is_ruse(req: ChoiceRequest | None) -> bool:
 def manual_start(session, req: ChoiceRequest) -> None:
     if is_ruse(req):
         session.say(t("hidden.ruse.start", n=req.max), ChatKind.YOUR_TURN)
+        return
+    card = request_card(session.game, req)
+    if card is not None and card.is_scheme:          # a scheme (Eliminate the Impossible) is not a combat lost
+        session.say(t("hidden.start_scheme", card=card.title, cards=plural(req.max, "noun.card")), ChatKind.YOUR_TURN)
         return
     session.say(t("hidden.start", cards=plural(req.max, "noun.card")), ChatKind.YOUR_TURN)
 
@@ -469,12 +475,55 @@ def ask_prediction(session, p, card) -> bool:
     return True
 
 
+def elementary_request(game, player: int, card) -> ChoiceRequest | None:
+    """Sherlock's Elementary played by the human: the printed attack value of the bot's face-down card, asked before it is revealed."""
+    if not game.fx.interprets(player) or not _has_plugin(game, player, card, ELEMENTARY):
+        return None
+    return ChoiceRequest("effect", player, list(ELEMENTARY_VALUES), 1, 1, card.card_id, PREDICT_KEY,
+                         "predict the printed attack value of the opponent's card", {"op": PREDICT_OP, "elementary": True}, player)
+
+
+def ask_elementary(session, p, card) -> bool:
+    """At Reveal of the bot's attack, with Elementary on the table: True while the human still has to say the number (buttons up).
+    The bot's card stays face down until the number is given; the card is played face up."""
+    if (p.prediction or {}).get("defense") is not None:
+        if card is None or not _has_plugin(session.game, session.human, card, ELEMENTARY):       # the human changed the card after the question: the number no longer counts
+            p.prediction.pop("defense")     # nothing observable follows but the chat line: the other card ignores a number
+            session.say(t("hidden.elementary_withdrawn"), ChatKind.WARNING)
+        return False
+    req = None if card is None else elementary_request(session.game, session.human, card)
+    if req is None:
+        return False
+    p.predict = req.to_dict()
+    session.say(t("hidden.ask_elementary", card=card.title), ChatKind.YOUR_TURN)
+    session._show_choice(req)
+    return True
+
+
+def bot_defense_placed(session, p, revealed=None) -> None:
+    """The bot defends the human's attack with Elementary: it is turned face up and the bot says the number it predicts, guessed from
+    public information only (`ai_sherlock.predict_attack_value`: the attacker's deck list minus what is gone), never from the face-down card."""
+    g, card = session.game, p.bot_card
+    if card is None or not g.fx.interprets(session.bot) or not _has_plugin(g, session.bot, card, ELEMENTARY):
+        return
+    n = predict_attack_value(g, session.bot, p.attacker.fid, None if revealed is None else revealed.value or 0)     # a face-up attack is public: nothing to guess
+    p.prediction = {**(p.prediction or {"value": None}), "defense": {"owner": session.bot, "value": n}}
+    if p.bot_card_guid:
+        session._w(session._flip_script(p.bot_card_guid, "bot"), "flip")
+    session.say(t("hidden.bot_elementary", card=card.title, n=n), ChatKind.ATTACK)
+
+
 def answer_prediction(session, p, value: list) -> None:
     if espionage.is_ruse_request(p.predict):         # Washington's ruse token, asked in the same slot at Reveal
         espionage.answered(session, p, value)
         session._reveal({})
         return
     v = value[0]
+    if ChoiceRequest.from_dict(p.predict).extra.get("elementary"):        # Sherlock's Elementary: the defender's number
+        p.prediction, p.predict = {**(p.prediction or {"value": None}), "defense": {"owner": session.human, "value": v}}, None
+        session.say(t("hidden.elementary_predicted", value=v), ChatKind.ATTACK)
+        session._reveal({})
+        return
     p.prediction, p.predict = {"value": None if v == FACE_DOWN else v}, None
     if v == FACE_DOWN:
         session.say(t("hidden.face_down"), ChatKind.NEUTRAL)
@@ -501,6 +550,8 @@ def flow_choosers(session, p) -> dict:
     if p.prediction is not None:
         owner = session.human if p.kind == "human_attacks" else session.bot
         choosers[owner] = PredictionChooser(choosers[owner], p.prediction["value"])
+        if (defense := p.prediction.get("defense")) is not None:         # Elementary: the defender's number, decided when the card was played
+            choosers[defense["owner"]] = PredictionChooser(choosers[defense["owner"]], defense["value"])
     return choosers
 
 

@@ -18,6 +18,7 @@ reaches Baba Yaga with Koschei beside her); nothing is greyed, the rest of the p
 the human makes over the bot's revealed hand."""
 from __future__ import annotations
 
+from . import tricks
 from .cards import Card
 from .effects import narrate, ongoing, table
 from .effects.choose import PanelChooser
@@ -57,7 +58,7 @@ def recognize_scheme(session, base: set, returned: dict | None = None) -> list[C
     Searing Clarity, discarded by Wildfire and then played)."""
     g, human = session.game, session.human
     st = g.players[human]
-    found = [c for c in st.discard if c.card_id not in base and c.is_scheme]
+    found = [c for c in st.discard if (c.card_id not in base or tricks.borrowed(g, human, c)) and c.is_scheme]     # a TRICK of Loki's may share a CardID with a card already on the pile
 
     def laid_again() -> list[Card]:
         if not returned or not 0 <= session._hand_seen < returned["hand"]:

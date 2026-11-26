@@ -466,7 +466,11 @@ def _swap(run, game, spec):
 @op("revive")
 def _revive(run, game, spec):
     chooser = _chooser(game, run, spec)
-    targets = [f for f in pick_fighters(game, run, spec["target"], chooser) if not f.alive]
+    if spec.get("interchangeable"):          # identical tokens: which one returns is no choice (the table adopts whichever the human lays)
+        cands = sorted(fighter_candidates(game, run, spec["target"])[0], key=lambda f: f.fid)
+        targets = [f for f in cands[:1] if not f.alive]
+    else:
+        targets = [f for f in pick_fighters(game, run, spec["target"], chooser) if not f.alive]
     _return_to_board(run, game, spec, "revive", targets, amount(game, run, spec["hp"]))
 
 
@@ -537,15 +541,38 @@ def _if(run, game, spec):
     return [((branch,), None)] if spec.get(branch) else []
 
 
+def _counters_payable(game, run, cost: list[dict]) -> bool:
+    """A cost of the owner's own ability counters (Blackbeard's Treasury) is payable only when no counter would end below its minimum, `set` and
+    `delta` alike, op after op. Counters of the HeroDef (destiny) and of another player are not checked."""
+    from .select import counter_value
+    rng_of = load_effects(game.players[run.ctx.owner].hero.slug).counter_range
+    held: dict[str, int] = {}
+    for c in cost:
+        if c["op"] != "counter" or c.get("player", "owner") != "owner" or c["name"] in game.players[run.ctx.owner].hero.counters:
+            continue
+        name = c["name"]
+        now = held.get(name, counter_value(game, run.ctx.owner, name))
+        held[name] = c["set"] if "set" in c else now + c["delta"]
+        if held[name] < rng_of(name).min:
+            return False
+    return True
+
+
 def _can_pay(game, run, cost: list[dict]) -> bool:
     """Conservative: a discard (or a card put back in the deck) cost needs enough cards (of the table player's hand, those not
     already owed to their discard pile: `table.discards_owed`), an action cost enough actions left on the owner's own turn; any
-    other cost is assumed payable."""
+    other cost is assumed payable (a reveal needs a card to show); a counter cost needs the counter to hold that much (Blackbeard's ransom: the Treasury)."""
+    if not _counters_payable(game, run, cost):
+        return False
     for c in cost:
         if c["op"] == "spend_action" and (game.turn != run.ctx.owner or game.actions_left < int(amount(game, run, c["amount"]))):
             return False
         if c["op"] == "defeat" and not fighter_candidates(game, run, c["target"])[0]:
             return False                                         # nobody to give up (no Red Rider left)
+        if c["op"] == "reveal" and isinstance(c["cards"], dict) and c["cards"]["zone"] == "hand":
+            who = player_of(game, run, c["cards"]["player"])
+            if not table.physical(game, who) and not card_candidates(game, run, c["cards"]):
+                return False                                     # nothing to show (Intercept: no Sai in hand); the table player's real hand is theirs to tell
         if c["op"] in ("discard", "return_to_deck") and isinstance(c["cards"], dict):
             sel = c["cards"]
             need = 0 if sel.get("up_to") else min(int(amount(game, run, sel.get("amount", 1))), 1 << 30)
@@ -588,7 +615,8 @@ def _choice_context(game, run, spec: dict) -> dict:
     Delivery: how many moments of the rival's card have effects to cancel)."""
     ctx = {}
     ops, other = spec.get("ops") or [], spec.get("else") or []
-    if any(o["op"] == "plugin" and o["id"] in ("houdini:replace_combatant", "luke:replace_combatant", "washington:replace_combatant", "achilles:replace_combatant") for o in ops):      # Smoke And Mirrors: a bot weighs the swap
+    ctx.update(plugins_blackbeard.choice_context(game, run, spec))        # Blackbeard's doubloons: a ransom the opponent may pay, his action, a Sea Dog repositioned
+    if any(o["op"] == "plugin" and o["id"] in ("houdini:replace_combatant", "luke:replace_combatant", "washington:replace_combatant", "achilles:replace_combatant", "elektra:replace_combatant") for o in ops):      # Smoke And Mirrors: a bot weighs the swap
         ctx["replaces_combatant"] = {"this": run.ctx.this_fid, "role": run.ctx.played_as}
     if len(ops) == 1 and ops[0]["op"] == "return_to_deck" and isinstance(ops[0]["cards"], dict) \
             and ops[0]["cards"]["zone"] == "deck" and ops[0]["cards"].get("pick") == "top":
@@ -602,6 +630,12 @@ def _choice_context(game, run, spec: dict) -> dict:
             ctx["cancels"] = _cancellable_moments(game, run)
     if len(ops) == 1 and ops[0]["op"] == "discard" and isinstance(ops[0]["cards"], str):
         ctx["discards"] = [c.card_id for c in card_ref(game, run, ops[0]["cards"])]
+    if (len(ops) == 1 and ops[0]["op"] == "put_in_hand" and isinstance(ops[0]["cards"], dict)
+            and ops[0]["cards"].get("zone") == "discard" and ops[0]["cards"].get("pick") == "last"):
+        # the top card of a pile comes back (What Large Hands You Have): the question names it
+        pile = game.players[player_of(game, run, ops[0]["cards"]["player"])].discard
+        if pile:
+            ctx["returns_top"] = pile[-1].card_id
     defeats = [o for o in spec.get("cost") or [] if o["op"] == "defeat"]
     if defeats:                                          # a fighter given up for the effect (Icy Guile, Foul Purpose): `EffectAI._fighter_pays`
         cands, _ = fighter_candidates(game, run, defeats[0]["target"])
@@ -703,7 +737,7 @@ def _optional(run, game, spec):
     can_pay = _can_pay(game, run, cost)
     yes = can_pay and run.ask(game, "optional", chooser, [True, False], 1, 1, "do it?", **ctx,
                               **_choice_context(game, run, spec))[0]
-    if cost and chooser != run.ctx.owner and chooser == game.bot_player:
+    if cost and chooser != run.ctx.owner and chooser == game.bot_player and not all(o["op"] == "counter" for o in cost):      # a price in counters (a ransom) is told by the counters, not as cards
         run.flags["bot_priced"] = {"paid": bool(yes), "can_pay": can_pay, "cards": ctx.get("cost_cards", 0),
                                    "stake": ctx.get("at_stake", 0), "hp": ctx.get("hp"),
                                    # Incinerate's price ignores the card's value; Shield Formation's stops its effect (an Archer's return)
@@ -758,5 +792,12 @@ from . import plugins_philippa  # noqa: E402,F401  (registers philippa: owlform,
 from . import plugins_john  # noqa: E402,F401  (registers john:summon_track and the test john:paths)
 from . import plugins_washington  # noqa: E402,F401  (registers washington:use_ruse, washington:offer_removal and washington:replace_combatant)
 from . import plugins_raptors  # noqa: E402,F401  (registers blue:ambush)
+from . import plugins_robin  # noqa: E402,F401  (registers robin:ambush)
 from . import plugins_achilles  # noqa: E402,F401  (registers achilles:replace_combatant)
 from . import plugins_mary  # noqa: E402,F401  (registers mary:out_of_the_mirror)
+from . import plugins_elektra  # noqa: E402,F401  (registers elektra:flip, elektra:replace_combatant)
+from . import plugins_pandora  # noqa: E402,F401  (registers pandora:reveal, pandora:look, pandora:close)
+from . import plugins_blackbeard  # noqa: E402,F401  (registers blackbeard:random_discard, blackbeard:queens_revenge)
+from . import plugins_little_red  # noqa: E402,F401  (registers the test red:basket and red:stones)
+from . import plugins_sherlock  # noqa: E402,F401  (registers holmes:elementary, holmes:deduce_strategy, holmes:confirm_suspicion)
+from . import plugins_loki  # noqa: E402,F401  (registers loki:swap_values, loki:laevateinn, loki:looking_for_trouble, loki:return_trick)

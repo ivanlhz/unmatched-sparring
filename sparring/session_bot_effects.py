@@ -37,14 +37,15 @@ from typing import Callable
 
 from .cards import Card
 from .i18n import plural, t
-from . import session_reveal as reveal
+from . import session_pandora, session_reveal as reveal, session_tricks, tricks    # session_pandora and session_tricks register their translators
 from .session_translators import Ctx, combat_card_to_deck, is_tail, translate
 from .tts import lua
 from .tts.lua import ChatKind
 
 
 
-DIRECT_OPS = ("tuck", "remove", "reveal_deck", "shuffle_deck", "stack_top", "hand_to_deck_all", "future_look", "reveal_top", "deck_order", "track")     # translated as they were reported, no diff involved
+DIRECT_OPS = ("tuck", "remove", "reveal_deck", "shuffle_deck", "stack_top", "hand_to_deck_all", "future_look", "reveal_top", "deck_order", "track", "pandora_reveal", "pandora_look", "pandora_stop",
+              "trick_given", "trick_to_discard", "trick_returned", "trick_to_deck", "trick_taken")     # translated as they were reported, no diff involved
 
 
 def bot_cause() -> str:
@@ -64,8 +65,7 @@ def read_human_hand(session, player: int) -> list[Card]:
     rows = session.client.call_lua(lua.read_hand(session.cfg.human_seat)) or []
     session.fx_looked = True                     # the virtual hand is re-identified: `project` must not read it as draws
     st = g.players[player]
-    by_id = {c.card_id: c for c in st.full_set}
-    cards = [by_id[r["id"]] for r in rows if isinstance(r, dict) and r.get("id") in by_id]
+    cards = [c for c in (session_tricks.card_of_row(session, player, r) for r in rows if isinstance(r, dict)) if c is not None]     # a TRICK of Loki's by its GUID
     for c in cards:
         session.make_known(c, keep=tuple(cards))
     for c in [c for c in st.hand if c not in cards]:     # the rest of the virtual hand was never there
@@ -77,8 +77,8 @@ def read_human_hand(session, player: int) -> list[Card]:
 # ---------------------------------------------------------------- snapshot and projection
 
 def zones(st) -> dict:
-    return {"hand": [c.card_id for c in st.hand], "deck": [c.card_id for c in st.deck],
-            "discard": [c.card_id for c in st.discard]}
+    return {"hand": [tricks.zone_id(st, c) for c in st.hand], "deck": [tricks.zone_id(st, c) for c in st.deck],
+            "discard": [tricks.zone_id(st, c) for c in st.discard]}
 
 
 def snapshot(session) -> dict:
@@ -296,8 +296,9 @@ def _human_cards(session, before: dict, played: frozenset, looked: bool, ctx: Ct
         left = next((i for i in intents if i["op"] == "discard" and i["zone"] == "in_play" and i["card"] == in_play
                      and i["player"] == human), {"op": "discard", "zone": "in_play", "player": human, "card": in_play})
         checks += translate(session, left, ctx) or []
+    moved_by_bot = {it["card"] for it in intents if it["op"] == "trick_to_discard" and it["to"] == human}      # the bot laid Loki's TRICK on his pile itself
     to_discard = [i for i in h1["discard"] if i not in h0["discard"] and i not in played and i != in_play
-                  and i not in session.hand_discarded and i not in g.fx.deck_discarded]
+                  and i not in session.hand_discarded and i not in g.fx.deck_discarded and i not in moved_by_bot]
     by_bot = len([i for i in h1["discard"] if i not in h0["discard"] and i in session.hand_discarded])    # already moved
     if to_discard:
         checks += translate(session, {"op": "discard", "zone": "hand", "player": human, "cards": to_discard}, ctx) or []

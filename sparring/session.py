@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
-from . import ai_double, enraged, persist
+from . import ai_double, enraged, off_board, persist
 from .ai_medusa import GAZE, MedusaAI, play_signature
 from .cards import Card, can_be_boost
 from .controller import Controller
@@ -44,8 +44,10 @@ from . import session_choices as choices
 from . import session_effects as human_effects
 from . import session_gadget as gadget_token
 from . import session_hidden as hidden
+from . import session_tricks as loki_tricks, tricks
 from . import session_moves as moves
 from . import session_pieces as piece_id
+
 from . import session_peek as peek
 from . import session_order as order_cards
 from . import session_jill as jill_decks      # noqa: F401  (registers the translators of Jill Trent's deck reveals)
@@ -54,7 +56,7 @@ from . import session_reveal as reveal
 from . import session_counters
 from . import session_sinbad
 from . import session_tracks, tracks
-from . import session_archers, session_rosie
+from . import session_archers, session_blackbeard, session_little_red, session_rosie
 from . import session_sleight as sleight
 from . import session_translators as translators
 from .session_choices import panel_text
@@ -151,6 +153,7 @@ class SessionConfig:
     mulligan_human: bool = True    # the human has the Mulligan button during setup (house rule)
     destiny_dial: str | None = None   # GUID of the destiny dial (count of Hellboy's destinies in his discard)
     counter_dials: dict[str, str] = field(default_factory=dict)   # counter name -> GUID of its dial (Ciri's source, Sinbad's voyage: session_counters)
+    flip_dials: dict[str, str] = field(default_factory=dict)      # fighter id -> GUID of the other side of its health dial, written once the hero is flipped (Elektra Resurrected)
     dead_spot: tuple[float, float, float] | None = None   # where the bot sets aside the miniatures of ITS fallen
     discard_layer: float = 0.15    # height added per full turn of the discard grid
     batch: bool = False            # fast mode: reads from the snapshot and writes in a single script per step
@@ -431,6 +434,8 @@ class Session:
         self.counter_seen: dict[str, int] = {}             # count of each derived counter already written and verified on its dial
         self._transit: dict[int, int] = {}                 # CardID played by the human -> reads it has gone without reaching the discard
         self.combat_guids: dict[int, str] = {}             # CardID of the human's card at the combat spot -> its GUID (Relentless moves it)
+        self.trick_guids: dict[str, list] = {}             # Loki's TRICKs away from their deck: GUID of the card -> [home player, CardID] (session_tricks)
+        self._trick_moved: dict[int, str] = {}             # CardID -> GUID of a TRICK the last translator moved (never saved: it lives inside one projection)
         self._intuition_said: int | None = None            # the human Abe's active tokens already told in chat
         self._gadget_shown: int | None = None              # the gadget Jill Trent's token was last put at (None: not placed yet this game)
         self._gadget_missing_said = False                  # the missing token was already told in chat
@@ -555,6 +560,8 @@ class Session:
         gadget_token.track(self)
         session_rosie.track(self, announce=True)
         session_archers.track(self, announce=True)
+        session_blackbeard.track(self, announce=True)
+        session_little_red.start(self)
 
     def _start_first_turn(self) -> None:
         """The first turn's start-of-turn triggers. The game was built with `begin_turn(emit=False)`: before the table
@@ -628,6 +635,7 @@ class Session:
         gadget_token.track(self)
         session_rosie.track(self, announce=True)
         session_archers.track(self, announce=True)
+        session_blackbeard.track(self, announce=True)
         self._write_dials(post=True)              # the table already shows the engine's life, not the one from before the cut
         if self.game.winner is not None:
             self.say(t("sess.resume.game_over", winner=self.game.winner))
@@ -967,10 +975,12 @@ class Session:
         self.say(t("setup.done"))
         self._intuition_said = None               # the setup's silent first look must not hide the starting count
         session_rosie.forget(self)
+        session_blackbeard.forget(self)
         self._track_intuition(announce=True)
         gadget_token.track(self)
         session_rosie.track(self, announce=True)
         session_archers.track(self, announce=True)
+        session_blackbeard.track(self, announce=True)
         self._start_first_turn()
         if g.turn == self.bot:
             self.bot_stage = "start"
@@ -1073,6 +1083,7 @@ class Session:
         gadget_token.track(self)
         session_rosie.track(self)
         session_archers.track(self)
+        session_blackbeard.track(self)
         hidden.after_step(self)                   # a look of the human at the bot's hand: the row rides this script
         self._tell_blocks()
         self._commit()
@@ -1647,6 +1658,7 @@ class Session:
         scope = self._scope()
         sizes = {"bot": len(fresh.players[self.bot].full_set), "human": len(fresh.players[self.human].full_set)}
         self._flush()
+        session_little_red.aside(self)                     # Little Red's Basket off every Deck first: the plan and the reset count a Deck only if all its cards are the side's
         self._check_reset_plan(scope, sizes)
         decks = {"bot": self._w(lua.reset_deck(c.bot_deck_guid, id_range=c.bot_card_ids, identity=self._identity(),
                                                scope=scope, **self._deck_kw()), "cards")}
@@ -1733,6 +1745,8 @@ class Session:
             saved["token_copies"] = {k: list(v) for k, v in self.token_copies.items()}
         if self.combat_guids:
             saved["combat_guids"] = {str(k): v for k, v in self.combat_guids.items()}
+        if self.trick_guids:
+            saved["trick_guids"] = {g: list(v) for g, v in self.trick_guids.items()}
         if self.fx_unprojected is not None:
             saved["fx_unprojected"] = self.fx_unprojected
         return saved
@@ -1745,7 +1759,7 @@ class Session:
             "language": i18n.language(),
             "pending": None if p is None else {
                 "kind": p.kind, "attacker": p.attacker.fid, "target": p.target.fid,
-                "bot_card": p.bot_card.card_id if p.bot_card else None, "bot_card_guid": p.bot_card_guid,
+                "bot_card": tricks.zone_id(self.game.players[self.bot], p.bot_card) if p.bot_card else None, "bot_card_guid": p.bot_card_guid,
                 "cancel_failures": p.cancel_failures, "defended": p.defended, "boost_wait": None if p.wait is None else p.wait.to_dict(),
                 **({"flow": p.flow.to_dict(), "combat": p.combat} if p.flow is not None else {}),
                 **({"prediction": p.prediction} if p.prediction is not None else {}),
@@ -1819,7 +1833,7 @@ class Session:
         try:
             persist.apply_game(self.game, d["game"])
             self._attach_choosers()
-            by_id = {c.card_id: c for c in self.game.players[self.bot].full_set}
+            by_id = loki_tricks.by_id(self, self.bot)                 # the TRICK the bot plays from the human Loki's deck is saved by its qualified id
             p = d["pending"]
             self.pending = None if p is None else Pending(
                 p["kind"], self.game.fighters[p["attacker"]], self.game.fighters[p["target"]],
@@ -1833,6 +1847,7 @@ class Session:
             self.look_granted = d.get("look_granted") is True
             self.token_copies = {str(k): [str(g) for g in v] for k, v in (d.get("token_copies") or {}).items()}
             self.combat_guids = {int(k): str(v) for k, v in (d.get("combat_guids") or {}).items()}
+            self.trick_guids = {str(g): [int(v[0]), int(v[1])] for g, v in (d.get("trick_guids") or {}).items()}
             self.fx_unprojected = d.get("fx_unprojected")
             self.pending_discard, self.pending_value = d["pending_discard"], d["pending_value"]
             self.look = self._load_look(d.get("look"))
@@ -2460,6 +2475,7 @@ class Session:
             card = self.ai.choose_defense(self.game, p.attacker, p.target)
         guid = self._place_bot_card(card, "human_attacks", p.attacker, p.target)
         p.bot_card, p.bot_card_guid, p.defended = card, guid, True
+        hidden.bot_defense_placed(self, p, revealed)        # Sherlock's Elementary: face up, with the number it predicts (public when the attack is face up)
 
     # ---------- the double attack's second part (docs/combat-flow.md "Double attack") ----------
     def _spent_in_attack(self, p: Pending) -> tuple[set[int], set[str]]:
@@ -2588,18 +2604,18 @@ class Session:
         mine = {c.card_id: c for c in g.players[self.human].full_set}
         spent_ids, spent_guids = self._spent_in_attack(p)
         fresh = lambda r: r["id"] not in spent_ids and r.get("guid") not in spent_guids      # a card of the first part still on the table is no defense
-        theirs = [r for r in seen if r["id"] in mine and fresh(r)]  # by CardID ownership, never by order
+        theirs = [r for r in seen if (r["id"] in mine or r.get("guid") in self.trick_guids) and fresh(r)]  # by CardID ownership, never by order; a TRICK borrowed from Loki by its GUID
         if len(theirs) > 1:
             self.say(t("reveal.many", n=len(theirs)), ChatKind.WARNING)
             return
         face_up = False
         if not theirs:                            # a defense/attack left FACE UP before the Reveal is read as it lies
-            theirs = [r for r in self._rd_combat_spot() if isinstance(r, dict) and r.get("id") in mine and r.get("guid") and fresh(r)]
+            theirs = [r for r in self._rd_combat_spot() if isinstance(r, dict) and (r.get("id") in mine or r.get("guid") in self.trick_guids) and r.get("guid") and fresh(r)]
             if len(theirs) > 1:
                 self.say(t("reveal.many", n=len(theirs)), ChatKind.WARNING)
                 return
             face_up = bool(theirs)
-        human_card = mine[theirs[0]["id"]] if theirs else None
+        human_card = loki_tricks.card_of_row(self, self.human, theirs[0]) if theirs else None
         try:
             if p.second is not None:             # the attacker's card is already played: only a defense may be on the table
                 if human_card is not None and p.kind == "human_attacks":
@@ -2623,6 +2639,8 @@ class Session:
                 g.check_attack_card(p.attacker, p.bot_card)
                 if human_card:
                     g.check_defense_card(p.target, human_card)
+                if p.second is None and hidden.ask_elementary(self, p, human_card):
+                    return                        # Elementary: the human says the number before the bot's card is revealed
         except RuleError as e:
             self.say(t("reveal.illegal", err=e), ChatKind.WARNING)
             return
@@ -2909,7 +2927,7 @@ class Session:
             spec = load_hero_table(self.game.hero_def(f.owner).slug).fighters.get(f.fid)
         except HeroTableError:
             return False
-        return spec is not None and spec.no_dial
+        return spec is not None and (spec.no_dial or spec.same_token)
 
     def _adopt_clone_token(self, fid: str, pieces: dict[str, dict]) -> None:
         """The engine summoned `fid` and the human put ANOTHER Clone token on the board: `fid` follows that token (the two fids trade
@@ -3497,6 +3515,9 @@ class Session:
             self.say(t("hp.bad_delta", delta=repr(delta)), ChatKind.WARNING)
             return
         g = self.game
+        if f.off_board:             # away from the board but not defeated (Elektra): her health and her Hand come back together at the Resurrect, never one by one
+            self.say(t("hp.away", name=self._name(f)), ChatKind.WARNING)
+            return
         if delta < 0:
             if not f.alive:
                 self.say(t("hp.out", name=self._name(f)), ChatKind.WARNING)
@@ -3654,6 +3675,7 @@ class Session:
         and onto its pile; the bot stops counting on the ones it had seen in the hand."""
         st = self.game.players[self.human]
         by_id = {c.card_id: c for c in st.full_set}
+        landed = []
         for i in sorted(ids & by_id.keys()):
             c = by_id[i]
             if c in st.discard:
@@ -3663,7 +3685,9 @@ class Session:
             elif c in st.deck:
                 st.deck.remove(c)
             st.discard.append(c)
+            landed.append(c)
             self.game.card_left_hand(self.human, c)     # if the bot had seen it in your hand, it stops counting on it
+        session_little_red.landed(self, landed)         # Little Red: which of them is on top is not known (the basket asks when it matters)
 
     def _human_wildfire(self) -> bool:
         """Liz (Wildfire): every burning card the human discards from their hand returns to it, so a forced discard
@@ -4125,6 +4149,7 @@ class Session:
         gadget_token.track(self)                  # the token moves in the same flush as the gadget announcement
         session_rosie.track(self)
         session_archers.track(self)
+        session_blackbeard.track(self)
         if scene is None:
             self._flush_table()
             fin_fx()
@@ -4263,7 +4288,7 @@ class Session:
             fin_fx = self._project_effects(fx_before, cause=t("cause.expired"))   # the bot's form, your ONGOING that expired
             self._flush_table()
             fin_fx()
-            if self._track_destiny() or hurt_at_end:      # a hand-limit discard may hold a destiny card
+            if self._track_destiny() or hurt_at_end or self._sync_flipped_dials():      # a hand-limit discard may hold a destiny card; Elektra's Resurrect flips her dial
                 self._write_dials()
         except TABLE_ERRORS as e:
             self.say(t("turn.late", err=e), ChatKind.WARNING)
@@ -4516,7 +4541,9 @@ class Session:
         if self._snap_spec is None:
             c = self.cfg
             pieces = sorted({g for v in c.pieces.values() for g in piece_guids(v)})
-            dials = sorted({*c.dials.values(), *([c.destiny_dial] if c.destiny_dial else []), *c.counter_dials.values()})
+            # the flipped dial (Elektra Resurrected) is read from the start: the spec is built once and the panel carries it, so a dial added at
+            # the Resurrect would never reach the snapshot and every check of it would fail (Ivan, 23/11)
+            dials = sorted({*c.dials.values(), *c.flip_dials.values(), *([c.destiny_dial] if c.destiny_dial else []), *c.counter_dials.values()})
             self._snap_spec = lua.SnapSpec(
                 self.game.board, c.bot_seat, c.human_seat, c.bot_discard_zone, (c.bot_deck_guid,),
                 (tuple(c.bot_deck_spot),), c.human_discard_zone,
@@ -4738,9 +4765,9 @@ class Session:
     def _rd_bot_discard(self) -> list[dict]:
         c = self.cfg
         if c.batch:
-            return self._view("cards")["bot_discard"]
-        return self.client.call_lua(lua.read_discard(c.bot_discard_zone, [c.bot_deck_guid], [c.bot_deck_spot],
-                                                     c.deck_exclude_radius, self._skip_zones("bot"))) or []
+            return session_little_red.strip(self, self._view("cards")["bot_discard"])
+        return session_little_red.strip(self, self.client.call_lua(lua.read_discard(c.bot_discard_zone, [c.bot_deck_guid], [c.bot_deck_spot],
+                                                                                    c.deck_exclude_radius, self._skip_zones("bot"))) or [])
 
     def _rd_human_discard(self) -> list[dict]:
         return self._rd_human_discard_raw() or []
@@ -4749,11 +4776,11 @@ class Session:
         """The human's pile as the table answered it: None when there was no reply (an empty pile answers [])."""
         c = self.cfg
         if c.batch:
-            return self._view("cards")["human_discard"]
+            return session_little_red.strip(self, self._view("cards")["human_discard"])
         skip = [c.human_deck_guid] if c.human_deck_guid else []
         spots = [c.human_deck_spot] if c.human_deck_spot else []
-        return self.client.call_lua(lua.read_discard(c.human_discard_zone, skip, spots, c.deck_exclude_radius,
-                                                     self._skip_zones("human")))
+        return session_little_red.strip(self, self.client.call_lua(lua.read_discard(c.human_discard_zone, skip, spots, c.deck_exclude_radius,
+                                                                                    self._skip_zones("human"))))
 
     def _rd_human_count(self, default: int) -> int:
         if self.cfg.batch:
@@ -5160,10 +5187,10 @@ class Session:
         res = self._rd_bot_hand()
         st = self.game.players[self.bot]
         by_id = {c.card_id: c for c in st.full_set}
-        try:
-            cards = [by_id[r["id"]] for r in res]
-        except KeyError as e:
-            raise SessionError(t("err.unknown_card", err=e)) from None
+        loki_tricks.adopt_unknown(self, res)
+        cards = [loki_tricks.card_of_row(self, self.bot, r) for r in res]       # a TRICK of the human Loki's deck is told by its GUID
+        if None in cards:
+            raise SessionError(t("err.unknown_card", err=next(r["id"] for r, c in zip(res, cards) if c is None)))
         in_play = self._bot_cards_in_play()
         cards = [c for c in cards if c not in in_play]   # a scheme stopped at the panel still sits in the table hand
         p = self.pending
@@ -5193,8 +5220,10 @@ class Session:
             ping = ((piece_guids(self.cfg.pieces[attacker.fid]), piece_guids(self.cfg.pieces[target.fid]),
                      [self.cfg.bot_seat, self.cfg.human_seat])
                     if kind == "bot_attacks" else None)
+            side = "human" if tricks.borrowed(self.game, self.bot, card) else "bot"      # a TRICK of the human Loki's deck: his images and range
             res = self._w(lua.play_card_face_down(card.card_id, self.cfg.bot_seat, x, y, z, self.cfg.rot_y,
-                                                  self.cfg.bot_card_ids, identity=self._identity(), ping=ping),
+                                                  self.cfg.bot_card_ids if side == "bot" else self.cfg.human_card_ids,
+                                                  identity=self._identity(side), ping=ping),
                           "cards").result
         except OSError:
             raise
@@ -5472,6 +5501,19 @@ class Session:
     def _announce_fall(self, f: Fighter) -> None:
         """Every casualty, wherever it comes from (combat, ability, bot effect, Remove, HP to 0), is announced the same way:
         '<name> falls' and what happens to the miniature. The bot's is set aside by `_bury`; the human's they remove themselves."""
+        if f.off_board:             # Elektra's first defeat takes her AND every Hand away: all five are set aside and said once, whoever reports first
+            said = self.__dict__.setdefault("_away_said", set())
+            if f.fid in said:
+                return
+            for o in self.game.own(f.owner, alive_only=False):
+                if o.off_board and o.fid not in said:
+                    said.add(o.fid)
+                    self._bury(o.fid, self._name(o))
+            if f.owner != self.human and self.unprojected is not None:
+                for o in self.game.own(f.owner, alive_only=False):
+                    if o.off_board and o.fid in self.unprojected:
+                        self.unprojected[o.fid] = (self.unprojected[o.fid][0], False)
+            return
         name = self._name(f)
         self._bury(f.fid, name)
         if f.owner == self.human:
@@ -5486,8 +5528,12 @@ class Session:
         owner = self.game.fighters[fid].owner
         mine = owner == self.bot
         spot = self.cfg.dead_spot if mine else human_dead_spot(self.cfg)
-        done = t("bury.done_mine" if mine else "bury.done_human", name=name)
-        failed = t("bury.failed_mine" if mine else "bury.failed_human", name=name)
+        if self.game.fighters[fid].off_board:      # taken off the board, not defeated (Elektra's first life): the same moves, other words
+            done = t("bury.off_done_mine" if mine else "bury.off_done_human", name=name)
+            failed = t("bury.off_failed_mine" if mine else "bury.off_failed_human", name=name)
+        else:
+            done = t("bury.done_mine" if mine else "bury.done_human", name=name)
+            failed = t("bury.failed_mine" if mine else "bury.failed_human", name=name)
         if spot is not None:
             slot = sorted(f.fid for f in self.game.own(owner, alive_only=False)).index(fid)
             at = fallen_slot(spot, mine, slot)
@@ -5594,6 +5640,7 @@ class Session:
     def _live_dials(self) -> dict[str, str]:
         """fid -> life dial GUID the engine may write and read: two dials with one GUID are told apart by name first (once per
         start / resume / adopt while it works, again at the next write while it does not); one that cannot be is left out and said."""
+        self._sync_flipped_dials()
         if not self._dials_resolved and self.setup is None and piece_id.shared_dials(self):
             notes = piece_id.resolve_dials(self)
             if not self._dial_unresolved:
@@ -5603,6 +5650,45 @@ class Session:
                     self._dial_notes_said.add(line)
                     self.say(line, ChatKind.WARNING)
         return {fid: g for fid, g in self.cfg.dials.items() if fid not in self._dial_unresolved}
+
+    def _check_spread(self) -> None:
+        """Elektra's Resurrect wants each fighter in a zone of its own and the table player puts the miniatures down by hand: once all five stand, two in
+        one zone are said (once). The bot does not refuse the placement."""
+        g = self.game
+        if self.__dict__.get("_spread_said") or not off_board.is_elektra(g, self.human) or off_board.life(g, self.human) != off_board.RESURRECTED or g.placing:
+            return
+        five = g.own(self.human)
+        if len(five) < 5:
+            return
+        self._spread_said = True
+        twins = [(a, b) for i, a in enumerate(five) for b in five[i + 1:] if g.board.share_zone(a.pos, b.pos)]
+        if twins:
+            self.say(t("elektra.spread", names=", ".join(f"{self._name(a)} / {self._name(b)}" for a, b in twins)), ChatKind.WARNING)
+
+    def _forget_away(self) -> None:
+        said = self.__dict__.get("_away_said")
+        if said:
+            said.intersection_update(fid for fid, f in self.game.fighters.items() if f.off_board)
+
+    def _sync_flipped_dials(self) -> bool:
+        """Elektra's health dial has two objects: the dial of her first life (7) and the Elektra Resurrected dial (9). From her Resurrect on, the engine's life is
+        written to the second one (and read from it); the first stays where it is, out of use. A game that goes back before the Resurrect (undo, a save from earlier)
+        uses the first again. Said once, when it changes; True when it did."""
+        changed = False
+        self._forget_away()
+        self._check_spread()
+        for fid, flipped in self.cfg.flip_dials.items():
+            owner = self.game.fighters[fid].owner
+            now = off_board.life(self.game, owner) == off_board.RESURRECTED
+            if now and self.cfg.dials.get(fid) != flipped:
+                self._dial_origin.setdefault(fid, self.cfg.dials[fid])
+                self.cfg.dials[fid] = flipped
+                self.say(t("elektra.flip.bot" if owner == self.bot else "elektra.flip.human", name=self._name(self.game.fighters[fid])), ChatKind.ABILITY)
+                changed = True
+            elif not now and self.cfg.dials.get(fid) == flipped:
+                self.cfg.dials[fid] = self._dial_origin.pop(fid, self.cfg.dials[fid])
+                changed = True
+        return changed
 
     def _tell_piece_notes(self) -> None:
         notes, self._piece_notes = self._piece_notes, []
@@ -5871,11 +5957,12 @@ class Session:
         """Engine discard == table discard (additions and removals); hand size by count."""
         st = self.game.players[self.human]
         own = {x.card_id for x in st.full_set}
+        loki_tricks.settle_discards(self)           # a TRICK of Loki's they laid on their pile goes back to him
         def read() -> set[int]:                   # only the human's cards: foreign things in the zone neither count nor delay
             # a card that an effect of this step is taking out of your discard toward your deck (Searing Clarity, the
             # bot moves it) is not read again as discarded even if the snapshot lags
             aside = {x.card_id for x in (*st.tucked, *st.removed)}     # tucked or removed: still on their pile until they move them
-            return ({r["id"] for r in self._rd_human_discard()} & own) - self.fx_in_flight - aside
+            return ({r["id"] for r in loki_tricks.own_rows(self, self._rd_human_discard())} & own) - self.fx_in_flight - aside
         ids = read()
         self._swap_owed_copies(ids)
         known = {x.card_id for x in st.discard}
@@ -6005,12 +6092,13 @@ class Session:
         st = self.game.players[self.human]
         known = self.game.players[self.bot].known
         told = set(known.seen) | set(known.possible)
+        loki = {c for c in st.hand if tricks.borrowed(self.game, self.human, c)}     # a TRICK of Loki's in their hand is a real card the table shows: never a placeholder
         dropped = len(st.hand) - target
-        if dropped > sum(1 for c in st.hand if c.card_id not in told):
-            known.degrade(dropped, target)
+        if dropped > sum(1 for c in st.hand if c.card_id not in told and c not in loki):
+            known.degrade(dropped, target - len(loki))
             told = set(known.seen) | set(known.possible)
         while len(st.hand) > target:
-            spare = next((c for c in reversed(st.hand) if c.card_id not in told), st.hand[-1])
+            spare = next((c for c in reversed(st.hand) if c.card_id not in told and c not in loki), None)                 or next((c for c in reversed(st.hand) if c not in loki), st.hand[-1])
             st.hand.remove(spare)
             st.deck.append(spare)
 

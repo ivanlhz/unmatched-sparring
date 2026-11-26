@@ -1,0 +1,74 @@
+{
+ "slug": "little-red-riding-hood",
+ "_notes": [
+  "Read from the tournament savegame: infinite bag 9a5f4e > bag 7d8bbe. Her deck is sheet 177 (CardIDs 17700-17729, 8x4; the deck object holds 31 cards: the 30 and the character card 310 on sheet 3, index 10). Sheet 177 is shared with Houdini's character card (17700), a loose rules card of Rosie's and Pandora's Miseries, all with other images: only deck.identity tells them apart (docs/card-identity.md).",
+  "The miniature of Little Red is the Custom_Assetbundle eb1971 and her life dial the Custom_Model ca8e35 (MAX_VALUE 14), a GUID Donatello's, Chupacabra's and Tomoe Gozen's dials have too: the session tells them apart by name (session_pieces.resolve_dials). The Huntsman is the Custom_Token 83d1f2 with the life dial 091f30 (MAX_VALUE 9).",
+  "The BASKET is a loose CardCustom (51f3b8) in the inner bag: a single-image deck of sheet 176 (CardID 17600), NOT a card of her deck (it is never drawn, counted or returned). It is a `token` named `basket` so the pre-game gate lays it down with her other objects: token_slots puts it INSIDE her discard zone but OFF the stacking cards of her pile: on the bot's side one card-width to the right of the first slot of its discard grid (x 20.8, the zone's edge is 21.7), on the human's side in the corner of their zone at the far end (-19.6, 15.0). A Basket that stacks on the pile would merge into the pile's Deck, which the restart does not treat as hers (reset_deck skips a Deck with a foreign card) and a card inside a Deck no longer answers to its GUID: `lua_little_red.basket_aside` takes it out before every restart. Both spots are estimates from config/table.json: verify_live."
+ ],
+ "bag": {
+  "guid": "9a5f4e",
+  "inner": "7d8bbe"
+ },
+ "deck": {
+  "guid": "75e561",
+  "card_ids": [
+   17700,
+   17729
+  ],
+  "character_card_id": 310,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/16656323653488904195/10FD5A7B274B3F8C3BF1213B333F88DA0ED8A7E1/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/11243341033060571767/5486754A98F2CFD400C182A0885B093F31AE1036/"
+   }
+  ]
+ },
+ "fighters": {
+  "red": {
+   "piece": "eb1971",
+   "dial": "ca8e35",
+   "dial_max": 14
+  },
+  "huntsman": {
+   "piece": "83d1f2",
+   "dial": "091f30",
+   "dial_max": 9
+  }
+ },
+ "tokens": {
+  "basket": "51f3b8"
+ },
+ "token_slots": {
+  "basket": {
+   "bot": [
+    {
+     "pos": [
+      20.8,
+      2.0,
+      -14.0
+     ],
+     "rot": [
+      0,
+      90,
+      0
+     ]
+    }
+   ],
+   "human": [
+    {
+     "pos": [
+      -19.6,
+      2.0,
+      15.0
+     ],
+     "rot": [
+      0,
+      270,
+      0
+     ]
+    }
+   ]
+  }
+ },
+ "counter_dials": {}
+}

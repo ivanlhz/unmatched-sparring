@@ -1,0 +1,428 @@
+{
+ "_source": {
+  "memory": "unmatched-memory/data/heroes/robin-hood.json",
+  "overlay": "data/heroes/overlay/robin-hood.json",
+  "generator": "tools/import_hero.py"
+ },
+ "slug": "robin-hood",
+ "name": "Robin Hood",
+ "fid": "robin",
+ "hp": 13,
+ "move": 2,
+ "attack": "range",
+ "set": "robin-hood-vs-bigfoot",
+ "ability": "After you attack, you may move your attacking fighter up to 2 spaces.",
+ "sidekicks": [
+  {
+   "name": "Outlaw",
+   "hp": 1,
+   "move": 2,
+   "attack": "melee",
+   "count": 4,
+   "fid": "outlaw",
+   "tts_tokens": [
+    "Outlaw",
+    "Outlaw",
+    "Outlaw",
+    "Outlaw"
+   ]
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet": 176,
+  "cards": [
+   {
+    "idx": 0,
+    "title": "A Hunter's Eye",
+    "fighter": "Robin Hood",
+    "type": "attack",
+    "value": 5,
+    "boost": 4,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 1,
+    "title": "A Hunter's Eye",
+    "fighter": "Robin Hood",
+    "type": "attack",
+    "value": 5,
+    "boost": 4,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 2,
+    "title": "A Hunter's Eye",
+    "fighter": "Robin Hood",
+    "type": "attack",
+    "value": 5,
+    "boost": 4,
+    "text": "",
+    "tags": []
+   },
+   {
+    "idx": 3,
+    "title": "Piercing Shot",
+    "fighter": "Robin Hood",
+    "type": "attack",
+    "value": 2,
+    "boost": 3,
+    "text": "AFTER COMBAT: Draw 2 cards.",
+    "tags": []
+   },
+   {
+    "idx": 4,
+    "title": "Piercing Shot",
+    "fighter": "Robin Hood",
+    "type": "attack",
+    "value": 2,
+    "boost": 3,
+    "text": "AFTER COMBAT: Draw 2 cards.",
+    "tags": []
+   },
+   {
+    "idx": 5,
+    "title": "Disarming Shot",
+    "fighter": "Robin Hood",
+    "type": "attack",
+    "value": 4,
+    "boost": 3,
+    "text": "AFTER COMBAT: Draw a number of cards equal to the amount of damage dealt to the opposing fighter.",
+    "tags": []
+   },
+   {
+    "idx": 6,
+    "title": "Disarming Shot",
+    "fighter": "Robin Hood",
+    "type": "attack",
+    "value": 4,
+    "boost": 3,
+    "text": "AFTER COMBAT: Draw a number of cards equal to the amount of damage dealt to the opposing fighter.",
+    "tags": []
+   },
+   {
+    "idx": 7,
+    "title": "Ambush",
+    "fighter": "any",
+    "type": "attack",
+    "value": 2,
+    "boost": 3,
+    "text": "DURING COMBAT: Your opponent discards 1 random card. Add its BOOST value to this card's value.",
+    "tags": []
+   },
+   {
+    "idx": 8,
+    "title": "Ambush",
+    "fighter": "any",
+    "type": "attack",
+    "value": 2,
+    "boost": 3,
+    "text": "DURING COMBAT: Your opponent discards 1 random card. Add its BOOST value to this card's value.",
+    "tags": []
+   },
+   {
+    "idx": 9,
+    "title": "Highway Robbery",
+    "fighter": "Outlaw",
+    "type": "attack",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card and ignore its defense value.",
+    "tags": []
+   },
+   {
+    "idx": 10,
+    "title": "Highway Robbery",
+    "fighter": "Outlaw",
+    "type": "attack",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card and ignore its defense value.",
+    "tags": []
+   },
+   {
+    "idx": 11,
+    "title": "Highway Robbery",
+    "fighter": "Outlaw",
+    "type": "attack",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card and ignore its defense value.",
+    "tags": []
+   },
+   {
+    "idx": 12,
+    "title": "Highway Robbery",
+    "fighter": "Outlaw",
+    "type": "attack",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card and ignore its defense value.",
+    "tags": []
+   },
+   {
+    "idx": 13,
+    "title": "Regroup",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 1,
+    "boost": 2,
+    "text": "AFTER COMBAT: Draw 1 card. If you won the combat, draw 2 cards instead.",
+    "tags": []
+   },
+   {
+    "idx": 14,
+    "title": "Regroup",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 1,
+    "boost": 2,
+    "text": "AFTER COMBAT: Draw 1 card. If you won the combat, draw 2 cards instead.",
+    "tags": []
+   },
+   {
+    "idx": 15,
+    "title": "Regroup",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 1,
+    "boost": 2,
+    "text": "AFTER COMBAT: Draw 1 card. If you won the combat, draw 2 cards instead.",
+    "tags": []
+   },
+   {
+    "idx": 16,
+    "title": "Feint",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": [
+     "robin-hood"
+    ]
+   },
+   {
+    "idx": 17,
+    "title": "Feint",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": [
+     "robin-hood"
+    ]
+   },
+   {
+    "idx": 18,
+    "title": "Feint",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 2,
+    "boost": 2,
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+    "tags": [
+     "robin-hood"
+    ]
+   },
+   {
+    "idx": 19,
+    "title": "Snark",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: If your fighter is adjacent to the opposing fighter, draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 20,
+    "title": "Snark",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: If your fighter is adjacent to the opposing fighter, draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 21,
+    "title": "Snark",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: If your fighter is adjacent to the opposing fighter, draw 1 card.",
+    "tags": []
+   },
+   {
+    "idx": 22,
+    "title": "Wily Fighting",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Deal 1 damage to each opposing fighter adjacent to your fighter.",
+    "tags": []
+   },
+   {
+    "idx": 23,
+    "title": "Wily Fighting",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Deal 1 damage to each opposing fighter adjacent to your fighter.",
+    "tags": []
+   },
+   {
+    "idx": 24,
+    "title": "Wily Fighting",
+    "fighter": "any",
+    "type": "versatile",
+    "value": 3,
+    "boost": 1,
+    "text": "AFTER COMBAT: Deal 1 damage to each opposing fighter adjacent to your fighter.",
+    "tags": []
+   },
+   {
+    "idx": 25,
+    "title": "Defenders of Sherwood",
+    "fighter": "any",
+    "type": "defense",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: Draw 1 card. Return a defeated Outlaw (if any) to any space in Robin Hood's zone.",
+    "tags": []
+   },
+   {
+    "idx": 26,
+    "title": "Defenders of Sherwood",
+    "fighter": "any",
+    "type": "defense",
+    "value": 3,
+    "boost": 2,
+    "text": "AFTER COMBAT: Draw 1 card. Return a defeated Outlaw (if any) to any space in Robin Hood's zone.",
+    "tags": []
+   },
+   {
+    "idx": 27,
+    "title": "Steal From the Rich",
+    "fighter": "Robin Hood",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Draw 1 card, then choose an opponent. They may choose to discard 1 card. If they do not, draw 1 more card.",
+    "tags": []
+   },
+   {
+    "idx": 28,
+    "title": "Steal From the Rich",
+    "fighter": "Robin Hood",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Draw 1 card, then choose an opponent. They may choose to discard 1 card. If they do not, draw 1 more card.",
+    "tags": []
+   },
+   {
+    "idx": 29,
+    "title": "Steal From the Rich",
+    "fighter": "Robin Hood",
+    "type": "scheme",
+    "value": null,
+    "boost": 3,
+    "text": "Draw 1 card, then choose an opponent. They may choose to discard 1 card. If they do not, draw 1 more card.",
+    "tags": []
+   }
+  ]
+ },
+ "tts": {
+  "same_token": [
+   "outlaw1",
+   "outlaw2",
+   "outlaw3",
+   "outlaw4"
+  ]
+ },
+ "ai_profile": {
+  "robin": {
+   "name": "Robin Hood",
+   "hero": true,
+   "count": 1,
+   "max_hp": 13,
+   "move": 2,
+   "ranged": true,
+   "role": "hero",
+   "attack": {
+    "cards": 21,
+    "mean": 2.76,
+    "max": 5
+   },
+   "exclusive": [
+    {
+     "title": "A Hunter's Eye",
+     "type": "attack",
+     "copies": 3,
+     "impact": 1.05
+    },
+    {
+     "title": "Piercing Shot",
+     "type": "attack",
+     "copies": 2,
+     "impact": 1.08
+    },
+    {
+     "title": "Disarming Shot",
+     "type": "attack",
+     "copies": 2,
+     "impact": 1.14
+    },
+    {
+     "title": "Steal From the Rich",
+     "type": "scheme",
+     "copies": 3,
+     "impact": 0.7
+    }
+   ]
+  },
+  "outlaw": {
+   "name": "Outlaw",
+   "hero": false,
+   "count": 4,
+   "max_hp": 1,
+   "move": 2,
+   "ranged": false,
+   "role": "keep_away",
+   "attack": {
+    "cards": 18,
+    "mean": 2.17,
+    "max": 3
+   },
+   "exclusive": [
+    {
+     "title": "Highway Robbery",
+     "type": "attack",
+     "copies": 4,
+     "impact": 1.5
+    }
+   ],
+   "requires_alive": []
+  }
+ },
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-22. CardID = 17600 + idx; 308 = character card (sheet 3, 10x7, index 8). The deck object of the save holds 31 cards: the 30 of the deck plus the character card, hence card_count 31 and card_ids [308, 17629] in the catalog. Sheet 176 is also Medusa's, the turtles' and the other heroes': only deck.identity (data/tts/robin-hood.json) tells the decks apart (docs/card-identity.md).",
+  "Hero card (read from the image): ROBIN HOOD, RANGED, START HEALTH 13, MOVE 2, special ability \"After you attack, you may move your attacking fighter up to 2 spaces.\"; sidekick OUTLAWS, MELEE, START HEALTH 1 x4. The bag holds four Custom_Token objects nicknamed Outlaw (one image, no second face, no life dial), the miniature (Custom_Model 5aa21a) and the life dial (Custom_Model 1fc8df, description Hero Health, MAX_VALUE 13).",
+  "Bands read from the images: ROBIN HOOD on A Hunter's Eye, Piercing Shot, Disarming Shot and Steal From the Rich; OUTLAW on Highway Robbery (only an Outlaw plays it); ANY on Ambush, Regroup, Feint, Snark, Wily Fighting and Defenders of Sherwood. Order on the sheet: A Hunter's Eye 0-2, Piercing Shot 3-4, Disarming Shot 5-6, Ambush 7-8, Highway Robbery 9-12, Regroup 13-15, Feint 16-18, Snark 19-21, Wily Fighting 22-24, Defenders of Sherwood 25-26, Steal From the Rich 27-29.",
+  "Titles, types, printed values, BOOSTs, copies and texts of the 11 titles agree with unmatched-memory (30 cards); unmatched-memory has no restriction band, the overlay carries it. The save's life dial 1fc8df is also Yennenga's dial (a Custom_Model named after its hero) and a miniature of Nikola Tesla (not in the project): told apart by name (docs/card-identity.md, Piece identity).",
+  "Robin Hood's Feint (idx 16-18, ANY, 2 / BOOST 2) is word for word Bigfoot's Feint (and Pandora's, which carries a tag), so its three cards carry the tag robin-hood: two equal Card values in two decks of one sheet are forbidden by tests/test_card_identity.py. Nothing reads the tag.",
+  "Ambush: the card prints \"this card's value\" (unmatched-memory: \"this card's attack value\"), so the overlay carries the printed text."
+ ]
+}

@@ -1,0 +1,200 @@
+{
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4), read card by card from the image on 2026-11-22. CardID = 17600 + idx; 308 = character card (sheet 3, 10x7, index 8). The deck object of the save holds 31 cards: the 30 of the deck plus the character card, hence card_count 31 and card_ids [308, 17629] in the catalog. Sheet 176 is also Medusa's, the turtles' and the other heroes': only deck.identity (data/tts/robin-hood.json) tells the decks apart (docs/card-identity.md).",
+  "Hero card (read from the image): ROBIN HOOD, RANGED, START HEALTH 13, MOVE 2, special ability \"After you attack, you may move your attacking fighter up to 2 spaces.\"; sidekick OUTLAWS, MELEE, START HEALTH 1 x4. The bag holds four Custom_Token objects nicknamed Outlaw (one image, no second face, no life dial), the miniature (Custom_Model 5aa21a) and the life dial (Custom_Model 1fc8df, description Hero Health, MAX_VALUE 13).",
+  "Bands read from the images: ROBIN HOOD on A Hunter's Eye, Piercing Shot, Disarming Shot and Steal From the Rich; OUTLAW on Highway Robbery (only an Outlaw plays it); ANY on Ambush, Regroup, Feint, Snark, Wily Fighting and Defenders of Sherwood. Order on the sheet: A Hunter's Eye 0-2, Piercing Shot 3-4, Disarming Shot 5-6, Ambush 7-8, Highway Robbery 9-12, Regroup 13-15, Feint 16-18, Snark 19-21, Wily Fighting 22-24, Defenders of Sherwood 25-26, Steal From the Rich 27-29.",
+  "Titles, types, printed values, BOOSTs, copies and texts of the 11 titles agree with unmatched-memory (30 cards); unmatched-memory has no restriction band, the overlay carries it. The save's life dial 1fc8df is also Yennenga's dial (a Custom_Model named after its hero) and a miniature of Nikola Tesla (not in the project): told apart by name (docs/card-identity.md, Piece identity).",
+  "Robin Hood's Feint (idx 16-18, ANY, 2 / BOOST 2) is word for word Bigfoot's Feint (and Pandora's, which carries a tag), so its three cards carry the tag robin-hood: two equal Card values in two decks of one sheet are forbidden by tests/test_card_identity.py. Nothing reads the tag.",
+  "Ambush: the card prints \"this card's value\" (unmatched-memory: \"this card's attack value\"), so the overlay carries the printed text."
+ ],
+ "fid": "robin",
+ "sidekicks": [
+  {
+   "fid": "outlaw",
+   "name": "Outlaw",
+   "count": 4,
+   "hp": 1,
+   "move": 2,
+   "attack": "melee",
+   "tts_tokens": [
+    "Outlaw",
+    "Outlaw",
+    "Outlaw",
+    "Outlaw"
+   ]
+  }
+ ],
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "tts": {"same_token": ["outlaw1", "outlaw2", "outlaw3", "outlaw4"]},
+ "deck": {
+  "card_base": 17600,
+  "sheet_id": 176,
+  "hero_card_id": 308,
+  "sheet": [
+   {
+    "idx": 0,
+    "title": "A Hunter's Eye",
+    "fighter": "Robin Hood"
+   },
+   {
+    "idx": 1,
+    "title": "A Hunter's Eye",
+    "fighter": "Robin Hood"
+   },
+   {
+    "idx": 2,
+    "title": "A Hunter's Eye",
+    "fighter": "Robin Hood"
+   },
+   {
+    "idx": 3,
+    "title": "Piercing Shot",
+    "fighter": "Robin Hood"
+   },
+   {
+    "idx": 4,
+    "title": "Piercing Shot",
+    "fighter": "Robin Hood"
+   },
+   {
+    "idx": 5,
+    "title": "Disarming Shot",
+    "fighter": "Robin Hood"
+   },
+   {
+    "idx": 6,
+    "title": "Disarming Shot",
+    "fighter": "Robin Hood"
+   },
+   {
+    "idx": 7,
+    "title": "Ambush",
+    "fighter": "any",
+    "text": "DURING COMBAT: Your opponent discards 1 random card. Add its BOOST value to this card's value."
+   },
+   {
+    "idx": 8,
+    "title": "Ambush",
+    "fighter": "any",
+    "text": "DURING COMBAT: Your opponent discards 1 random card. Add its BOOST value to this card's value."
+   },
+   {
+    "idx": 9,
+    "title": "Highway Robbery",
+    "fighter": "Outlaw"
+   },
+   {
+    "idx": 10,
+    "title": "Highway Robbery",
+    "fighter": "Outlaw"
+   },
+   {
+    "idx": 11,
+    "title": "Highway Robbery",
+    "fighter": "Outlaw"
+   },
+   {
+    "idx": 12,
+    "title": "Highway Robbery",
+    "fighter": "Outlaw"
+   },
+   {
+    "idx": 13,
+    "title": "Regroup",
+    "fighter": "any"
+   },
+   {
+    "idx": 14,
+    "title": "Regroup",
+    "fighter": "any"
+   },
+   {
+    "idx": 15,
+    "title": "Regroup",
+    "fighter": "any"
+   },
+   {
+    "idx": 16,
+    "title": "Feint",
+    "fighter": "any",
+    "tags": [
+     "robin-hood"
+    ]
+   },
+   {
+    "idx": 17,
+    "title": "Feint",
+    "fighter": "any",
+    "tags": [
+     "robin-hood"
+    ]
+   },
+   {
+    "idx": 18,
+    "title": "Feint",
+    "fighter": "any",
+    "tags": [
+     "robin-hood"
+    ]
+   },
+   {
+    "idx": 19,
+    "title": "Snark",
+    "fighter": "any"
+   },
+   {
+    "idx": 20,
+    "title": "Snark",
+    "fighter": "any"
+   },
+   {
+    "idx": 21,
+    "title": "Snark",
+    "fighter": "any"
+   },
+   {
+    "idx": 22,
+    "title": "Wily Fighting",
+    "fighter": "any"
+   },
+   {
+    "idx": 23,
+    "title": "Wily Fighting",
+    "fighter": "any"
+   },
+   {
+    "idx": 24,
+    "title": "Wily Fighting",
+    "fighter": "any"
+   },
+   {
+    "idx": 25,
+    "title": "Defenders of Sherwood",
+    "fighter": "any"
+   },
+   {
+    "idx": 26,
+    "title": "Defenders of Sherwood",
+    "fighter": "any"
+   },
+   {
+    "idx": 27,
+    "title": "Steal From the Rich",
+    "fighter": "Robin Hood"
+   },
+   {
+    "idx": 28,
+    "title": "Steal From the Rich",
+    "fighter": "Robin Hood"
+   },
+   {
+    "idx": 29,
+    "title": "Steal From the Rich",
+    "fighter": "Robin Hood"
+   }
+  ]
+ }
+}

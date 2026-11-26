@@ -9,7 +9,7 @@ import os
 import time
 from pathlib import Path
 
-from . import enraged, upgrades
+from . import enraged, tricks, upgrades
 from .effects import ongoing
 from .effects.state import EffectState, default_dsl_heroes
 from .i18n import t
@@ -20,6 +20,11 @@ VERSION = 1
 
 class StateError(Exception):
     """The save file cannot be resumed (version, format or a different game)."""
+
+
+def _spec_hp(g: Game, f) -> int:
+    """The maximum health the HeroDef gives the fighter: a save only keeps one that changed (Elektra's flipped dial, 9)."""
+    return next((s.hp for s in g.players[f.owner].hero.fighters() if s.fid == f.fid), f.max_hp)
 
 
 def game_to_dict(g: Game) -> dict:
@@ -38,11 +43,12 @@ def game_to_dict(g: Game) -> dict:
         **({"hand_moves": g.hand_moves} if g.hand_moves else {}),
         **({"combat_bonus": [[list(b) for b in side] for side in legacy]} if any(legacy) else {}),
         **({"fx": fx} if fx else {}),
-        "fighters": {fid: {"hp": f.hp, "pos": f.pos, "alive": f.alive, "died_at": f.died_at} for fid, f in g.fighters.items()},
-        "players": [{"deck": [c.card_id for c in p.deck], "hand": [c.card_id for c in p.hand],
-                     "discard": [c.card_id for c in p.discard],
-                     **({"tucked": [c.card_id for c in p.tucked]} if p.tucked else {}),
-                     **({"removed": [c.card_id for c in p.removed]} if p.removed else {}),
+        "fighters": {fid: {"hp": f.hp, "pos": f.pos, "alive": f.alive, "died_at": f.died_at,
+                                **({"off_board": True} if f.off_board else {}), **({"max_hp": f.max_hp} if f.max_hp != _spec_hp(g, f) else {})} for fid, f in g.fighters.items()},
+        "players": [{"deck": [tricks.zone_id(p, c) for c in p.deck], "hand": [tricks.zone_id(p, c) for c in p.hand],      # a TRICK of Loki's in the other player's pile by its qualified id
+                     "discard": [tricks.zone_id(p, c) for c in p.discard],
+                     **({"tucked": [tricks.zone_id(p, c) for c in p.tucked]} if p.tucked else {}),
+                     **({"removed": [tricks.zone_id(p, c) for c in p.removed]} if p.removed else {}),
                      # known rival hand (effect "look at the hand"): only written if there is something to remember
                      **({"known": p.known.to_dict()} if not p.known.is_empty() else {})}
                     for p in g.players],
@@ -72,10 +78,13 @@ def apply_game(g: Game, d: dict) -> None:
             f = g.fighters[fid]
             f.hp, f.pos, f.alive = st["hp"], st["pos"], st["alive"]
             f.died_at = st.get("died_at")
+            f.off_board = bool(st.get("off_board", False))
+            f.max_hp = int(st.get("max_hp", _spec_hp(g, f)))
         enraged.sync_move(g)
         upgrades.sync(g)
-        for p, saved in zip(g.players, d["players"]):
+        for i, (p, saved) in enumerate(zip(g.players, d["players"])):
             by_id = {c.card_id: c for c in p.full_set}
+            by_id.update({tricks.QUALIFIED + c.card_id: c for c in g.players[1 - i].full_set if tricks.is_trick(c)})
             p.deck[:] = [by_id[i] for i in saved["deck"]]
             p.hand[:] = [by_id[i] for i in saved["hand"]]
             p.discard[:] = [by_id[i] for i in saved["discard"]]

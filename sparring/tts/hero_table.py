@@ -35,6 +35,9 @@ class FighterTable:
     nickname: str | None           # own name of the token (Abe's agents); otherwise the HeroDef's
     no_dial: bool = False          # more than 1 HP and the save gives the piece no dial (Yennenga's Archers): its life is told by the face of the piece
     faces: dict | None = None      # life -> Z rotation of the piece that shows it ({"2": 0, "1": 180}: the Archer token is flipped as it is hurt; verify live)
+    dial_flipped: str | None = None    # the other side of the life dial when it is a separate object (Elektra Resurrected: 9), written once the hero is flipped
+    dial_flipped_max: int | None = None
+    same_token: bool = False       # the save gives the piece the very image of its namesakes (Robin Hood's Outlaws): the human may lay any of them for the one the engine returns
 
 
 @dataclass(frozen=True)
@@ -53,6 +56,8 @@ class HeroTable:
     token_sources: dict[str, dict] = field(default_factory=dict)  # how to get another copy of a token (verify live)
     token_slots: dict[str, dict] = field(default_factory=dict)     # own resting places of a token by side, ((x, y, z), (rx, ry, rz)) each, measured on the table: win over the layout's `tokens`
     ignored_tokens: tuple[str, ...] = ()                          # GUIDs in the hero's bag the bot does not use (Jill Trent's gadget token): still the hero's, so a bag holding them is recognised
+    human_extras: tuple[str, ...] = ()                            # ignored objects the HUMAN plays with (Pandora's Misery deck, the real Box): unpacked next to their deck only when the human plays the hero
+    extra_character_card_ids: tuple[int, ...] = ()                # other character cards of the SAME hero riding in the deck (Elektra Resurrected, 341): taken out with the first and laid beside it
 
     def unpack_items(self) -> list[tuple[str, tuple[str, ...]]]:
         """(kind, GUID of each state) of everything that has to be taken out of the inner bag to play with the hero.
@@ -62,6 +67,8 @@ class HeroTable:
             items.append(("piece", f.pieces))
             if f.dial:
                 items.append(("dial", (f.dial,)))
+            if f.dial_flipped:
+                items.append(("dial", (f.dial_flipped,)))
         items += [("token", (g,)) for g in self.tokens.values()]
         items += [("dial", (g,)) for g in self.counter_dials.values()]
         return items
@@ -69,7 +76,7 @@ class HeroTable:
     def all_guids(self) -> list[str]:
         out = [self.deck_guid]
         for f in self.fighters.values():
-            out += [*f.pieces, *([f.dial] if f.dial else [])]
+            out += [*f.pieces, *([f.dial] if f.dial else []), *([f.dial_flipped] if f.dial_flipped else [])]
         return out + [*self.tokens.values(), *self.counter_dials.values()]
 
 
@@ -97,7 +104,9 @@ def parse_hero_table(raw: dict, hero: HeroDef, where: str = "tts") -> HeroTable:
         fighters = {fid: FighterTable(fid, _guid_list(v["piece"], f"{where}: {fid}"), v.get("dial"),
                                       None if v.get("dial") is None else int(v["dial_max"]), v.get("nickname"),
                                       bool(v.get("no_dial", False)),
-                                      None if v.get("faces") is None else {str(k): float(r) for k, r in v["faces"].items()})
+                                      None if v.get("faces") is None else {str(k): float(r) for k, r in v["faces"].items()},
+                                      v.get("dial_flipped"), None if v.get("dial_flipped") is None else int(v["dial_flipped_max"]),
+                                      bool(v.get("same_token", False)))
                     for fid, v in raw["fighters"].items()}
         table = HeroTable(raw["slug"], raw["bag"]["guid"], raw["bag"]["inner"], deck["guid"], (int(ids[0]), int(ids[1])),
                           int(deck["character_card_id"]),
@@ -108,7 +117,9 @@ def parse_hero_table(raw: dict, hero: HeroDef, where: str = "tts") -> HeroTable:
                           {k: {side: tuple((tuple(float(v) for v in s["pos"]), tuple(float(v) for v in s["rot"])) for s in rows)
                                for side, rows in v.items()}
                            for k, v in (raw.get("token_slots") or {}).items()},
-                          tuple(_guid_list(raw["ignored_tokens"], f"{where}: ignored_tokens")) if raw.get("ignored_tokens") else ())
+                          tuple(_guid_list(raw["ignored_tokens"], f"{where}: ignored_tokens")) if raw.get("ignored_tokens") else (),
+                          tuple(_guid_list(raw["human_extras"], f"{where}: human_extras")) if raw.get("human_extras") else (),
+                          tuple(int(c) for c in deck.get("extra_character_card_ids") or ()))
     except (KeyError, TypeError, ValueError, IndexError) as e:
         raise HeroTableError(f"{where}: invalid TTS data ({e!r})") from None
     _validate(table, hero, where)
@@ -203,16 +214,18 @@ def table_defaults(bot_slug: str, human_slug: str, shifts: tuple[int, int] = (0,
     # decks that overlap in range AND in image could not be told apart.
     if first[1] >= second[0] and set(tb.identity) & set(th.identity):
         raise HeroTableError(f"the CardID ranges of {bot_slug} and {human_slug} overlap")
-    pieces, dials, nicknames = {}, {}, {}
+    pieces, dials, nicknames, flip_dials = {}, {}, {}, {}
     for hero, table in ((bot, tb), (human, th)):
         nicknames.update(nicknames_for(hero, table))
         for fid, f in table.fighters.items():
             pieces[fid] = f.pieces[0] if len(f.pieces) == 1 else list(f.pieces)
             if f.dial:
                 dials[fid] = f.dial
+            if f.dial_flipped:
+                flip_dials[fid] = f.dial_flipped
     if len(set(nicknames.values())) != len(nicknames):
         raise HeroTableError("two fighters with the same name: " + ", ".join(sorted(nicknames.values())))
-    out = {"nicknames": nicknames, "pieces": pieces, "dials": dials,
+    out = {"nicknames": nicknames, "pieces": pieces, "dials": dials, **({"flip_dials": flip_dials} if flip_dials else {}),
            "bot_deck_guid": tb.deck_guid, "human_deck_guid": th.deck_guid,
            "bot_card_ids": list(shifted(tb.card_ids, shifts[0])), "human_card_ids": list(shifted(th.card_ids, shifts[1])),
            "bot_identity": [list(p) for p in tb.identity], "human_identity": [list(p) for p in th.identity]}

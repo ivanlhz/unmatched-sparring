@@ -1,0 +1,840 @@
+{
+ "schema": 1,
+ "hero": "blackbeard",
+ "notes": [
+  "Texts read from sheet 2 of the tournament savegame (card images) on 2026-11-22; the hero card is 362 on sheet 3. Restrictions: BLACKBEARD, SEA DOG (Light the Fuse) or ANY.",
+  "Rulings: Ivan 2026-11-22 (BB1 the ransom is decided after the target / random card is known and can be paid against an uncancelable card; BB2 'Summon a Sea Dog' returns a defeated one, else Blackbeard may reposition one)."
+ ],
+ "ability": {
+  "text": "PRIVATEER TURNED PIRATE: Start the game with 1 doubloon in the treasury, you have the other 2. At the start of your turn, you may pay 1 doubloon to gain 1 action. When Blackbeard takes combat damage, pay 1 doubloon.",
+  "counters": {
+   "doubloons": {
+    "min": 0,
+    "max": 3,
+    "start": 2
+   },
+   "treasury": {
+    "min": 0,
+    "max": 3,
+    "start": 1
+   }
+  },
+  "triggers": [
+   {
+    "id": "doubloon_action",
+    "when": {
+     "event": "start_of_turn",
+     "player": "owner"
+    },
+    "condition": {
+     "test": "counter",
+     "name": "doubloons",
+     "min": 1
+    },
+    "ops": [
+     {
+      "op": "optional",
+      "cost": [
+       {
+        "op": "counter",
+        "name": "doubloons",
+        "delta": -1
+       },
+       {
+        "op": "counter",
+        "name": "treasury",
+        "delta": 1
+       }
+      ],
+      "ops": [
+       {
+        "op": "gain_action",
+        "amount": 1
+       }
+      ]
+     }
+    ],
+    "notes": "At the start of his turn Blackbeard may pay 1 doubloon (to the Treasury) for 1 action, once. Not offered with no doubloon."
+   },
+   {
+    "id": "doubloon_damage",
+    "when": {
+     "event": "damage_taken",
+     "target": {
+      "role": "hero"
+     },
+     "damage": "combat"
+    },
+    "condition": {
+     "test": "counter",
+     "name": "doubloons",
+     "min": 1
+    },
+    "ops": [
+     {
+      "op": "counter",
+      "name": "doubloons",
+      "delta": -1
+     },
+     {
+      "op": "counter",
+      "name": "treasury",
+      "delta": 1
+     }
+    ],
+    "notes": "When BLACKBEARD (not a Sea Dog) takes combat damage he pays 1 doubloon to the Treasury; once per combat damage dealt to him; nothing with no doubloon."
+   }
+  ],
+  "passives": [],
+  "notes": "The three doubloons are two counters of Blackbeard's player: `doubloons` (the ones he holds, 2 at the start) and `treasury` (1 at the start); they always add up to 3. A RANSOM ('unless N') is an `optional` of the OPPONENT whose cost moves N doubloons from `treasury` to `doubloons`; the effect line is its `else`, so paying ignores that one line (it does not cancel it, so an uncancelable card is ransomed too). `optional` offers the cost only when the Treasury holds N."
+ },
+ "cards": [
+  {
+   "title": "A Brace of Primed Pistols",
+   "copies": 2,
+   "text": "AFTER COMBAT: Deal 3 damage to an opposing fighter in Blackbeard's zone unless 2 doubloons.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "all": [
+        {
+         "test": "exists",
+         "fighters": {
+          "role": "hero"
+         }
+        },
+        {
+         "test": "exists",
+         "fighters": {
+          "side": "enemy",
+          "where": {
+           "zone_of": "hero"
+          }
+         }
+        }
+       ]
+      },
+      "then": [
+       {
+        "op": "for_each",
+        "over": {
+         "fighters": {
+          "side": "enemy",
+          "where": {
+           "zone_of": "hero"
+          },
+          "pick": "one"
+         }
+        },
+        "as": "victim",
+        "ops": [
+         {
+          "op": "optional",
+          "chooser": "opponent",
+          "cost": [
+           {
+            "op": "counter",
+            "name": "treasury",
+            "delta": -2
+           },
+           {
+            "op": "counter",
+            "name": "doubloons",
+            "delta": 2
+           }
+          ],
+          "ops": [],
+          "else": [
+           {
+            "op": "damage",
+            "target": "$victim",
+            "amount": 3
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 2 / boost 2, BLACKBEARD only. The owner chooses the opposing fighter in Blackbeard's zone; THEN the opponent decides on the ransom (Ivan 2026-11-22, BB1): paying 2 doubloons from the Treasury ignores the 3 damage, it does not cancel the card."
+  },
+  {
+   "title": "Avast Ye!",
+   "copies": 2,
+   "text": "IMMEDIATELY: Your opponent discards 1 random card unless 1 doubloon. AFTER COMBAT: Deal 1 damage to each opposing fighter in Blackbeard's zone unless 1 doubloon.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "plugin",
+      "id": "blackbeard:random_discard",
+      "args": {
+       "amount": 1
+      }
+     }
+    ],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "all": [
+        {
+         "test": "exists",
+         "fighters": {
+          "role": "hero"
+         }
+        },
+        {
+         "test": "exists",
+         "fighters": {
+          "side": "enemy",
+          "where": {
+           "zone_of": "hero"
+          }
+         }
+        }
+       ]
+      },
+      "then": [
+       {
+        "op": "optional",
+        "chooser": "opponent",
+        "cost": [
+         {
+          "op": "counter",
+          "name": "treasury",
+          "delta": -1
+         },
+         {
+          "op": "counter",
+          "name": "doubloons",
+          "delta": 1
+         }
+        ],
+        "ops": [],
+        "else": [
+         {
+          "op": "damage",
+          "target": {
+           "side": "enemy",
+           "where": {
+            "zone_of": "hero"
+           },
+           "pick": "all"
+          },
+          "amount": 1
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 5 / boost 3, BLACKBEARD only. Two ransom lines, each paid for apart. The random discard is the plugin `blackbeard:random_discard`: the random card is drawn FIRST (the engine's for a bot, the position named for the table player) and the opponent decides on the ransom knowing which card it is (Ivan 2026-11-22, BB1)."
+  },
+  {
+   "title": "Give No Quarter",
+   "copies": 3,
+   "text": "DURING COMBAT: If another friendly fighter is adjacent to the opposing fighter, this card's value is 5 instead. AFTER COMBAT: Gain 1 action unless 1 doubloon.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "exists",
+       "fighters": {
+        "side": "own",
+        "other": true,
+        "where": {
+         "adjacent_to": "opposing"
+        }
+       }
+      },
+      "then": [
+       {
+        "op": "set_value",
+        "card": "this",
+        "amount": 5
+       }
+      ]
+     }
+    ],
+    "after": [
+     {
+      "op": "optional",
+      "chooser": "opponent",
+      "cost": [
+       {
+        "op": "counter",
+        "name": "treasury",
+        "delta": -1
+       },
+       {
+        "op": "counter",
+        "name": "doubloons",
+        "delta": 1
+       }
+      ],
+      "ops": [],
+      "else": [
+       {
+        "op": "gain_action",
+        "amount": 1
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 3 / boost 1, ANY. `other` leaves out the fighter that plays the card, so a Sea Dog attacking counts Blackbeard next to the target."
+  },
+  {
+   "title": "Light the Fuse",
+   "copies": 3,
+   "text": "AFTER COMBAT: Move your fighter up to 2 spaces. Then, deal 1 damage to each fighter adjacent to them.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "exists",
+       "fighters": {
+        "role": "this"
+       }
+      },
+      "then": [
+       {
+        "op": "move",
+        "target": "this",
+        "amount": 2,
+        "up_to": true
+       },
+       {
+        "op": "damage",
+        "target": {
+         "side": "any",
+         "where": {
+          "adjacent_to": "this"
+         },
+         "pick": "all"
+        },
+        "amount": 1
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 2 / boost 3, SEA DOG only. 'Each fighter' is every fighter, friends included (Blackbeard too)."
+  },
+  {
+   "title": "Queen Anne's Revenge",
+   "copies": 2,
+   "text": "This card's effects cannot be canceled. DURING COMBAT: Subtract 2 from this card's value for each doubloon your opponent pays.",
+   "uncancelable": true,
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "plugin",
+      "id": "blackbeard:queens_revenge"
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 7 / boost 3, BLACKBEARD only. The opponent pays 0 to the Treasury's whole stock, each doubloon going to Blackbeard and taking 2 off the value (never below 0)."
+  },
+  {
+   "title": "Fearsome and Calculating",
+   "copies": 3,
+   "text": "IMMEDIATELY: Look at your opponent's hand and choose 1 card for them to discard unless 1 doubloon.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "compare",
+       "left": {
+        "stat": "hand_size",
+        "player": "opponent"
+       },
+       "op": ">",
+       "right": 0
+      },
+      "then": [
+       {
+        "op": "look_hand",
+        "player": "opponent"
+       },
+       {
+        "op": "choose",
+        "cards": {
+         "zone": "hand",
+         "player": "opponent",
+         "chooser": "owner",
+         "pick": "chosen"
+        },
+        "as": "chosen"
+       },
+       {
+        "op": "optional",
+        "chooser": "opponent",
+        "cost": [
+         {
+          "op": "counter",
+          "name": "treasury",
+          "delta": -1
+         },
+         {
+          "op": "counter",
+          "name": "doubloons",
+          "delta": 1
+         }
+        ],
+        "ops": [],
+        "else": [
+         {
+          "op": "discard",
+          "cards": "$chosen"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 3 / boost 1, BLACKBEARD only. The card is chosen FIRST, then the opponent decides (BB1)."
+  },
+  {
+   "title": "Show a Leg!",
+   "copies": 2,
+   "text": "AFTER COMBAT: Summon a Sea Dog in Blackbeard's zone.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "exists",
+       "fighters": {
+        "role": "hero"
+       }
+      },
+      "then": [
+       {
+        "op": "if",
+        "condition": {
+         "test": "exists",
+         "fighters": {
+          "side": "own",
+          "name": "Sea Dog",
+          "state": "defeated"
+         }
+        },
+        "then": [
+         {
+          "op": "if",
+          "condition": {
+           "test": "exists",
+           "space": {
+            "zone_of": "hero"
+           }
+          },
+          "then": [
+           {
+            "op": "revive",
+            "target": {
+             "side": "own",
+             "name": "Sea Dog",
+             "state": "defeated"
+            },
+            "where": {
+             "zone_of": "hero"
+            },
+            "hp": 1
+           }
+          ],
+          "else": [
+           {
+            "op": "notice",
+            "text": "seadog_no_space"
+           }
+          ]
+         }
+        ],
+        "else": [
+         {
+          "op": "optional",
+          "ops": [
+           {
+            "op": "place",
+            "target": {
+             "side": "own",
+             "name": "Sea Dog"
+            },
+            "where": {
+             "zone_of": "hero"
+            }
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 2 / boost 2, ANY. A defeated Sea Dog returns to an empty space of Blackbeard's zone with 1 health; with none defeated Blackbeard's owner may reposition one of the Sea Dogs on the board into that zone (Ivan 2026-11-22, BB2). With no empty space in the zone nothing happens and the line says so."
+  },
+  {
+   "title": "No Prey, No Pay",
+   "copies": 3,
+   "text": "DURING COMBAT: You may BOOST this card. AFTER COMBAT: If you won the combat, draw 1 card.",
+   "may_boost": true,
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "combat_result",
+       "result": "won"
+      },
+      "then": [
+       {
+        "op": "draw",
+        "player": "owner",
+        "amount": 1
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 2 / boost 2, ANY."
+  },
+  {
+   "title": "Parley",
+   "copies": 3,
+   "text": "IMMEDIATELY: Cancel all effects on your opponent's card unless 2 doubloons.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "card",
+       "card": "opponent_card",
+       "filter": {}
+      },
+      "then": [
+       {
+        "op": "optional",
+        "chooser": "opponent",
+        "cost": [
+         {
+          "op": "counter",
+          "name": "treasury",
+          "delta": -2
+         },
+         {
+          "op": "counter",
+          "name": "doubloons",
+          "delta": 2
+         }
+        ],
+        "ops": [],
+        "else": [
+         {
+          "op": "cancel_effects",
+          "card": "opponent_card"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 3 / boost 2, ANY. The ransom ignores the cancel; an uncancelable opposing card is cancelled by nothing."
+  },
+  {
+   "title": "Intimidating Visage",
+   "copies": 2,
+   "text": "AFTER COMBAT: If Blackbeard is adjacent to an opposing fighter, he recovers 2 health.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "all": [
+        {
+         "test": "exists",
+         "fighters": {
+          "role": "hero"
+         }
+        },
+        {
+         "test": "exists",
+         "fighters": {
+          "side": "enemy",
+          "where": {
+           "adjacent_to": "hero"
+          }
+         }
+        }
+       ]
+      },
+      "then": [
+       {
+        "op": "heal",
+        "target": "hero",
+        "amount": 2
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense 4 / boost 1, BLACKBEARD only."
+  },
+  {
+   "title": "Plunder",
+   "copies": 3,
+   "text": "Move each of your fighters up to 3 spaces. They may move through opposing fighters. Steal 1 doubloon from the treasury.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "move",
+      "target": {
+       "side": "own",
+       "pick": "all"
+      },
+      "amount": 3,
+      "up_to": true,
+      "through_enemies": true,
+      "chooser": "owner"
+     },
+     {
+      "op": "if",
+      "condition": {
+       "test": "counter",
+       "name": "treasury",
+       "min": 1
+      },
+      "then": [
+       {
+        "op": "counter",
+        "name": "treasury",
+        "delta": -1
+       },
+       {
+        "op": "counter",
+        "name": "doubloons",
+        "delta": 1
+       }
+      ]
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme, boost 2, BLACKBEARD only. With the Treasury empty nothing is stolen."
+  },
+  {
+   "title": "Scourge of the Seven Seas",
+   "copies": 2,
+   "text": "Blackbeard recovers 2 health unless 1 doubloon. Summon a Sea Dog in any space unless 1 doubloon. Gain 1 action unless 1 doubloon.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "optional",
+      "chooser": "opponent",
+      "cost": [
+       {
+        "op": "counter",
+        "name": "treasury",
+        "delta": -1
+       },
+       {
+        "op": "counter",
+        "name": "doubloons",
+        "delta": 1
+       }
+      ],
+      "ops": [],
+      "else": [
+       {
+        "op": "heal",
+        "target": "hero",
+        "amount": 2
+       }
+      ]
+     },
+     {
+      "op": "optional",
+      "chooser": "opponent",
+      "cost": [
+       {
+        "op": "counter",
+        "name": "treasury",
+        "delta": -1
+       },
+       {
+        "op": "counter",
+        "name": "doubloons",
+        "delta": 1
+       }
+      ],
+      "ops": [],
+      "else": [
+       {
+        "op": "if",
+        "condition": {
+         "test": "exists",
+         "fighters": {
+          "side": "own",
+          "name": "Sea Dog",
+          "state": "defeated"
+         }
+        },
+        "then": [
+         {
+          "op": "if",
+          "condition": {
+           "test": "exists",
+           "space": {
+            "any": true
+           }
+          },
+          "then": [
+           {
+            "op": "revive",
+            "target": {
+             "side": "own",
+             "name": "Sea Dog",
+             "state": "defeated"
+            },
+            "where": {
+             "any": true
+            },
+            "hp": 1
+           }
+          ],
+          "else": [
+           {
+            "op": "notice",
+            "text": "seadog_no_space"
+           }
+          ]
+         }
+        ],
+        "else": [
+         {
+          "op": "optional",
+          "ops": [
+           {
+            "op": "place",
+            "target": {
+             "side": "own",
+             "name": "Sea Dog"
+            },
+            "where": {
+             "any": true
+            }
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "op": "optional",
+      "chooser": "opponent",
+      "cost": [
+       {
+        "op": "counter",
+        "name": "treasury",
+        "delta": -1
+       },
+       {
+        "op": "counter",
+        "name": "doubloons",
+        "delta": 1
+       }
+      ],
+      "ops": [],
+      "else": [
+       {
+        "op": "gain_action",
+        "amount": 1
+       }
+      ]
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme, boost 2, BLACKBEARD only. Each line has its own ransom, decided when the line resolves (so the Treasury may have run out for the later ones)."
+  }
+ ],
+ "plugins": [
+  {
+   "id": "blackbeard:random_discard",
+   "why": "A random discard whose card is drawn BEFORE the ransom is asked (for the table player the engine names a position of their hand), so the opponent decides knowing the card (BB1)."
+  },
+  {
+   "id": "blackbeard:queens_revenge",
+   "why": "The opponent chooses how many doubloons to pay (0 to the Treasury's stock) and the value drops by 2 for each: an amount, not a yes/no."
+  }
+ ],
+ "hidden_info": [
+  {
+   "card": "Fearsome and Calculating",
+   "rule": "look_hand: the bot reads the human's hand when it plays the card and chooses the card to discard; the human decides on the ransom after being told which card."
+  },
+  {
+   "card": "Avast Ye!",
+   "rule": "pick: random on the human's hand: the engine names a position, never an identity."
+  }
+ ],
+ "open_questions": [],
+ "discrepancies": [],
+ "table": {}
+}

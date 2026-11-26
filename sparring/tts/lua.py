@@ -1743,6 +1743,9 @@ def flip_decks_down(sides: list[tuple], radius: float = DECK_RADIUS) -> str:
     return _deck_facing_lua("flip_decks_down", sides, radius, True)
 
 
+KEEP_STACK = 0.4   # take_character_cards: the character card is laid this much higher when the hero's other one goes under it
+
+
 @_registered
 def take_character_cards(sides: list[tuple]) -> str:
     """Takes each side's character card out of its draw deck and lays it face up at `dest`. `sides` = (deck GUID, CardID
@@ -1755,7 +1758,11 @@ def take_character_cards(sides: list[tuple]) -> str:
 
     A side may carry a seventh element `spare`: the CardIDs of the character cards of the OTHER variants that share the deck (Yennefer &
     Triss: one deck holds both heroines' cards and only the chosen one is played). Such a card does not make the deck foreign; it is
-    taken out and destroyed, and the side's answer gets `spared` (how many). A deck with only spare cards left is still opened."""
+    taken out and destroyed, and the side's answer gets `spared` (how many). A deck with only spare cards left is still opened.
+
+    An eighth element `keep`: the CardIDs of the hero's OTHER character cards in the same deck (Elektra Resurrected, 341). Like the
+    spare ones they do not make the deck foreign; they are taken out too and laid face up at the same slot UNDER the character
+    card (which goes KEEP_STACK higher), not destroyed: beside it they would land on the hero dial of the human half."""
     if not isinstance(sides, (list, tuple)) or not 1 <= len(sides) <= 2:
         raise TypeError("list of 1 or 2 sides expected")
     blocks = []
@@ -1763,14 +1770,20 @@ def take_character_cards(sides: list[tuple]) -> str:
         if not isinstance(dest, (tuple, list)) or len(dest) != 3:
             raise TypeError("dest (x, y, z) expected")
         spare = [_i(c) for c in (rest[0] if rest else ())]
+        keep = [_i(c) for c in (rest[1] if len(rest) > 1 else ())]
         blocks.append(f"""table.insert(out, (function()
 {_ours_lua(identity, id_range)}local SPARE = {{{", ".join(f"[{c}] = true" for c in spare)}}}
+local KEEP = {{{", ".join(f"[{c}] = true" for c in keep)}}}
+local kept = {{}}
 local function characterOf(o)
   local data = o.getData()
   local char, mine, whole, extra = nil, 0, true, {{}}
+  kept = {{}}
   for i, c in ipairs(data.ContainedObjects or {{}}) do
     if c.CardID == {_i(card_id)} then
       char = char or {{guid = c.GUID, index = i - 1}}
+    elseif KEEP[c.CardID] then
+      table.insert(kept, {{guid = c.GUID, index = i - 1}})
     elseif SPARE[c.CardID] then
       table.insert(extra, c.GUID)
     elseif cardOurs(c, data.CustomDeck) then
@@ -1791,10 +1804,18 @@ for _, o in ipairs(pool) do
     local whole, char, extra = characterOf(o)
     if whole then
       seen = true
-      if char ~= nil or #extra > 0 then
+      if char ~= nil or #extra > 0 or #kept > 0 then
         if char ~= nil then
-          local params = {{position = Vector({_f(dest[0])}, {_f(dest[1])}, {_f(dest[2])}), rotation = Vector({_f(rot[0])}, {_f(rot[1])}, {_f(rot[2])}), smooth = false}}
+          local params = {{position = Vector({_f(dest[0])}, {_f(dest[1])} + (#kept > 0 and {_f(KEEP_STACK)} or 0), {_f(dest[2])}), rotation = Vector({_f(rot[0])}, {_f(rot[1])}, {_f(rot[2])}), smooth = false}}
           if char.guid ~= nil then params.guid = char.guid else params.index = char.index end
+          o.takeObject(params)
+        end
+        for k = #kept, 1, -1 do                 -- the hero's other character cards: face up under the first (last index first: no shift)
+          local c = kept[k]
+          local params = {{position = Vector({_f(dest[0])}, {_f(dest[1])}, {_f(dest[2])}), rotation = Vector({_f(rot[0])}, {_f(rot[1])}, {_f(rot[2])}), smooth = false}}
+          if c.guid ~= nil then params.guid = c.guid
+          elseif char ~= nil and c.index > char.index then params.index = c.index - 1
+          else params.index = c.index end
           o.takeObject(params)
         end
         for _, guid in ipairs(extra) do          -- the other variants' character cards leave the deck and the game
@@ -1885,10 +1906,11 @@ MAX_CLEAR_MAPS = 64
 
 @_registered
 def clear_setup(heroes: list[tuple], guids: list[str], names: list[str], map_keys: list[str],
-                limits: tuple[float, float]) -> str:
+                limits: tuple[float, float], extras: tuple[str, ...] = ()) -> str:
     """Destroys what a previous game left of its heroes and its map, and nothing else ("Clean table" of the pre-game gate).
 
-    `heroes` = (CardID range, identity, CardID of the character card) of every hero the bot can play; `guids` = every GUID
+    `heroes` = (CardID range, identity, CardID of the character card[, CardIDs of the hero's other character cards: Elektra
+    Resurrected]) of every hero the bot can play; `guids` = every GUID
     of those heroes' decks, miniatures, dials and tokens; `names` = plain lower-case names of their miniatures and dials;
     `map_keys` = the 40-hex image keys of the maps of the catalog; `limits` = (|x|, |z|) of the play area. Destroyed:
       - a Deck or Card (also in a hand) all of whose cards are a hero's (CardID in its range AND its deck image, or its
@@ -1897,7 +1919,9 @@ def clear_setup(heroes: list[tuple], guids: list[str], names: list[str], map_key
       - a loose Bag inside the limits that holds only hero GUIDs (a copy of a hero's bag the player dropped), or that is empty
         and unnamed (what an unpacked copy leaves; a named bag, e.g. the roster's or the player's, is never touched);
       - any other loose object inside the limits and not an infinite bag whose GUID is a hero's or whose name is one of
-        `names` (an object spawned from a copy may have a GUID of its own).
+        `names` (an object spawned from a copy may have a GUID of its own);
+      - a Deck whose GUID is in `extras` (a hero's deck the bot never reads, Pandora's Miseries), whatever its cards: their
+        CardIDs may collide with another hero's character card (Houdini's 17700 is the first Misery's).
     Answers `{cards, boards, bags, objects, mixed}` (counts; `mixed` = GUIDs of piles left alone)."""
     if not isinstance(heroes, (list, tuple)) or not 1 <= len(heroes) <= MAX_CLEAR_HEROES:
         raise ValueError(f"between 1 and {MAX_CLEAR_HEROES} heroes expected")
@@ -1906,19 +1930,23 @@ def clear_setup(heroes: list[tuple], guids: list[str], names: list[str], map_key
         raise ValueError("too many objects to clear")
     if not isinstance(limits, (list, tuple)) or len(limits) != 2:
         raise TypeError("limits: (|x|, |z|) expected")
-    rows = ", ".join("{" + ", ".join(_range(rng)) + f", {_identity(identity)}, {_i(card)}}}" for rng, identity, card in heroes)
+    rows = ", ".join("{" + ", ".join(_range(rng)) + f", {_identity(identity)}, {_i(card)}, {{{', '.join(_i(c) for c in more[0]) if more else ''}}}}}"
+                     for rng, identity, card, *more in heroes)
     mine = "{" + ", ".join(f"[{_guid(g)}] = true" for g in guids) + "}"
+    extra = "{" + ", ".join(f"[{_guid(g)}] = true" for g in extras) + "}"
     wanted = "{" + ", ".join(f"[{lua_str(n)}] = true" for n in names) + "}"
     keys = "{" + ", ".join(lua_str(k.upper()) for k in map_keys) + "}"
     return f"""-- sparring:clear_setup
 {_IMAGE_LUA}local HEROES = {{{rows}}}
 local MINE, NAMES, MAPS = {mine}, {wanted}, {keys}
+local EXTRA = {extra}
 local LIMIT_X, LIMIT_Z = {_f(limits[0])}, {_f(limits[1])}
 local function heroCard(c, fallback)
   local id = c.CardID
   if type(id) ~= "number" then return false end
   for _, h in ipairs(HEROES) do
     if id == h[4] then return true end
+    for _, other in ipairs(h[5]) do if id == other then return true end end
     if id % 100 >= h[1] % 100 and id % 100 <= h[2] % 100 then
       local images = imagesOf(c, fallback)
       local all = #images > 0
@@ -1948,7 +1976,7 @@ for _, o in ipairs(getObjects()) do
     for _, c in ipairs(cards) do
       if heroCard(c, data.CustomDeck) then hero = hero + 1 else other = other + 1 end
     end
-    if hero > 0 and other == 0 then
+    if EXTRA[o.getGUID()] or (hero > 0 and other == 0) then
       table.insert(doomed, {{o, "cards"}})
     elseif hero > 0 then
       table.insert(out.mixed, o.getGUID())

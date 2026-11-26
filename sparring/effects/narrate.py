@@ -11,8 +11,9 @@ from __future__ import annotations
 
 import re
 
-from . import table
+from . import plugins_blackbeard, table
 from ..i18n import has, t, tn
+from .. import off_board
 from ..spaces import describe as describe_space
 
 # the chat speaks to the human: the bot in the third person, the human in the second (tags `narr.v.*.<side>`)
@@ -59,6 +60,7 @@ def snapshot(game, flow=None) -> dict:
                          for p in (0, 1)],
             "drawn": list(game.drawn), "actions": game.actions_left, "free": list(game.free_attacks), "turn": game.turn, "said": len(game.fx.said),
             "statuses": len(game.fx.statuses),
+            "coins": plugins_blackbeard.coins_snapshot(game),
             "seen": [_seen(p) for p in game.players],
             "in_play": [game.fx.ongoing_card_id(p) for p in (0, 1)],
             "cancelled": [] if flow is None or flow.ctx is None else sorted(flow.ctx.cancelled | flow.late_cancelled),
@@ -77,9 +79,15 @@ def describe(game, before: dict, run, flow=None, title: str | None = None) -> st
     ability trigger)."""
     parts = _fighters(game, before) + _prevented(game, run) + _cards(game, before, run) + _turn(game, before, run)
     parts += _statuses(game, before) + _combat(before, flow)
+    parts += plugins_blackbeard.coin_lines(game, before.get("coins"))
     if (swapped := run.flags.get("swapped")) is not None:         # Sleight Of Hand: the card went back to the hand
         side = "bot" if run.ctx.owner == game.bot_player else "human"
         parts.append(t(f"narr.swapped.{side}", title=_title(game, swapped["new"], run.ctx.owner)))
+    side = "bot" if run.ctx.owner == game.bot_player else "human"
+    if (named := run.flags.get("named")) is not None:               # Sherlock's Confirm Suspicion: the value that was named
+        parts.insert(0, t(f"narr.named.{side}", n=named))
+    if run.flags.get("elementary") and run.flags.get("prediction") is not None:      # Sherlock's Elementary: the number said before the reveal
+        parts.append(t(f"narr.elementary.{side}", n=run.flags["prediction"]))
     if run.flags.get("look_cancelled"):
         parts.append(t("narr.look_cancelled"))
     elif run.flags.get("looked_hand") and before["seen"][run.ctx.owner] != _seen(game.players[run.ctx.owner]):
@@ -168,7 +176,7 @@ def _title(game, card_id, owner=None) -> str:
 
 def _who(game, f) -> str:
     """How a fighter is named in the line: its id, except for a hero with a reserve (Sun Wukong's Clones come out of the bag): the name of the piece."""
-    reserve = any(s.start_on_board == 0 for s in game.players[f.owner].hero.sidekicks)
+    reserve = any(s.start_on_board == 0 for s in game.players[f.owner].hero.sidekicks) or off_board.is_elektra(game, f.owner)      # (Elektra's four Hand are told apart by their names too)
     return (getattr(game, "nicknames", None) or {}).get(f.fid) or f.name if reserve else f.fid
 
 
@@ -178,9 +186,11 @@ def _fighters(game, before: dict) -> list[str]:
         f = game.fighters[fid]
         who = _who(game, f)
         if alive0 and not f.alive:
-            out.append(t("narr.fighter.down", fid=who))
+            out.append(t("narr.fighter.removed" if f.off_board else "narr.fighter.down", fid=who))
         elif not alive0 and f.alive:
-            if f.died_at is None and not f.hero:        # first time out of the reserve: summoned, not returned
+            if fid in game.placing and f.died_at is not None and off_board.is_elektra(game, f.owner):      # Elektra's Resurrect: the human puts it down by hand, the engine's spot is only a placeholder
+                out.append(t("narr.fighter.back_by_hand", fid=who, hp=f"{f.hp:g}"))
+            elif f.died_at is None and not f.hero:        # first time out of the reserve: summoned, not returned
                 out.append(t("narr.fighter.summoned_by_hand" if fid in game.placing else "narr.fighter.summoned",
                              fid=who, spot=describe_space(game, f.pos, (fid,)), hp=f"{f.hp:g}"))
             else:
@@ -221,6 +231,9 @@ def _cards(game, before: dict, run) -> list[str]:
             out.append(f"{draw_verb} {draws}")
         discard_now = [c.card_id for c in st.discard]
         by_id = {c.card_id: c for c in st.full_set}
+        for c in game.players[1 - p].full_set:                  # a TRICK of Loki's that lay on this pile a moment ago (a scheme played from it)
+            if c.card_id not in by_id and "trick" in c.tags:
+                by_id[c.card_id] = c
         ids = {c.card_id for c in st.hand}
         added = [i for i in discard_now if i not in was["discard"]]
         if p != game.bot_player:                    # the human's deck discard a trigger took straight back (Wildfire)

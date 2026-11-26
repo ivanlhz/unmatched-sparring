@@ -1,0 +1,169 @@
+{
+ "_notes": [
+  "Sheet 176 of the tournament savegame (8x4, CardIDs 17600-17619), read card by card from the image on 2026-11-22; the deck object holds 22 cards: the 20 playing cards and the character cards 340 (Elektra, 7 health) and 341 (Elektra Resurrected, 9 health) of sheet 3. Order on the sheet: Mystic Assassin 0-1, Hands of Red 2-3, The Fist 4-5, Cloaked In Shadow 6-7, Sai 8-9, Whirlwind 10-11, Ninjitsu 12-13, Intercept 14-15, Snakeroot Clan 16-17, Mesmerize 18-19.",
+  "Bands read from the card backs (unmatched-memory has none): THE HAND (The Fist), ANY (Ninjitsu), ELEKTRA (the rest). Values, BOOSTs and copies agree with unmatched-memory. The RESURRECTED symbol is written 'RESURRECTED:' in the texts. The sidekicks are the four Hand Ninja tokens (1 health, melee, no dial)."
+ ],
+ "fid": "elektra",
+ "sidekicks": [
+  {
+   "fid": "hand",
+   "name": "The Hand",
+   "count": 4,
+   "hp": 1,
+   "move": 2,
+   "attack": "melee",
+   "tts_tokens": [
+    "Hand Ninja",
+    "Hand Ninja",
+    "Hand Ninja",
+    "Hand Ninja"
+   ]
+  }
+ ],
+ "tts": {
+  "character_cards": [
+   340,
+   341
+  ],
+  "character_card_id": 340,
+  "flip_dial": {
+   "fid": "elektra",
+   "name": "Elektra Resurrected"
+  },
+  "same_token": [
+   "hand1",
+   "hand2",
+   "hand3",
+   "hand4"
+  ]
+ },
+ "forms": null,
+ "counters": {},
+ "triggers": [],
+ "passives": [],
+ "deck": {
+  "card_base": 17600,
+  "sheet_id": 176,
+  "hero_card_id": 340,
+  "sheet": [
+   {
+    "idx": 0,
+    "title": "Mystic Assassin",
+    "fighter": "Elektra",
+    "text": "AFTER COMBAT: Elektra takes 3 damage. RESURRECTED: Elektra takes no damage instead."
+   },
+   {
+    "idx": 1,
+    "title": "Mystic Assassin",
+    "fighter": "Elektra",
+    "text": "AFTER COMBAT: Elektra takes 3 damage. RESURRECTED: Elektra takes no damage instead."
+   },
+   {
+    "idx": 2,
+    "title": "Hands of Red",
+    "fighter": "Elektra",
+    "text": "AFTER COMBAT: Return a defeated Hand to a space in Elektra's zone."
+   },
+   {
+    "idx": 3,
+    "title": "Hands of Red",
+    "fighter": "Elektra",
+    "text": "AFTER COMBAT: Return a defeated Hand to a space in Elektra's zone."
+   },
+   {
+    "idx": 4,
+    "title": "The Fist",
+    "fighter": "The Hand",
+    "text": "AFTER COMBAT: You may deal 1 damage to your attacking fighter. If you do, return this card to your hand and gain 1 action."
+   },
+   {
+    "idx": 5,
+    "title": "The Fist",
+    "fighter": "The Hand",
+    "text": "AFTER COMBAT: You may deal 1 damage to your attacking fighter. If you do, return this card to your hand and gain 1 action."
+   },
+   {
+    "idx": 6,
+    "title": "Cloaked In Shadow",
+    "fighter": "Elektra",
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card. AFTER COMBAT: RESURRECTED: Move Elektra up to 3 spaces."
+   },
+   {
+    "idx": 7,
+    "title": "Cloaked In Shadow",
+    "fighter": "Elektra",
+    "text": "IMMEDIATELY: Cancel all effects on your opponent's card. AFTER COMBAT: RESURRECTED: Move Elektra up to 3 spaces."
+   },
+   {
+    "idx": 8,
+    "title": "Sai",
+    "fighter": "Elektra"
+   },
+   {
+    "idx": 9,
+    "title": "Sai",
+    "fighter": "Elektra"
+   },
+   {
+    "idx": 10,
+    "title": "Whirlwind",
+    "fighter": "Elektra",
+    "text": "AFTER COMBAT: RESURRECTED: Deal 1 damage to each adjacent opposing fighter."
+   },
+   {
+    "idx": 11,
+    "title": "Whirlwind",
+    "fighter": "Elektra",
+    "text": "AFTER COMBAT: RESURRECTED: Deal 1 damage to each adjacent opposing fighter."
+   },
+   {
+    "idx": 12,
+    "title": "Ninjitsu",
+    "fighter": "any",
+    "text": "AFTER COMBAT: Place your fighter in any space."
+   },
+   {
+    "idx": 13,
+    "title": "Ninjitsu",
+    "fighter": "any",
+    "text": "AFTER COMBAT: Place your fighter in any space."
+   },
+   {
+    "idx": 14,
+    "title": "Intercept",
+    "fighter": "Elektra",
+    "text": "DURING COMBAT: RESURRECTED: You may reveal a card named \"Sai\" from your hand. If you do, the value of this card is 5 instead."
+   },
+   {
+    "idx": 15,
+    "title": "Intercept",
+    "fighter": "Elektra",
+    "text": "DURING COMBAT: RESURRECTED: You may reveal a card named \"Sai\" from your hand. If you do, the value of this card is 5 instead."
+   },
+   {
+    "idx": 16,
+    "title": "Snakeroot Clan",
+    "fighter": "Elektra",
+    "text": "IMMEDIATELY: Elektra may swap spaces with a Hand. If she does, that Hand is now the defender."
+   },
+   {
+    "idx": 17,
+    "title": "Snakeroot Clan",
+    "fighter": "Elektra",
+    "text": "IMMEDIATELY: Elektra may swap spaces with a Hand. If she does, that Hand is now the defender."
+   },
+   {
+    "idx": 18,
+    "title": "Mesmerize",
+    "fighter": "Elektra",
+    "text": "Choose an opponent and look at their hand. Gain 1 action. RESURRECTED: Choose 1 card for them to discard."
+   },
+   {
+    "idx": 19,
+    "title": "Mesmerize",
+    "fighter": "Elektra",
+    "text": "Choose an opponent and look at their hand. Gain 1 action. RESURRECTED: Choose 1 card for them to discard."
+   }
+  ]
+ }
+}

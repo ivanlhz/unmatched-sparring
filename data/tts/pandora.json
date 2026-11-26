@@ -1,0 +1,49 @@
+{
+ "slug": "pandora",
+ "_notes": [
+  "Pandora's deck is sheet 176 (CardIDs 17600-17629, the 30 playing cards; the character card is 359 on sheet 3) like Medusa's, Sun Wukong's and the rest: only deck.identity tells the decks apart (docs/card-identity.md).",
+  "The two Kakodaemons are Custom_Token objects (7cd57e Thanatos, fed318 Olethros) with no life dial (1 life each); they START IN THE BAG: the HeroDef has start_on_board 0. Real TTS may report them as Tile: nothing that reads or moves a piece filters on obj.type. Her miniature is the Custom_Assetbundle 8603fa and her life dial the Custom_Model eeaab5 (MAX_VALUE 14), both nicknamed 'Pandora'.",
+  "The seven MISERIES are a Deck of sheet 177 (4581f8, CardIDs 17700-17706, 8x2 sheet) inside the inner bag: the importer reports it as unused because the bot never reads it. The Box is virtual for the bot (the engine draws each Misery when it is revealed and the chat names it); for the human the physical deck is the Box, and the panel asks which Misery came up (docs/heroes/pandora.md, table story)."
+ ],
+ "bag": {
+  "guid": "15414a",
+  "inner": "30d94f"
+ },
+ "deck": {
+  "guid": "b24a1c",
+  "card_ids": [
+   17600,
+   17629
+  ],
+  "character_card_id": 359,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/13074183568966468016/E3986C6F7205CC4D00391420E1028BD8AC44FDF3/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/11279692261791295482/EED0EF59B5548245DFC9B91F7F0B152155F89C42/"
+   }
+  ]
+ },
+ "fighters": {
+  "pandora": {
+   "piece": "8603fa",
+   "dial": "eeaab5",
+   "dial_max": 14
+  },
+  "kakodaemon1": {
+   "piece": "7cd57e",
+   "nickname": "Thanatos"
+  },
+  "kakodaemon2": {
+   "piece": "fed318",
+   "nickname": "Olethros"
+  }
+ },
+ "tokens": {},
+ "counter_dials": {},
+ "ignored_tokens": [
+  "4581f8"
+ ],
+ "human_extras": [
+  "4581f8"
+ ]
+}

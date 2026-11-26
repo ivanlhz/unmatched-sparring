@@ -1,0 +1,35 @@
+{
+ "slug": "sherlock-holmes",
+ "bag": {
+  "guid": "248c8e",
+  "inner": "0d01e1"
+ },
+ "deck": {
+  "guid": "9b3289",
+  "card_ids": [
+   17600,
+   17629
+  ],
+  "character_card_id": 304,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/13254724884318886149/214AECB1D804044611AA7810E5D9441AAC169387/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/13294304325609166772/2A1874C51725E7471B5A09BFEF9141CF4BEBF046/"
+   }
+  ]
+ },
+ "fighters": {
+  "holmes": {
+   "piece": "7c5cc7",
+   "dial": "feaa22",
+   "dial_max": 16
+  },
+  "watson": {
+   "piece": "c0fd6e",
+   "dial": "ec605e",
+   "dial_max": 8
+  }
+ },
+ "tokens": {},
+ "counter_dials": {}
+}

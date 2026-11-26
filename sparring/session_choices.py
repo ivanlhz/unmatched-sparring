@@ -24,6 +24,7 @@ from typing import Callable
 
 from .effects.choose import ChoiceRequest
 from .effects.model import EffectError, load_effects, walk_ops
+from . import ai_robin, tricks
 from .i18n import has, t
 
 MAX_CHOICE_BUTTONS = 6
@@ -105,8 +106,16 @@ def option_label(game, req: ChoiceRequest, option) -> str:
         return safe_label(labels[option] if isinstance(option, int) and 0 <= option < len(labels) else option)
     if kind == "optional":
         # what each answer means, when the op said so (Remove A Painful Memory: discard it, or take 2)
+        if option is True and ai_robin.is_steal(game, req):           # Steal From the Rich, asked of the rival of Robin Hood
+            return safe_label(t("choice.steal.discard"))
         if option is True and req.extra.get("discards"):
             return safe_label(t("choice.discard", titles=card_titles(game, req.extra["discards"], req.card_owner if req.card_owner is not None else req.player)))
+        if "ransom" in req.extra:                             # Blackbeard's "unless N doubloons": pay from the Treasury, or let the line happen
+            return safe_label(t("choice.ransom.pay", n=req.extra["ransom"]) if option is True else t("choice.ransom.decline"))
+        if "doubloon_action" in req.extra:                    # his action at the start of the turn
+            return safe_label(t("choice.doubloon.pay") if option is True else t("choice.no"))
+        if "rival_value" in req.extra:                        # Sherlock's Deduce Strategy: the rival's printed value becomes its BOOST
+            return safe_label(t("choice.deduce.change", now=req.extra["rival_value"]["now"], to=req.extra["rival_value"]["to"]) if option is True else t("choice.no"))
         if option is False and "else_damage" in req.extra:
             return safe_label(t("choice.take", n=req.extra["else_damage"]))
         return t("choice.yes") if option is True else t("choice.no")
@@ -115,7 +124,7 @@ def option_label(game, req: ChoiceRequest, option) -> str:
     if kind == "space":
         return t("choice.space", n=option)
     if kind in ("cards", "order"):
-        card = game.cards_by_id(req.extra.get("of", req.player)).get(option)
+        card = tricks.card_of_option(game, req.extra.get("of", req.player), option)
         return safe_label(card.title if card is not None else t("choice.card_n", n=option))
     fighter = game.fighters.get(option) if isinstance(option, str) else None
     if fighter is not None and not fighter.hero and sum(1 for o in req.options if getattr(game.fighters.get(o), "name", None) == fighter.name) > 1:
@@ -133,21 +142,53 @@ def options_text(game, req: ChoiceRequest, limit: int = 6) -> str:
 
 def card_text_hint(game, req: ChoiceRequest) -> str:
     """' Card: <printed text>' for a plain yes/no (Pyrotechnics: the question alone did not say what the card does), else ''."""
-    if req.kind != "optional" or req.extra.get("discards") or "to" in req.extra or "shield" in req.extra or "bury_rival" in req.extra:
+    if req.kind != "optional" or ai_robin.is_steal(game, req) or req.extra.get("discards") or "reposition" in req.extra or "ransom" in req.extra or "doubloon_action" in req.extra or "rival_value" in req.extra or "to" in req.extra or "shield" in req.extra or "bury_rival" in req.extra:
         return ""
     card = request_card(game, req)
     text = getattr(card, "text", "") if card is not None else ""
     return t("choice.card_hint", text=text) if text else ""
 
 
+def ransom_what(game, req: ChoiceRequest) -> str:
+    """What the line Blackbeard's ransom would ignore does, for the question the table player reads (`plugins_blackbeard.describe_effect`)."""
+    effect = req.extra["effect"]
+    names = {fid: f.name for fid, f in game.fighters.items()}
+    what = effect["what"]
+    if what == "damage":
+        return t("choice.ransom.damage", amount=effect["amount"], who=", ".join(names.get(f, f) for f in effect["fighters"]))
+    if what in ("discard", "random_discard") and effect.get("cards"):
+        return t("choice.ransom.discard", titles=card_titles(game, effect["cards"], req.player))
+    if what == "random_discard":
+        return t("choice.ransom.random", which=effect.get("which", ""))
+    return t(f"choice.ransom.{what}") if has(f"choice.ransom.{what}") else t("choice.ransom.generic")
+
+
 def prompt_text(game, req: ChoiceRequest) -> str:
     """Chat line for the request: what is asked and, for the card that asks, its title."""
+    if req.kind == "optional" and ai_robin.is_steal(game, req):      # Steal From the Rich: discard a card or Robin Hood draws one more
+        return t("choice.prompt.steal")
     if req.kind == "optional" and "shield" in req.extra:          # a card is about to look at your hand
         return t("choice.prompt.shield", shield=req.extra["shield"])
     base = _prompt(req.kind) if has_prompt(req.kind) else _prompt("default")
     ability = f"choice.prompt.ability.{req.key.split('/')[0]}"       # the question of a hero's own trigger (INVENTIVE)
     if req.kind == "optional" and req.card_id is None and has(ability):
         return t(ability)
+    if req.kind == "optional" and "ransom" in req.extra:           # Blackbeard's ransom, named after the card that offers it
+        card = request_card(game, req)
+        return t("choice.prompt.ransom", n=req.extra["ransom"], treasury=req.extra["treasury"], what=ransom_what(game, req),
+                 title=card.title if card is not None else "Blackbeard")
+    if req.kind == "optional" and "reposition" in req.extra:       # "Summon a Sea Dog" with none defeated: move one instead
+        card = request_card(game, req)
+        where = "choice.prompt.reposition_zone" if req.extra["reposition"] == "zone" else "choice.prompt.reposition_any"
+        return t(where, title=card.title if card is not None else "Blackbeard")
+    if req.kind == "optional" and "doubloon_action" in req.extra:  # his action at the start of the turn
+        return t("choice.prompt.doubloon_action", held=req.extra["held"], treasury=req.extra["treasury"])
+    if req.kind == "optional" and "rival_value" in req.extra:      # Sherlock's Deduce Strategy
+        return t("choice.prompt.deduce", now=req.extra["rival_value"]["now"], to=req.extra["rival_value"]["to"])
+    if req.kind == "amount" and req.extra.get("name_value"):      # Sherlock's Confirm Suspicion: the value to name
+        return t("choice.prompt.name_value")
+    if req.kind == "amount" and req.extra.get("queens"):           # Queen Anne's Revenge: how many doubloons to pay
+        return t("choice.prompt.queens", treasury=req.extra["treasury"], n=req.extra["queens"])
     if req.kind == "amount" and req.extra.get("blind_count"):      # BLIND BOOST: how many, before any card moves
         base = t("choice.prompt.blind_count", n=req.extra["times"])
     elif req.kind == "amount" and req.extra.get("assign"):          # Yennenga's ability: how much of the damage meant for her an Archer takes
@@ -156,16 +197,32 @@ def prompt_text(game, req: ChoiceRequest) -> str:
                  name=getattr(game, "nicknames", {}).get(archer.fid, archer.name))
     elif req.kind == "amount" and req.extra.get("top_discard"):      # Take A Knee: one button, the bot moves the card
         base = t("choice.prompt.top_discard_rival" if req.extra.get("rival_deck") else "choice.prompt.top_discard")
+    elif req.kind == "cards" and req.extra.get("purpose") == "top":          # Little Red: two cards landed on the pile together, which is on top?
+        card = request_card(game, req)
+        return t("choice.prompt.pile_top") + (f" - {card.title}" if card is not None else "")
     elif req.kind == "cards" and req.extra.get("purpose") == "bottom":      # Insightful Deduction: which one goes to the bottom
         base = _prompt("bottom")
     elif req.kind == "cards" and req.max == 1:        # no "card(s)": the panel status drops the parentheses (live 29/10)
         base = _prompt("one_card")
     elif req.kind == "effect" and req.extra.get("tag") == "gadget":      # Jill Trent: the gadget of the turn
         base = _prompt("gadget")
+    elif req.kind == "effect" and req.extra.get("tag") == "misery":      # Pandora's Box: which of the seven cards the human revealed
+        base = _prompt("misery")
+    elif req.kind == "optional" and "returns_top" in req.extra:           # What Large Hands You Have: the top card of the pile comes back
+        card = request_card(game, req)
+        return t("choice.prompt.returns_top", title=card.title if card is not None else "?", top=card_titles(game, [req.extra["returns_top"]], req.card_owner if req.card_owner is not None else req.player))
+    elif req.kind == "effect" and req.extra.get("tag") == "basket":      # Little Red: the wild basket counts as one symbol
+        base = _prompt("basket")
     elif req.kind == "effect" and req.extra.get("tag") == "showdown":    # Wyatt Earp: one of the effects not used yet this turn
         base = _prompt("showdown")
     elif req.kind == "optional" and "bury_rival" in req.extra:           # Better Swear Me In: the rival's top card, revealed
         return t("choice.prompt.bury_rival", title=req.extra.get("title", "?"))
+    elif req.kind == "optional" and "trick_deck" in req.extra:           # Loki: the TRICK an opponent discarded is back in his hand
+        return t("choice.prompt.trick_deck", title=req.extra["trick_deck"])
+    elif req.kind == "cards" and req.extra.get("purpose") == "reveal" and req.extra.get("which"):     # Loki's Laevateinn: which card lies at the position he picked
+        base = t("choice.prompt.loki_reveal", which=req.extra["which"])
+    elif req.kind == "effect" and req.extra.get("op") == "predict" and req.extra.get("elementary"):     # Sherlock's Elementary: no face down option
+        base = t("choice.prompt.elementary")
     elif req.kind == "effect" and req.extra.get("op") == "predict":
         base = _prompt("predict")
     elif req.kind == "effect" and req.extra.get("future"):      # The future of Ninjutsu: which deck, then leave or bottom

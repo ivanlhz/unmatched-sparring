@@ -54,7 +54,13 @@ class HeroEffects:
         try:
             return self.cards[title]
         except KeyError:
+            if title in lent_cards():           # a card another hero lends to every deck (Loki's TRICKs): any player may hold and play it
+                return lent_cards()[title]
             raise EffectError(f"{self.slug}: no effects for card {title!r}") from None
+
+    def find(self, title: str) -> CardEffects | None:
+        """The effects of `title`, the lent cards included; None when this hero has no such card."""
+        return self.cards.get(title) or lent_cards().get(title)
 
     def moment_ops(self, title: str, moment: str) -> list[dict]:
         if moment not in MOMENTS:
@@ -74,13 +80,28 @@ class HeroEffects:
             raise EffectError(f"{self.slug}: no ability counter {name!r}") from None
 
 
+def _card_effects(c: dict) -> CardEffects:
+    return CardEffects(c["title"], dict(c.get("effects") or {}), bool(c.get("may_boost")),
+                       bool(c.get("uncancelable")), c.get("ongoing"), c.get("invention"),
+                       int(c.get("max_boosts", 1)), bool(c.get("defers_defeat")), bool(c.get("look_shield")),
+                       bool(c.get("adjacent_only")), bool(c.get("face_up")))
+
+
+@lru_cache(maxsize=None)
+def lent_cards() -> dict[str, CardEffects]:
+    """The cards an effects file marks `lent` (Loki's four TRICKs): they belong to one hero's deck but any player may hold and play
+    them, so every other hero's `HeroEffects.card` finds them (docs/heroes/loki.md)."""
+    out: dict[str, CardEffects] = {}
+    for path in sorted(EFFECTS_DIR.glob("*.json")):
+        text = path.read_text(encoding="utf-8")
+        if path.stem != "schema" and '"lent"' in text:
+            out.update({c["title"]: _card_effects(c) for c in json.loads(text)["cards"] if c.get("lent")})
+    return out
+
+
 def parse_effects(raw: dict) -> HeroEffects:
     try:
-        cards = {c["title"]: CardEffects(c["title"], dict(c.get("effects") or {}), bool(c.get("may_boost")),
-                                         bool(c.get("uncancelable")), c.get("ongoing"), c.get("invention"),
-                                         int(c.get("max_boosts", 1)), bool(c.get("defers_defeat")), bool(c.get("look_shield")),
-                                         bool(c.get("adjacent_only")), bool(c.get("face_up")))
-                 for c in raw["cards"]}
+        cards = {c["title"]: _card_effects(c) for c in raw["cards"]}
         ability = raw.get("ability") or {}
         counters = {k: CounterRange(int(v["min"]), int(v["max"]), int(v.get("start", v["min"])))
                     for k, v in (ability.get("counters") or {}).items()}

@@ -80,5 +80,8 @@
    "note": "Z rotation of the upgrade token for each face: inactive (grey, the number 1-4 printed) = 0, active (colour) = 180, the same convention as Abe Sapien's Intuition tokens (confirmed live for those). Not yet checked live for these four. The bot flips each token and pings it (session_rosie, lua_rosie.set_upgrade_tokens)."
   }
  },
- "counter_dials": {}
+ "counter_dials": {},
+ "ignored_tokens": [
+  "794306"
+ ]
 }

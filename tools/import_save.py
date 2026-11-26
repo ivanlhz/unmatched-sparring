@@ -31,7 +31,7 @@ from sparring.heroes import DECK_SIZE, HeroDef, available_heroes, hero_path, loa
 from sparring.tts.hero_table import TTS_DIR, HeroTableError, parse_hero_table  # noqa: E402
 
 MAX_VALUE_RE = re.compile(r"MAX_VALUE\s*=\s*(\d+)")
-KEPT_FIELDS = ("_notes", "token_faces", "token_sources", "token_slots")
+KEPT_FIELDS = ("_notes", "token_faces", "token_sources", "token_slots", "ignored_tokens", "extras", "box")
 
 
 class SaveImportError(Exception):
@@ -109,12 +109,14 @@ def _same(a: str, b: str) -> bool:
     return _plain(COLOR_TAG_RE.sub("", a)) == _plain(COLOR_TAG_RE.sub("", b))
 
 
-def deck_sheet(deck: dict, size: int = DECK_SIZE, characters: int = 1, character: int | None = None) -> tuple[tuple[int, int], int] | None:
+def deck_sheet(deck: dict, size: int = DECK_SIZE, characters: int = 1, character: int | None = None,
+               extras: tuple[int, ...] = ()) -> tuple[tuple[int, int], int] | None:
     """(CardID range of the `size` playing cards, character CardID) of a physical hero deck, or None if it is not one.
     The playing cards share a sheet (CardID // 100); the character card is the single card from another sheet. A deck with
-    `characters` character cards (Yennefer & Triss has two, one per variant) answers the one called `character`."""
+    `characters` character cards (Yennefer & Triss has two, one per variant) answers the one called `character`.
+    `extras` are loose rules cards that ride in the deck and are neither playing nor character cards (Blackbeard's 500)."""
     by_sheet: dict[int, list[int]] = {}
-    for cid in deck["DeckIDs"]:
+    for cid in (c for c in deck["DeckIDs"] if c not in extras):
         by_sheet.setdefault(cid // 100, []).append(cid)
     main = [ids for ids in by_sheet.values() if len(ids) == size]
     rest = [ids for ids in by_sheet.values() if len(ids) != size]
@@ -199,7 +201,8 @@ def extract_hero(objects: list[dict], hero: HeroDef, raw_hero: dict, report: Rep
     claimed: set[str] = set()
 
     chars = len(hero.tts.get("character_cards", ())) or 1
-    decks = [(o, deck_sheet(o, hero.deck_size, chars, hero.tts.get("character_card_id"))) for o in contents if is_deck(o)]
+    extras = tuple(hero.tts.get("extra_card_ids", ()))
+    decks = [(o, deck_sheet(o, hero.deck_size, chars, hero.tts.get("character_card_id"), extras)) for o in contents if is_deck(o)]
     decks = [(o, s) for o, s in decks if s is not None]
     if hero.card_base is not None:
         decks = [(o, s) for o, s in decks if s[0][0] == hero.card_base] or decks
@@ -208,8 +211,10 @@ def extract_hero(objects: list[dict], hero: HeroDef, raw_hero: dict, report: Rep
     else:
         deck, ((lo, hi), char_id) = decks[0]
         sheet = (deck.get("CustomDeck") or {}).get(str(lo // 100)) or {}
-        out["deck"] = {"guid": deck["GUID"], "card_ids": [lo, hi], "character_card_id": char_id,
-                       "identity": [{"face": sheet.get("FaceURL", ""), "back": sheet.get("BackURL", "")}]}
+        out["deck"] = {"guid": deck["GUID"], "card_ids": [lo, hi], "character_card_id": char_id}
+        if hero.tts.get("flip_dial"):            # one hero with two sides (Elektra Resurrected): the other character card is hers too
+            out["deck"]["extra_character_card_ids"] = [c for c in hero.tts.get("character_cards", ()) if c != char_id]
+        out["deck"]["identity"] = [{"face": sheet.get("FaceURL", ""), "back": sheet.get("BackURL", "")}]
         claimed.add(deck["GUID"])
         report.derived.append("deck")
         if hero.card_base is not None and lo != hero.card_base:
@@ -221,6 +226,8 @@ def extract_hero(objects: list[dict], hero: HeroDef, raw_hero: dict, report: Rep
     dials = [o for o in contents if dial_max(o) is not None]
     counter_dials: dict[str, str] = {}
     for counter in hero.counters:
+        if hero.counters[counter].pile == "rival_hand":
+            continue                    # counted in the other player's hand (Loki's TRICKs): no dial shows it
         hits = [d for d in dials if d["GUID"] not in claimed and counter.casefold() in _nick(d).casefold()]
         if len(hits) == 1:
             counter_dials[counter] = hits[0]["GUID"]
@@ -260,9 +267,24 @@ def extract_hero(objects: list[dict], hero: HeroDef, raw_hero: dict, report: Rep
                 entry["verify_live"] = not hero.tts.get("life_faces_verified")   # who saw the faces live, and when
         elif spec.hp > 1:
             report.problems.append(f"fighter {spec.fid!r}: {spec.hp} HP and no dial named {spec.name!r}")
+        if spec.fid in hero.tts.get("same_token", ()):
+            entry["same_token"] = True        # one image for all of them (Robin Hood's Outlaws): the session adopts whichever token the human lays
         if not _same(_nick(piece), spec.name):
             entry["nickname"] = _nick(piece)
         fighters[spec.fid] = entry
+    names = [e["nickname"] for e in fighters.values() if "nickname" in e]
+    for entry in fighters.values():
+        if "nickname" in entry and names.count(entry["nickname"]) > 1:
+            del entry["nickname"]        # one name on several tokens (Elektra's four Hand Ninja): the bot numbers them (The Hand 1..4)
+    flip = hero.tts.get("flip_dial")
+    if flip:                             # the other side of a health dial that is a separate object (Elektra Resurrected, 9)
+        hits = [d for d in dials if d["GUID"] not in claimed and _plain(flip["name"]) in _plain(_nick(d))]
+        if len(hits) == 1 and flip["fid"] in fighters:
+            fighters[flip["fid"]]["dial_flipped"] = hits[0]["GUID"]
+            fighters[flip["fid"]]["dial_flipped_max"] = dial_max(hits[0])
+            claimed.add(hits[0]["GUID"])
+        else:
+            report.problems.append(f"flip dial {flip['name']!r}: {len(hits)} dials named so")
     out["fighters"] = fighters
     report.derived.append("fighters")
 
@@ -271,8 +293,8 @@ def extract_hero(objects: list[dict], hero: HeroDef, raw_hero: dict, report: Rep
     ignored = set(raw_hero.get("ignored_tokens") or ())          # tokens of the bag the bot deliberately does not use (Jill Trent's gadget token)
     names = dict(raw_hero.get("token_names") or {})              # tokens with no nickname the bot does use, by GUID (Jill Trent's gadget token)
     for o in pieces:
-        if o["GUID"] in claimed or o["GUID"] in ignored or not o.get("Name", "").startswith("Custom_Token"):
-            continue
+        if o["GUID"] in claimed or o["GUID"] in ignored or not (o.get("Name", "").startswith("Custom_Token") or o["GUID"] in names):
+            continue                    # a loose card the overlay names (Little Red's Basket) is a token too
         key = names.get(o["GUID"]) or _token_key(_nick(o))
         if key not in expected_tokens:
             report.problems.append(f"token {key!r} ({o['GUID']}, nickname {_nick(o)!r}): {hero.name} uses no such "
@@ -338,6 +360,11 @@ def merge(derived: dict, existing: dict | None, report: Report) -> dict:
             report.changed.append(f"token_faces.{key}.child: {face.get('child')!r} -> {child!r}")
             face["child"] = child
     out["counter_dials"] = derived["counter_dials"]
+    if existing.get("ignored_tokens"):            # objects of the bag the bot never uses (a loose rules card, Pandora's Miseries): hand-written
+        out["ignored_tokens"] = list(existing["ignored_tokens"])
+    for key in ("extras", "box"):
+        if existing.get(key):
+            out[key] = existing[key]
     report.kept += [k for k in KEPT_FIELDS if k in out and k in existing]
     for key in ("bag", "deck", "fighters", "tokens", "counter_dials"):
         if key in existing and key in derived and existing[key] != derived[key]:

@@ -1,0 +1,147 @@
+{
+ "schema": 1,
+ "hero": "robin-hood",
+ "notes": [
+  "Texts read from sheet 176 of the tournament savegame (card images) on 2026-11-22; the character card is 308 on sheet 3 (10x7, index 8). Sheet 176 is also Medusa's DeckID and the other heroes': the CardIDs repeat and only the deck image tells the decks apart (docs/card-identity.md).",
+  "One plugin (robin:ambush, the Raptors' Ambush under Robin Hood's fid); everything else uses ops that already existed (docs/heroes/robin-hood.md)."
+ ],
+ "ability": {
+  "text": "After you attack, you may move your attacking fighter up to 2 spaces.",
+  "triggers": [
+   {"id": "move_after_attack", "when": {"event": "after_attack", "fighter": {"side": "own"}},
+    "ops": [{"op": "move", "target": "$attacker", "amount": 2, "up_to": true}]}
+  ],
+  "passives": [],
+  "notes": "'After you attack' is any attack of the player (Robin Hood or an Outlaw: 'your attacking fighter'), once the combat is over: the engine raises `after_attack` when the combat reaches DONE, after every AFTER COMBAT effect of both cards (Ivan 2026-11-22: the designer's order). The event selector (side own, living fighters by default) is the attacker still standing: a fighter defeated by the combat or by an AFTER effect does not trigger the ability and does not move, while a defeated DEFENDER changes nothing, the attacker moves. It is ordinary movement (the move op: along the printed adjacency, not through opposing fighters), up to 2 and so optional by itself (a move up to N may stay): there is no Yes / No in front of it. The bot chooses a space or none with its evaluation; the human is told what to move, moves the miniature by hand and presses Done, or presses Do not move."
+ },
+ "cards": [
+  {
+   "title": "A Hunter's Eye",
+   "copies": 3,
+   "text": "",
+   "effects": {"immediately": [], "during": [], "after": [], "scheme": [], "boost": []},
+   "notes": "Attack 5 / boost 4, Robin Hood only. No text."
+  },
+  {
+   "title": "Piercing Shot",
+   "copies": 2,
+   "text": "AFTER COMBAT: Draw 2 cards.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [{"op": "draw", "player": "owner", "amount": 2}]
+   },
+   "notes": "Attack 2 / boost 3, Robin Hood only."
+  },
+  {
+   "title": "Disarming Shot",
+   "copies": 2,
+   "text": "AFTER COMBAT: Draw a number of cards equal to the amount of damage dealt to the opposing fighter.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [{"op": "draw", "player": "owner", "amount": {"stat": "damage_dealt_this_combat"}}]
+   },
+   "notes": "Attack 4 / boost 3, Robin Hood only. The amount is the combat damage the blow dealt to the opposing fighter, OVERKILL INCLUDED (the designer: the damage dealt, not the health lost: a 4 against a fighter with 1 health draws 4). It is what remains after the opposing hero's damage reduction (Luke Cage) and after a cap (Deeds Of Valor); damage the combat sent elsewhere (Golden Chain Mail back at the attacker) was not dealt to the opposing fighter and counts 0. A cancelled card draws nothing."
+  },
+  {
+   "title": "Ambush",
+   "copies": 2,
+   "text": "DURING COMBAT: Your opponent discards 1 random card. Add its BOOST value to this card's value.",
+   "effects": {
+    "immediately": [], "after": [], "scheme": [], "boost": [],
+    "during": [{"op": "plugin", "id": "robin:ambush"}]
+   },
+   "notes": "Attack 2 / boost 3, any fighter. The discard is from the HAND, at random. Its BOOST is added to this card's value (combat damage, not 'boosting': no BOOST effect of the discarded card runs). An empty hand discards nothing and adds 0. Against the human the bot names a position from their hand, the human lays that card on their discard pile and presses Done and the bot reads it (the Raptors' and Chupacabra's flow)."
+  },
+  {
+   "title": "Highway Robbery",
+   "copies": 4,
+   "text": "IMMEDIATELY: Cancel all effects on your opponent's card and ignore its defense value.",
+   "effects": {
+    "immediately": [
+     {"op": "cancel_effects", "card": "opponent_card"},
+     {"op": "set_value", "card": "opponent_card", "ignore": true}
+    ],
+    "during": [], "after": [], "scheme": [], "boost": []
+   },
+   "notes": "Attack 2 / boost 2, an Outlaw plays it (band OUTLAW: Robin Hood does not). The cancel respects an uncancelable card, the ignore does not (Ivan's engine conventions): 'ignore its value' sets the defender's whole total to 0 at that moment; a BOOST or an effect that comes later still adds. The attacker resolves its IMMEDIATELY after the defender's, so a defense card's own IMMEDIATELY has already run."
+  },
+  {
+   "title": "Regroup",
+   "copies": 3,
+   "text": "AFTER COMBAT: Draw 1 card. If you won the combat, draw 2 cards instead.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [{"op": "if", "condition": {"test": "combat_result", "result": "won"},
+               "then": [{"op": "draw", "player": "owner", "amount": 2}],
+               "else": [{"op": "draw", "player": "owner", "amount": 1}]}]
+   },
+   "notes": "Versatile 1 / boost 2, any fighter. 'Won the combat' is the engine's: the attacker wins only if combat damage lands, a tie or no damage is won by the defender (Ivan's global rule)."
+  },
+  {
+   "title": "Feint",
+   "copies": 3,
+   "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+   "effects": {"immediately": [{"op": "cancel_effects", "card": "opponent_card"}], "during": [], "after": [], "scheme": [], "boost": []},
+   "notes": "Versatile 2 / boost 2, any fighter. Word for word Bigfoot's Feint: the three cards carry the tag `robin-hood` so that no card of another deck is equal to them (docs/card-identity.md)."
+  },
+  {
+   "title": "Snark",
+   "copies": 3,
+   "text": "AFTER COMBAT: If your fighter is adjacent to the opposing fighter, draw 1 card.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [{"op": "if", "condition": {"test": "exists", "fighters": {"role": "opposing", "where": {"adjacent_to": "this"}}},
+               "then": [{"op": "draw", "player": "owner", "amount": 1}]}]
+   },
+   "notes": "Versatile 3 / boost 1, any fighter. 'Your fighter' is the one that played the card, 'the opposing fighter' the other fighter of the combat; adjacency is measured after the combat (a defeated opposing fighter is no longer on the board, so it is not adjacent)."
+  },
+  {
+   "title": "Wily Fighting",
+   "copies": 3,
+   "text": "AFTER COMBAT: Deal 1 damage to each opposing fighter adjacent to your fighter.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [{"op": "damage", "target": {"side": "enemy", "where": {"adjacent_to": "this"}, "pick": "all"}, "amount": 1}]
+   },
+   "notes": "Versatile 3 / boost 1, any fighter. Every enemy fighter next to the one that played the card takes 1 effect damage, the combat's opposing fighter included if it is still adjacent."
+  },
+  {
+   "title": "Defenders of Sherwood",
+   "copies": 2,
+   "text": "AFTER COMBAT: Draw 1 card. Return a defeated Outlaw (if any) to any space in Robin Hood's zone.",
+   "effects": {
+    "immediately": [], "during": [], "scheme": [], "boost": [],
+    "after": [
+     {"op": "draw", "player": "owner", "amount": 1},
+     {"op": "revive", "target": {"side": "own", "name": "Outlaw", "state": "defeated"}, "where": {"zone_of": "hero"}, "hp": 1, "interchangeable": true, "chooser": "owner"}
+    ]
+   },
+   "notes": "Defense 3 / boost 2, any fighter. Any Outlaw that was ever defeated may return (the designer and Discord), with its 1 health, to an empty space of Robin Hood's zone chosen by his player. With no defeated Outlaw or no empty space in his zone only the draw happens."
+  },
+  {
+   "title": "Steal From the Rich",
+   "copies": 3,
+   "text": "Draw 1 card, then choose an opponent. They may choose to discard 1 card. If they do not, draw 1 more card.",
+   "effects": {
+    "immediately": [], "during": [], "after": [], "boost": [],
+    "scheme": [
+     {"op": "draw", "player": "owner", "amount": 1},
+     {"op": "optional", "chooser": "opponent",
+      "cost": [{"op": "discard", "cards": {"zone": "hand", "player": "opponent", "amount": 1, "chooser": "opponent"}}],
+      "ops": [],
+      "else": [{"op": "draw", "player": "owner", "amount": 1}]}
+    ]
+   },
+   "notes": "Scheme, boost 3, Robin Hood only. With two players 'choose an opponent' is the rival. The RIVAL decides (human at the panel, bot by its evaluation): discard a card of their choice from the hand, or let Robin Hood draw a second card. A rival with an empty hand cannot pay, so Robin Hood draws. 'Their' discard is a voluntary price, so Counterhex Shield and the like do not forbid it."
+  }
+ ],
+ "plugins": [
+  {"id": "robin:ambush", "why": "The rival discards a random card and its BOOST value is read: for the human's hand the engine only knows placeholders, so the human discards the card the bot names and the bot reads which card it was."}
+ ],
+ "hidden_info": [
+  {"card": "Ambush", "what": "the rival discards 1 random card and its BOOST value is added", "bot_rule": "The bot's hand is the engine's. The human's real card is discarded by the human at the position the bot draws from the hand size and the bot reads it from their discard pile; it never reads the hand."},
+  {"card": "Steal From the Rich", "what": "the rival may discard a card of their hand", "bot_rule": "The human's discard is the human's choice on the table (the bot only sees the card they lay on their pile); the bot as the rival decides from its own hand."}
+ ],
+ "open_questions": [],
+ "discrepancies": []
+}

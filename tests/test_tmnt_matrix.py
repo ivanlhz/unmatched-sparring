@@ -157,6 +157,10 @@ class AttackDriver(Driver):
             if g.turn != 1 or g.winner is not None:
                 return
             bot_hero, me = g.hero(0), g.hero(1)          # read again each time: the hero of a team (the Raptors) may fall without ending the game
+            if bot_hero.pos is None or me.pos is None:           # a hero taken off the board and not defeated (Elektra): nobody to walk up to
+                self.press(Event.MANEUVER)
+                self.end_action()
+                continue
             if not g.fx.may_attack(1):                           # Pact Of Freedom: not as the first action of the turn
                 self.press(Event.MANEUVER)
                 self.end_action()

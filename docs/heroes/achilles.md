@@ -1,6 +1,6 @@
 # Achilles (Battle of Legends, Volume Two)
 
-Playable by the bot and by the human, either side, against every other hero. Data read from the real card images (sheet 176 of the tournament savegame, character card 318 on sheet 3) and from unmatched-memory (`achilles.json`) on 2026-11-20; they agree. Nothing of him has been seen on a real table yet.
+Playable by the bot and by the human, either side, against every other hero. Data read from the real card images (sheet 176 of the tournament savegame, character card 318 on sheet 3) and from unmatched-memory (`achilles.json`) on 2026-11-20; they agree. Played live by Ivan (by 2026-11-23).
 
 ## Summary
 - Melee hero, 18 life, move 2, sidekick **Patroclus** (melee, 6 life, move 2, one of them). Hero fid `achilles`, sidekick fid `patroclus`, slug `achilles` (the same in unmatched-memory).

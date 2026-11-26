@@ -31,7 +31,7 @@ import random
 from functools import lru_cache
 from itertools import combinations
 
-from . import ai_achilles, ai_mary, ai_washington, ai_wukong, ai_wyatt, ai_yennenga, enraged
+from . import ai_achilles, ai_blackbeard, ai_little_red, ai_mary, ai_pandora, ai_robin, ai_sherlock, ai_washington, ai_wukong, ai_wyatt, ai_yennenga, enraged, tricks
 from .ai_medusa import (ACTION_VALUE, DECK_SCARCITY, HARPY_VALUE, KILL_SIDEKICK, LETHAL, SURVIVAL_P, W_HERO, W_MEDUSA_HP,
                         W_SIDEKICK, MedusaAI, Model, can_use, defence_keeper, discard_cut, effect_reliance, hand_room, keep_value, kept_hand_value, kill_value, play_signature)
 from .controller import Controller
@@ -378,10 +378,16 @@ class EffectAI:
             return self._dust_card(game, req)
         if purpose == "bidding":
             return self._bidding_card(game, req)
+        if purpose == "trouble":
+            return self._trouble_card(game, req)
         if purpose == "ruse":
             return self._ruse_discards(game, req)
         if purpose == "ruse_reveal":
             return self._ruse_reveal(game, req)
+        if req.extra.get("confirm") is not None and zone == "hand" and of == me:      # Confirm Suspicion: the card given up costs its keep value and its BOOST in hit points
+            by_id = {c.card_id: c for c in game.players[me].hand}
+            hand, rel = game.players[me].hand, effect_reliance(game, me)
+            return sorted((i for i in req.options if i in by_id), key=lambda i: (keep_value(by_id[i], hand, rel) + W_MEDUSA_HP * by_id[i].boost, i))[:n_min]
         if zone == "hand" and of != me:                    # C4: what a look showed, the rest by position
             return ControllerChooser._from_rival_hand(game, req, of)
         if zone == "hand":
@@ -449,6 +455,14 @@ class EffectAI:
         rival = req.extra.get("of", 1 - req.player)
         cards = {c.card_id: c for c in game.players[rival].full_set}
         return [min(req.options, key=lambda i: ((cards[i].value or 0), card_worth(cards[i]), i))]
+
+    def _trouble_card(self, game: Game, req: ChoiceRequest) -> list:
+        """Loki's Looking For Trouble: the card the rival is made to defend with, among the cards of their hand it has seen (the returned one
+        included, and the TRICKs it knows they hold). The weakest defense goes first, a TRICK before another card of the same value: whoever
+        plays a TRICK that is not Loki's runs its NOT LOKI part (ai_loki.after_value)."""
+        rival = req.extra.get("of", 1 - req.player)
+        cards = {i: tricks.card_of_option(game, rival, i) for i in req.options}
+        return [min(req.options, key=lambda i: ((cards[i].value or 0), not tricks.is_trick(cards[i]), card_worth(cards[i]), i))]
 
     def _ruse_discards(self, game: Game, req: ChoiceRequest) -> list:
         """Spymaster's ruse: of the cards the rival revealed, the ones to discard are the two it would miss most (`card_worth`)."""
@@ -584,8 +598,12 @@ class EffectAI:
         return sorted(req.options, key=lambda i: (-self.blow_value(fighters[i], DEFAULT_BLOW, game), i))
 
     def _amount(self, game: Game, req: ChoiceRequest, nested: bool) -> list:
+        if req.extra.get("name_value"):    # Sherlock's Confirm Suspicion: the value to name (ai_sherlock)
+            return [ai_sherlock.name_value(game, req.player)]
         if req.extra.get("blind_count"):
             return [self._blind_boost(game, req)]
+        if req.extra.get("queens"):         # Queen Anne's Revenge: how many doubloons the rival pays (ai_blackbeard)
+            return [ai_blackbeard.queens_amount(self, game, req)]
         if req.extra.get("assign"):         # Yennenga's ability: how much of the damage meant for her an Archer takes
             return [ai_yennenga.archer_share(game, req, None if nested else self.medusa(req.player))]
         top = max(req.options)
@@ -596,7 +614,11 @@ class EffectAI:
 
     # ------------------------------------------------------------------ simulated choices
     def _effect(self, game: Game, req: ChoiceRequest, nested: bool) -> list | None:
+        if req.extra.get("tag") == "basket":      # Little Red's wild basket: which symbol it counts as (ai_little_red)
+            return [ai_little_red.pick_symbol(game, req)]
         if req.extra.get("op") == PREDICT_OP:
+            if req.extra.get("elementary"):        # Sherlock's Elementary: the attacker's printed value, from public information (ai_sherlock)
+                return [ai_sherlock.predict_attack_value(game, req.player, req.extra.get("attacker"), req.extra.get("known_value"))]
             return [predict_value(game, req.player)]
         if req.extra.get("future") == "deck":
             return [self._future_deck(game, req)]
@@ -689,6 +711,14 @@ class EffectAI:
         return 1 if card_worth(card) > average else 0
 
     def _optional(self, game: Game, req: ChoiceRequest, nested: bool) -> list | None:
+        if "rival_value" in req.extra:       # Deduce Strategy: the rival's printed value becomes its BOOST, when that is lower (ai_sherlock)
+            return [ai_sherlock.deduce_pays(req.extra["rival_value"])]
+        if "ransom" in req.extra:            # Blackbeard's "unless N doubloons": paid when the line costs more than the doubloons (ai_blackbeard)
+            return [ai_blackbeard.ransom_pays(self, game, req)]
+        if "doubloon_action" in req.extra:   # Blackbeard's start of turn: a doubloon to the Treasury for an action (ai_blackbeard)
+            return [ai_blackbeard.action_pays(self, game, req)]
+        if str(req.key).startswith(ai_pandora.BOX_KEY):       # Pandora's Box: keep revealing Miseries or stop, priced in ai_pandora
+            return [ai_pandora.keep_revealing(self, game, req)]
         if str(req.key).startswith(ai_wukong.CLONES_KEY):     # Sun Wukong's CLONES: 1 hit point for a Clone, priced in ai_wukong
             return [ai_wukong.summon_pays(self, game, req)]
         if "washington" in req.extra:        # ESPIONAGE: a ruse token on the attack, or the discard that takes it off (ai_washington)
@@ -717,6 +747,8 @@ class EffectAI:
             return [self._action_for_value(game, req)]
         if "returns_card" in req.extra:     # Five Against Thousands: a card given up to take the one just played back
             return [self._returns_card_pays(game, req)]
+        if ai_robin.is_steal(game, req):     # Steal From the Rich: the rival discards its least useful card or lets Robin Hood draw one more (ai_robin)
+            return [ai_robin.steal_pays(game, req)]
         if "cost_cards" in req.extra:      # a price in cards: the interpreter sends the combat context, one policy
             return [worth_paying(req)]
         if "to" in req.extra:               # a redirect passive (FATEFUL BARGAINS): whoever loses the bot less takes it

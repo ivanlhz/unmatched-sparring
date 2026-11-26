@@ -38,6 +38,7 @@ class Ctx:
     played_as: str | None = None           # "attack" | "defense"
     damage_dealt: int = 0
     damage_taken: int = 0
+    card_home: int | None = None           # whose deck `card_id` is from when it is not the owner's (a TRICK borrowed from Loki; docs/heroes/loki.md)
 
 
 @dataclass
@@ -104,7 +105,8 @@ class EffectRun:
         self._asks += 1
         if key in self.answers:
             return self.answers[key]
-        req = ChoiceRequest(kind, player, list(options), lo, min(hi, len(options)), self.ctx.card_id, key, prompt, extra, self.ctx.owner)
+        req = ChoiceRequest(kind, player, list(options), lo, min(hi, len(options)), self.ctx.card_id, key, prompt, extra,
+                            self.ctx.owner if self.ctx.card_home is None else self.ctx.card_home)
         answer = self._chooser(player).choose(game, req)
         if isinstance(answer, Await):
             raise Suspend(req, answer)

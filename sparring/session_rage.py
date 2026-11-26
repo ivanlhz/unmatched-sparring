@@ -16,7 +16,9 @@ else changes nothing: the chat says what is wrong and the panel keeps waiting. T
           card they take back to their hand and play instead, same spot; none keeps Sleight Of Hand where it is."""
 from __future__ import annotations
 
+from . import session_tricks as loki_tricks
 from .effects.choose import ChoiceRequest
+from .effects.plugins_sherlock import matches
 from .i18n import plural, t
 from .session_choices import panel_text, request_card
 
@@ -44,10 +46,14 @@ def instruction(session, req: ChoiceRequest) -> str:
         return t("blind.instruction", card=card, n=req.max)
     if m == "reveal" and req.extra.get("dust"):             # Blinding dust: the card given up for the damage of its BOOST
         return t("dust.instruction", card=card)
+    if m == "reveal" and req.extra.get("confirm") is not None:      # Sherlock's Confirm Suspicion: a card of the named value, or none
+        return t("confirm.recheck" if req.extra.get("recheck") else "confirm.instruction", card=card, value=req.extra["confirm"])
     if m == "reveal" and req.extra.get("ambush"):           # Ambush (and any random discard the bot reads): the position the bot named
         return t("ambush.instruction", which=req.extra.get("which", card))
     if m == "reveal":
         return t("reveal.instruction", card=card)
+    if m == "play" and req.extra.get("trouble"):             # Loki's Looking For Trouble: the bot names the card the human defends with
+        return t("trouble.instruction", card=card, title=loki_tricks.by_id(session, session.human)[req.options[0]].title)
     if m == "play" and req.extra.get("bidding"):            # Do my bidding: the bot names the card the human must play
         attacker = session.game.fighters.get(req.extra.get("attacker"))
         title = next((c.title for c in session.game.players[session.human].full_set if c.card_id in req.options), "")
@@ -64,8 +70,12 @@ def instruction(session, req: ChoiceRequest) -> str:
 def status(session, req: ChoiceRequest) -> str:
     if mode(req) == "reveal" and req.extra.get("dust"):
         return panel_text(t("dust.status"))
+    if mode(req) == "reveal" and req.extra.get("confirm") is not None:
+        return panel_text(t("confirm.status", value=req.extra["confirm"]))
     if mode(req) == "reveal" and req.extra.get("ambush"):
         return panel_text(t("ambush.status"))
+    if mode(req) == "play" and req.extra.get("trouble"):
+        return panel_text(t("trouble.status"))
     if mode(req) == "play" and req.extra.get("bidding"):
         return panel_text(t("bidding.status"))
     if mode(req) == "play" and req.extra.get("sleight"):
@@ -91,7 +101,7 @@ def verdict(session, req: ChoiceRequest) -> tuple[list[int] | None, str | None]:
         return _verdict_play(session, req)
     g = session.game
     st = g.players[session.human]
-    by_id = {c.card_id: c for c in st.full_set}
+    by_id = loki_tricks.by_id(session, session.human)
     rows = session._rd_human_discard_raw()
     if rows is None and st.discard:                  # no reply is not an empty pile: nothing may be read as given up
         return None, t("pile.unreadable")
@@ -105,6 +115,8 @@ def verdict(session, req: ChoiceRequest) -> tuple[list[int] | None, str | None]:
         if wrong:
             items = ", ".join(t("rage.wrong_item", title=c.title, kind=t(f"rage.type.{c.type}")) for c in wrong)
             return None, t("rage.wrong", items=items, card=_card_name(session, req))
+    elif m == "reveal" and req.extra.get("confirm") is not None and (wrong := [by_id[i] for i in arrived if not matches(by_id[i], req.extra["confirm"])]):
+        return None, t("confirm.wrong", items=", ".join(f"{c.title} ({c.value or 0})" for c in wrong), value=req.extra["confirm"], card=_card_name(session, req))
     elif len(arrived) > req.max:
         return None, t("blind.too_many" if m == "blind" else "reveal.too_many", n=len(arrived), max=req.max,
                        titles=", ".join(by_id[i].title for i in arrived), card=_card_name(session, req))
@@ -123,11 +135,13 @@ def _combat_spot(session) -> list[dict]:
 def _verdict_play(session, req: ChoiceRequest) -> tuple[list[int] | None, str | None]:
     """The Mists of Munnopor played by the human's attacker: the new card sits at their combat spot, not the discarded one."""
     st = session.game.players[session.human]
-    by_id = {c.card_id: c for c in st.full_set}
+    by_id = loki_tricks.by_id(session, session.human)
     old = req.extra.get("old")
-    at_spot = {r["id"] for r in _combat_spot(session) if r.get("id") in by_id}
+    at_spot = {i for i in loki_tricks.spot_ids(session, _combat_spot(session)) if i in by_id}
     new = sorted(at_spot - {old})
     if not new:
+        if req.extra.get("trouble"):                          # Looking For Trouble: the card Loki chose must be the one they play
+            return None, t("trouble.missing", title=by_id[req.options[0]].title)
         if req.extra.get("bidding"):                          # Do my bidding: the card chosen for them must be the one they play
             return None, t("bidding.missing", title=by_id[req.options[0]].title)
         if req.extra.get("sleight") and old not in at_spot:      # taken back with nothing in its place: neither card is in play
@@ -148,7 +162,7 @@ def _verdict_play(session, req: ChoiceRequest) -> tuple[list[int] | None, str | 
 def counted(session, req: ChoiceRequest, ids: list[int]) -> str:
     """The chat line once the cards are accepted."""
     card, m = _card_name(session, req), mode(req)
-    by_id = {c.card_id: c for c in session.game.players[session.human].full_set}
+    by_id = loki_tricks.by_id(session, session.human)
     if m == "blind":
         if not ids:
             return t("blind.none", card=card)
@@ -156,12 +170,18 @@ def counted(session, req: ChoiceRequest, ids: list[int]) -> str:
             return t("knee.auto", card=card, title=by_id[ids[0]].title)
         return t("blind.counted", card=card, titles=", ".join(by_id[i].title for i in ids),
                  bonus=f"+{sum(by_id[i].boost for i in ids)}")
+    if m == "reveal" and req.extra.get("confirm") is not None:
+        if not ids:
+            return t("confirm.none", card=card, value=req.extra["confirm"])
+        return t("confirm.counted", card=card, title=by_id[ids[0]].title, boost=by_id[ids[0]].boost)
     if m == "reveal" and req.extra.get("dust"):
         return t("dust.counted", card=card, title=by_id[ids[0]].title, boost=by_id[ids[0]].boost)
     if m == "reveal" and req.extra.get("ambush"):
         return t("ambush.counted", card=card, title=by_id[ids[0]].title, boost=by_id[ids[0]].boost)
     if m == "reveal":
         return t("reveal.counted", card=card, title=by_id[ids[0]].title, boost=by_id[ids[0]].boost)
+    if m == "play" and req.extra.get("trouble"):
+        return t("trouble.counted", card=card, title=by_id[ids[0]].title)
     if m == "play" and req.extra.get("bidding"):
         return t("bidding.counted", card=card, title=by_id[ids[0]].title)
     if m == "play" and req.extra.get("sleight"):

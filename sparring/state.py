@@ -7,7 +7,7 @@ from typing import Callable
 from .board import Board
 from .cards import Card, can_be_boost
 from .controller import Controller
-from . import enraged, pack, tracks, vengeance
+from . import enraged, off_board, pack, tracks, tricks, vengeance
 from .effects import inventions, ongoing, table
 from .effects.state import EffectState, default_dsl_heroes
 from .heroes import DEFAULT_HAND_LIMIT, DEFAULT_START_HAND, HeroDef, load_hero
@@ -39,6 +39,7 @@ class Fighter:
     alive: bool = True
     died_at: int | None = None     # space where it fell: an HP mistake is undone by putting it back there
     reach: int = 0                 # attacks anyone up to this many spaces away, zones ignored (Bullseye: 5); 0 = the usual rule
+    off_board: bool = False        # taken off the board by an effect but NOT defeated (Elektra's first life, sparring/off_board.py): alive False, pos None
 
 
 @dataclass
@@ -62,6 +63,7 @@ class KnownHand:
     possible_lo: int = 0
     possible_hi: int = 0
     top_of_deck: list[int] = field(default_factory=list)
+    foreign: list[int] = field(default_factory=list)   # Loki: CardIDs of HIS OWN TRICKs that lie in the rival's hand (public: played or discarded face up); never the rival's ids
 
     def observe(self, cards: list[Card], turn_no: int) -> None:
         """Replaces what was known: a new look is the complete snapshot of the hand at that moment."""
@@ -79,6 +81,9 @@ class KnownHand:
 
     def forget(self, card: Card) -> bool:
         """Discounts ONE copy of that card (two Second Shot seen, one played: one left). True if it was known."""
+        if card.card_id in self.foreign and "trick" in card.tags:        # one of Loki's TRICKs, never one of the rival's own cards with the same id
+            self.foreign.remove(card.card_id)
+            return True
         try:
             self.seen.remove(card.card_id)
             found = True
@@ -120,6 +125,11 @@ class KnownHand:
     def clear(self) -> None:
         self.seen, self.turn_no = [], None
         self.possible, self.possible_lo, self.possible_hi = [], 0, 0
+
+    def foreign_cards(self, own: "PlayerState") -> list[Card]:
+        """Loki's TRICKs known to lie in the rival's hand, as cards of `own` (the viewer's own deck)."""
+        by_id = {c.card_id: c for c in own.full_set}
+        return [by_id[i] for i in self.foreign if i in by_id]
 
     # ---- known deck top
     def set_top(self, ids: list[int]) -> None:
@@ -171,10 +181,10 @@ class KnownHand:
 
     def copy(self) -> "KnownHand":
         return KnownHand(list(self.seen), self.turn_no, list(self.possible), self.possible_lo, self.possible_hi,
-                         list(self.top_of_deck))
+                         list(self.top_of_deck), list(self.foreign))
 
     def is_empty(self) -> bool:
-        return not (self.seen or self.possible or self.top_of_deck)
+        return not (self.seen or self.possible or self.top_of_deck or self.foreign)
 
     def to_dict(self) -> dict:
         """Only what is non-empty, so a game that never looked at a hand saves byte-identical to before."""
@@ -187,6 +197,8 @@ class KnownHand:
             out["possible"] = {"ids": list(self.possible), "lo": self.possible_lo, "hi": self.possible_hi}
         if self.top_of_deck:
             out["top"] = list(self.top_of_deck)
+        if self.foreign:
+            out["foreign"] = list(self.foreign)
         return out
 
     @classmethod
@@ -194,7 +206,8 @@ class KnownHand:
         raw = raw or {}
         poss = raw.get("possible") or {}
         return cls([int(i) for i in raw.get("seen", [])], raw.get("turn_no"), [int(i) for i in poss.get("ids", [])],
-                   int(poss.get("lo", 0)), int(poss.get("hi", 0)), [int(i) for i in raw.get("top", [])])
+                   int(poss.get("lo", 0)), int(poss.get("hi", 0)), [int(i) for i in raw.get("top", [])],
+                   [int(i) for i in raw.get("foreign", [])])
 
 
 @dataclass
@@ -384,9 +397,9 @@ class Game:
                 if f.alive and f is not fighter and self.board.share_zone(fighter.pos, f.pos)]
 
     def counter(self, player: int, name: str) -> int:
-        """Hero counter (Hellboy: destinies): cards with its tag in its pile."""
+        """Hero counter (Hellboy: destinies): cards with its tag in its pile (`rival_hand`: in the rival's hand, Loki's TRICKs)."""
         c = self.players[player].hero.counters[name]
-        pile = self.players[player].discard if c.pile == "discard" else []
+        pile = self.players[player].discard if c.pile == "discard" else self.players[1 - player].hand
         return sum(1 for card in pile if c.tag in card.tags)
 
     def counters(self, player: int) -> dict[str, int]:
@@ -500,8 +513,12 @@ class Game:
 
     # known hand of the rival (effect "look at the hand"): see KnownHand
     def observe_hand(self, viewer: int, cards: list[Card]) -> None:
-        """`viewer` has just seen the rival's whole hand through a card effect."""
-        self.players[viewer].known.observe(cards, self.turn_no)
+        """`viewer` has just seen the rival's whole hand through a card effect. The TRICKs of the viewer's own deck that lie there (Loki's) are
+        kept apart (`KnownHand.foreign`): their CardIDs may repeat the rival's own cards'."""
+        known = self.players[viewer].known
+        away = [c for c in cards if tricks.borrowed(self, 1 - viewer, c)]
+        known.observe([c for c in cards if c not in away], self.turn_no)
+        known.foreign = [c.card_id for c in away]
 
     def card_left_hand(self, owner: int, card: Card) -> None:
         """A card has left `owner`'s hand (played, discarded, lost): their rival stops counting on it."""
@@ -609,6 +626,8 @@ class Game:
             self._fall(fighter)
 
     def _fall(self, fighter: Fighter) -> None:
+        if off_board.intercept_defeat(self, fighter):      # Elektra's first defeat: removed from the board, not defeated, no winner
+            return
         fighter.died_at = fighter.pos if fighter.pos is not None else fighter.died_at
         fighter.alive, fighter.pos = False, None
         enraged.sync_move(self, fighter.owner)
@@ -656,6 +675,9 @@ class Game:
         """`played`: the card is being used (a scheme), not discarded by an effect: no `card_discarded` event.
         `cause`: why it was discarded when that matters to a trigger ("hand_limit": Wildfire does not return it)."""
         self.take_from_hand(player, card)
+        if not played and tricks.borrowed(self, player, card):       # an opponent's TRICK goes back to Loki (MISCHIEF-MONGER), never to this pile
+            tricks.discarded(self, player, card, cause)
+            return
         self.players[player].discard.append(card)
         if not played:
             self.fx.emit("card_discarded", player, card, "hand", cause)
@@ -805,6 +827,8 @@ class Game:
         placing = boost_card is not None and self.fx.hero_rule(player, "maneuver_boost_places_hero")
         for fid, dest in moves.items():
             f = self.fighters[fid]
+            if not f.alive or f.pos is None:        # taken off the board by an earlier move of this maneuver (an opportunity attack, a hazard: Elektra's first defeat)
+                continue
             if placing and f.hero:
                 self.place_fighter(f, dest)       # ESCAPE ARTIST: boosting, the hero goes to any space instead of moving
             else:
@@ -851,9 +875,10 @@ class Game:
                 raise RuleError(t("err.adjacent_only", title=card.title, fid=attacker.fid, target=target.fid))
             raise RuleError(t("err.out_of_reach", attacker=attacker.fid, target=target.fid))
 
-    @staticmethod
-    def check_defense_card(fighter: Fighter, card: Card) -> None:
-        if not card.can_defend:
+    def check_defense_card(self, fighter: Fighter, card: Card) -> None:
+        if not (card.can_defend or self.fx.may_defend_with(fighter.owner, card)):
+            if "defend_if_axe" in card.tags:          # What Big Ears You Have needs an axe on top of her pile: say so instead of a bare type error
+                raise RuleError(t("err.big_ears_basket", title=card.title))
             raise RuleError(t("err.not_defense_type", title=card.title, type=card.type))
         if not card.usable_by(fighter.name):
             raise RuleError(t("err.wrong_fighter", title=card.title, fighter=card.fighter, name=fighter.name))

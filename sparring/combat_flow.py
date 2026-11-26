@@ -8,6 +8,7 @@ from typing import Callable
 from .cards import Card
 from .combat import (ON_EARTH, PLANNED, CombatCtx, CombatResult, _check_boost, _side_cards, can_boost, deck_boost,
                      is_medusa_card)
+from . import tricks
 from .effects import inventions
 from .i18n import t
 from .state import ANUNG, Fighter, Game, RuleError
@@ -116,6 +117,8 @@ class CombatFlow:
     """One combat advanced in small steps, so it can stop at a decision (`Await`) and be saved. Handlers return an
     `Await` BEFORE mutating anything; after `resume` the same handler runs again and finds its answer."""
 
+    redo: int | None = None                          # the side index to run again: the defender's card was replaced (Looking For Trouble); consumed in the same step, never saved
+
     def __init__(self, game: Game, att: Fighter, tgt: Fighter, atk_card: Card, def_card: Card | None,
                  values: tuple[int, int] = (0, 0), second: int | None = None):
         self.game, self.att, self.tgt = game, att, tgt
@@ -197,6 +200,9 @@ class CombatFlow:
                 return wait
             if self.again:
                 self.again = False
+                return None
+            if self.redo is not None:                # the defender's card changed under the attacker's IMMEDIATELY: its side runs again
+                self.side_idx, self.redo = self.redo, None
                 return None
         # Only in a second attack: in a first combat the attacker's hero ability already ran with its card (`dsl_after` / `run_moment`, run key
         # `after:atk`), and `hero_after` shares that key, so a double draw is impossible; the `second` guard keeps it from even being asked.
@@ -317,7 +323,10 @@ class CombatFlow:
         return next(i for i, p in enumerate(self.game.players) if any(c is card for c in p.full_set))
 
     def card_by_id(self, card_id: int, owner: int) -> Card:
-        """The card of `owner` with that id. Ids repeat across players in a mirror match, so the owner is required."""
+        """The card of `owner` with that id. Ids repeat across players in a mirror match, so the owner is required. A TRICK of the other
+        player's deck (Loki's, in a hand that is not his) is saved by its qualified id (`tricks.QUALIFIED`)."""
+        if card_id >= tricks.QUALIFIED:
+            owner, card_id = 1 - owner, card_id - tricks.QUALIFIED
         for c in self.game.players[owner].full_set:
             if c.card_id == card_id:
                 return c
@@ -466,6 +475,24 @@ class CombatFlow:
         res.atk_parts[0] = f"{new.title} ({new.value or 0})"
         self.sides = [Side(*s) for s in _side_cards(ctx)]
 
+    def replace_defense_card(self, new: Card) -> None:
+        """Looking For Trouble (Loki's IMMEDIATELY, the attacker's): the defender's card went back to their hand and `new`, chosen from that hand,
+        is played instead. Its value takes the old one's place (bonuses stay) and the defender's IMMEDIATELY runs again with the new card
+        (`redo`): the old card's had already run, before the attacker's."""
+        old, ctx, res = self.def_card, self.ctx, self.result
+        owner = self.tgt.owner
+        ctx.def_value = max(0, ctx.def_value + (new.value or 0) - (old.value or 0))
+        self.played = [(o, new if c is old else c) for o, c in self.played]
+        self.game.take_from_hand(owner, new)
+        self.game.players[owner].hand.append(old)
+        tricks.note_in_hand(self.game, owner, old)
+        self.runs.pop("immediately:def", None)
+        self.redo = 0
+        self.def_card = ctx.def_card = res.def_card = new
+        if res.def_parts:
+            res.def_parts[0] = f"{new.title} ({new.value or 0})"
+        self.sides = [Side(*s) for s in _side_cards(ctx)]
+
     def replace_combatant(self, old: Fighter, new: Fighter) -> bool:
         """`new` takes the place of `old` in this combat (Smoke And Mirrors): the same cards, another fighter. The rival's
         card is aimed at the new one from now on. False if `old` is not in the combat."""
@@ -528,13 +555,18 @@ class CombatFlow:
                 out["dsl"]["second_attack"] = dict(self.second_attack)
         return out
 
+    def _saved_id(self, card: Card, owner: int) -> int:
+        """The id a card is saved under: its own, or the qualified one for a TRICK that lies with the other player."""
+        return card.card_id + tricks.QUALIFIED if tricks.borrowed(self.game, owner, card) else card.card_id
+
     def _base_dict(self, ctx, res) -> dict:
         return {
             "phase": self.phase.value, "side_idx": self.side_idx, "after_open": self.after_open,
             "values": list(self.values), "fids": [self.att.fid, self.tgt.fid],
             **({"second": self.second} if self.second is not None else {}),
-            "atk_card": self.atk_card.card_id, "def_card": None if self.def_card is None else self.def_card.card_id,
-            "played": [[owner, card.card_id] for owner, card in self.played],
+            "atk_card": self._saved_id(self.atk_card, self.att.owner),
+            "def_card": None if self.def_card is None else self._saved_id(self.def_card, self.tgt.owner),
+            "played": [[owner, self._saved_id(card, owner)] for owner, card in self.played],
             "def_bonus_parts": [[n, label] for n, label in self.def_bonus_parts],
             "answers": dict(self.answers), "await_key": self.await_key,
             "pending": None if self.pending is None else self.pending.to_dict(),

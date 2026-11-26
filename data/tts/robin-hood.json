@@ -1,0 +1,51 @@
+{
+ "slug": "robin-hood",
+ "_notes": [
+  "Read from the tournament savegame: infinite bag ee2fcc > bag 6c439e. Robin Hood's deck is sheet 176 (CardIDs 17600-17629) like Medusa's and the turtles': only deck.identity tells the decks apart (docs/card-identity.md). The character card is 308 (sheet 3).",
+  "The four Outlaws are Custom_Token objects nicknamed Outlaw (one image, no second face, no life dial: 1 life each) with no other name: the pieces are told apart by GUID only, in the bag's order. The miniature is the Custom_Model 5aa21a and the life dial the Custom_Model 1fc8df (description 'Hero Health', MAX_VALUE 13).",
+  "GUID 1fc8df is also Yennenga's life dial and a miniature of Nikola Tesla (not in the project): the save reuses it for models named after their hero. Told apart by name (docs/card-identity.md, Piece identity; tests/test_piece_identity.py)."
+ ],
+ "bag": {
+  "guid": "ee2fcc",
+  "inner": "6c439e"
+ },
+ "deck": {
+  "guid": "462e4d",
+  "card_ids": [
+   17600,
+   17629
+  ],
+  "character_card_id": 308,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/17045807840817907690/6C4C2AD3D8E4F69396C0F4B1B738850BD23615AE/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/17738803444779028014/3E4EDD1A724686C5B522F14A4619D4B874813B00/"
+   }
+  ]
+ },
+ "fighters": {
+  "robin": {
+   "piece": "5aa21a",
+   "dial": "1fc8df",
+   "dial_max": 13
+  },
+  "outlaw1": {
+   "piece": "88a446",
+   "same_token": true
+  },
+  "outlaw2": {
+   "piece": "0d8360",
+   "same_token": true
+  },
+  "outlaw3": {
+   "piece": "821507",
+   "same_token": true
+  },
+  "outlaw4": {
+   "piece": "dc6b24",
+   "same_token": true
+  }
+ },
+ "tokens": {},
+ "counter_dials": {}
+}

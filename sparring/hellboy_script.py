@@ -102,6 +102,11 @@ class ChasingHellboy(ScriptedHellboy):
     def take_turn(self, game: Game) -> None:
         self.start_of_turn(game)
         while tracks.turn_goes_on(game) and game.winner is None:
+            if game.hero(1 - self.me).pos is None:         # the rival hero is off the board (Elektra's first life): nothing to chase or hit
+                if game.paid_actions <= 0:
+                    break
+                game.maneuver(self.me, {})
+                continue
             if self.strike(game, [game.hero(self.me)]):
                 continue
             if game.paid_actions >= 1 and game.actions_left >= 2 and self.holds_attack(game) and self.maneuver(game, hunting=True):

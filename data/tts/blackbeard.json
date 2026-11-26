@@ -1,0 +1,112 @@
+{
+ "slug": "blackbeard",
+ "_notes": [
+  "Read from the tournament savegame: infinite bag af6cfa > bag 541533. Blackbeard's deck is sheet 2 (CardIDs 200-229, 8x4), a sheet of its own; the deck object holds 32 cards: the 30 playing cards, the loose rules card 500 (sheet 5, one image: `tts.extra_card_ids` in the overlay makes tools/import_save.py skip it) and the character card 362 (sheet 3, index 62). The bag also holds a loose CardCustom d0e886 (CardID 17600 of a one-image sheet 176): the same rules card, not a playing card; nothing uses it.",
+  "The Sea Dogs are the Custom_Tokens nicknamed Hands (e815fe) and Caesar (265d90): 1 life, no dial. The Treasury is a Custom_Token (442da0) and the doubloons a Custom_Token_Stack (a3b09d, Number 3: three coins in one stack). The session does NOT read coins from the table: the engine keeps the count (counters doubloons and treasury), the chat says every change and the bot moves the coins (session_blackbeard, lua_blackbeard.set_doubloons; docs/heroes/blackbeard.md, Table).",
+  "token_slots: where the Treasury tile and the doubloon stack rest on each side. Blackbeard has no sidekick dial nor counter dial, so the column the sidekick dials use is free; the spots are the ones measured live for Abe Sapien's Intuition tokens on that same column (x -3.1 / 1.7, z 18.0 / 20.4). verify_live: not yet seen with these tokens.",
+  "The tokens are called treasury_tile and doubloon_stack, not treasury and doubloon: the engine's counters are `treasury` and `doubloons`, and the session gives an ability counter that shares its name with a token a copy of that token per point (session_translators `_counter_bot`, Abe's Intuition tokens), which would clone the Treasury tile."
+ ],
+ "bag": {
+  "guid": "af6cfa",
+  "inner": "541533"
+ },
+ "deck": {
+  "guid": "2bfd21",
+  "card_ids": [
+   200,
+   229
+  ],
+  "character_card_id": 362,
+  "identity": [
+   {
+    "face": "https://steamusercontent-a.akamaihd.net/ugc/10724509353453123831/088754DF9EFEC529A0893DD59427E18A7BC8C54A/",
+    "back": "https://steamusercontent-a.akamaihd.net/ugc/16008817530513064233/5198933BD7EC34DB7837A941039A54B70025738B/"
+   }
+  ]
+ },
+ "fighters": {
+  "blackbeard": {
+   "piece": "8841d2",
+   "dial": "81e2ff",
+   "dial_max": 13
+  },
+  "seadog1": {
+   "piece": "e815fe",
+   "nickname": "Hands"
+  },
+  "seadog2": {
+   "piece": "265d90",
+   "nickname": "Caesar"
+  }
+ },
+ "tokens": {
+  "treasury_tile": "442da0",
+  "doubloon_stack": "a3b09d"
+ },
+ "token_slots": {
+  "treasury_tile": {
+   "human": [
+    {
+     "pos": [
+      -3.12,
+      1.76,
+      17.99
+     ],
+     "rot": [
+      0,
+      90,
+      0
+     ]
+    }
+   ],
+   "bot": [
+    {
+     "pos": [
+      1.75,
+      1.64,
+      18.0
+     ],
+     "rot": [
+      0,
+      270,
+      0
+     ]
+    }
+   ]
+  },
+  "doubloon_stack": {
+   "human": [
+    {
+     "pos": [
+      -3.11,
+      1.76,
+      20.62
+     ],
+     "rot": [
+      0,
+      90,
+      0
+     ]
+    }
+   ],
+   "bot": [
+    {
+     "pos": [
+      1.67,
+      1.64,
+      20.37
+     ],
+     "rot": [
+      0,
+      270,
+      0
+     ]
+    }
+   ]
+  }
+ },
+ "counter_dials": {},
+ "ignored_tokens": [
+  "d0e886"
+ ]
+}

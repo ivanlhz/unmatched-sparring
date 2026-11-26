@@ -225,7 +225,7 @@ class PlayConfig:
                 bot_deck_guid=r["bot_deck_guid"], human_discard_zone=r["human_discard_zone"],
                 bot_deck_spot=tuple(r["bot_deck_spot"]), pieces=dict(r["pieces"]),
                 reveal_radius=float(r.get("reveal_radius", 2.0)), rot_y=float(r.get("rot_y", 0.0)),
-                dials=dict(r.get("dials", {})), destiny_dial=r.get("destiny_dial"), counter_dials=dict(r.get("counter_dials") or {}),
+                dials=dict(r.get("dials", {})), flip_dials=dict(r.get("flip_dials") or {}), destiny_dial=r.get("destiny_dial"), counter_dials=dict(r.get("counter_dials") or {}),
                 bot_card_ids=tuple(r.get("bot_card_ids", lua.BOT_CARD_IDS)),
                 human_card_ids=tuple(r.get("human_card_ids", lua.HUMAN_CARD_IDS)),
                 bot_card_shift=self.card_shifts[0], human_card_shift=self.card_shifts[1],
@@ -370,7 +370,7 @@ class PlayConfig:
         lua.zone_overlaps([cfg.bot_discard_zone, cfg.human_discard_zone])
 
 
-HERO_KEYS = ("nicknames", "pieces", "dials")       # by fighter id: the configuration refines what the data gives
+HERO_KEYS = ("nicknames", "pieces", "dials", "flip_dials")       # by fighter id: the configuration refines what the data gives
 HERO_SCALARS = ("bot_deck_guid", "human_deck_guid", "destiny_dial", "counter_dials", "bot_card_ids", "human_card_ids",
                 "bot_identity", "human_identity")
 
@@ -388,7 +388,7 @@ def with_hero_data(raw: dict) -> dict:
     out = dict(raw)
     for key in HERO_KEYS:
         given = raw.get(key) if isinstance(raw.get(key), dict) else {}
-        out[key] = {**derived[key], **{k: v for k, v in given.items() if k in fids}}
+        out[key] = {**derived.get(key, {}), **{k: v for k, v in given.items() if k in fids}}
     for key in HERO_SCALARS:
         if key in derived and is_todo(raw.get(key)):
             out[key] = derived[key]
@@ -992,6 +992,10 @@ def unpack_plan(cfg: PlayConfig) -> list[tuple]:
                 continue
             out.append((kind, guids, table.inner_bag, tuple(float(o) + n * d for o, d in zip(origin, step)), None))
             n += 1
+        if side == "human":                 # what only the human plays with (Pandora's Misery deck: the real Box), in the same row
+            for g in table.human_extras:
+                out.append(("token", (g,), table.inner_bag, tuple(float(o) + n * d for o, d in zip(origin, step)), None))
+                n += 1
     return out
 
 

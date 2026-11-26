@@ -1,0 +1,452 @@
+{
+ "schema": 1,
+ "hero": "little-red-riding-hood",
+ "notes": [
+  "Texts read from sheet 177 of the tournament savegame (card images) on 2026-11-22; the character card is 310 on sheet 3. Symbols are written in words: (wolf), (rose), (axe) stand for the icon in front of an effect line; the star is the wild symbol.",
+  "One test plugin (`red:basket`: the symbol a line needs against the top of the discard pile) and one op plugin (`red:stones`: Ambush's flow). docs/heroes/little-red-riding-hood.md has the design."
+ ],
+ "ability": {
+  "text": "Resolve an effect on a card you play if the symbol next to the effect matches the item in your basket. At the start of the game, place LITTLE RED'S BASKET in your discard pile.\nLittle Red's Basket: This starts in your discard pile. It does not count as a card.\nThe star counts as any one wolf, rose or axe symbol.",
+  "triggers": [],
+  "passives": [],
+  "notes": "The basket is the symbol of the top card of the player's discard pile (the newest, `discard[-1]`); with no card in the pile it is the starting Basket, which is wild like the star on What's That In My Basket?. It is read when each effect resolves (`red:basket`). A wild basket is ONE symbol chosen by its player the first time a symbol line needs it in that card's play (Ivan 2026-11-22, LR1) and kept for the rest of that card. Lines with no symbol always resolve. The Huntsman's cards use the player's basket."
+ },
+ "cards": [
+  {
+   "title": "What Large Hands You Have",
+   "copies": 2,
+   "text": "AFTER COMBAT: You may return this card to your hand. (rose) Instead, you may return the top card of your discard pile to your hand.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "plugin",
+       "id": "red:basket",
+       "key": "rose"
+      },
+      "then": [
+       {
+        "op": "if",
+        "condition": {
+         "test": "exists",
+         "cards": {
+          "zone": "discard",
+          "player": "owner"
+         }
+        },
+        "then": [
+         {
+          "op": "optional",
+          "chooser": "owner",
+          "ops": [
+           {
+            "op": "put_in_hand",
+            "cards": {
+             "zone": "discard",
+             "player": "owner",
+             "pick": "last",
+             "amount": 1
+            }
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "else": [
+       {
+        "op": "optional",
+        "chooser": "owner",
+        "ops": [
+         {
+          "op": "put_in_hand",
+          "cards": "this"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 2 / boost 3, Little Red. The first line carries no symbol, so it always may resolve. With the basket on a ROSE the second line REPLACES it ('instead'): the top card of the discard pile (`pick: last`, the newest) returns instead of this card, and with nothing to return (the starting Basket chosen as a rose is not a card) nothing happens at all: this card does not return either (REGLAS-PENDIENTES LR, Discord). Both are optional. This card is not in the pile yet (the combat cards reach it last), so 'the top card' is the one that was on top before, a BOOST card of this combat included."
+  },
+  {
+   "title": "What Big Ears You Have",
+   "copies": 2,
+   "text": "(axe) You may play this card as a defense card.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 4 / boost 2, Little Red. The line is a property of the card, not an op: with the basket on an AXE (checked when the card is played, `little_red.may_defend_with`) the card may be played as a defense with its printed 4; a later cancel keeps it a defense. Nothing to resolve in combat."
+  },
+  {
+   "title": "Long Have I Sought You",
+   "copies": 3,
+   "text": "DURING COMBAT: If the Huntsman is adjacent to the opposing fighter, the value of this card is 6 instead.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "exists",
+       "fighters": {
+        "side": "own",
+        "name": "Huntsman",
+        "where": {
+         "adjacent_to": "opposing"
+        }
+       }
+      },
+      "then": [
+       {
+        "op": "set_value",
+        "card": "this",
+        "amount": 6
+       }
+      ]
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 4 / boost 2, Huntsman only. No symbol: always resolves. `set_value 6` (the printed value becomes 6, bonuses stay); the Huntsman must be alive and next to the opposing fighter (he may be the one who plays the card)."
+  },
+  {
+   "title": "What Big Eyes You Have",
+   "copies": 2,
+   "text": "IMMEDIATELY: Cancel all effects on your opponent's card. (rose) Also ignore the value of your opponent's card.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "cancel_effects",
+      "card": "opponent_card"
+     },
+     {
+      "op": "if",
+      "condition": {
+       "test": "plugin",
+       "id": "red:basket",
+       "key": "rose"
+      },
+      "then": [
+       {
+        "op": "set_value",
+        "card": "opponent_card",
+        "ignore": true
+       }
+      ]
+     }
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 3 / boost 2 (unmatched-memory says 2: slip), Little Red. The cancel has no symbol; with a ROSE basket the opponent's value is also ignored (`set_value ignore`: the whole total is 0 at that moment, a later BOOST still adds). The basket is checked when the line resolves, after the cancel."
+  },
+  {
+   "title": "What's That In My Basket?",
+   "copies": 4,
+   "text": "(The star counts as any one wolf, rose or axe symbol.)",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 4 / boost 3, Little Red. No effect: the star is its symbol when it lies on top of the discard pile (tag `symbol:wild`): the player chooses wolf, rose or axe when the card that resolves needs it (Ivan 2026-11-22, LR1)."
+  },
+  {
+   "title": "Once Upon a Time",
+   "copies": 2,
+   "text": "AFTER COMBAT: (axe) Deal 3 damage to the opposing fighter.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "plugin",
+       "id": "red:basket",
+       "key": "axe"
+      },
+      "then": [
+       {
+        "op": "damage",
+        "target": "opposing",
+        "amount": 3
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 2 / boost 1, any fighter. With the basket on an AXE, 3 effect damage to the opposing fighter (it is not combat damage)."
+  },
+  {
+   "title": "Stones in the Belly",
+   "copies": 3,
+   "text": "DURING COMBAT: (axe) Your opponent discards 1 random card. Add its BOOST value to this card's value.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "plugin",
+       "id": "red:basket",
+       "key": "axe"
+      },
+      "then": [
+       {
+        "op": "plugin",
+        "id": "red:stones"
+       }
+      ]
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 2 (image; memory has none) / boost 1, any fighter. With the basket on an AXE the opponent discards 1 random card from the hand and its BOOST is added to this card's value (plugin `red:stones`, the same flow as every Ambush; an empty hand adds 0)."
+  },
+  {
+   "title": "What a Terrible Big Mouth You Have",
+   "copies": 2,
+   "text": "AFTER COMBAT: (wolf) Deal damage to the opposing fighter equal to the printed value of their card.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "plugin",
+       "id": "red:basket",
+       "key": "wolf"
+      },
+      "then": [
+       {
+        "op": "damage",
+        "target": "opposing",
+        "amount": {
+         "attr": "value",
+         "of": "opponent_card"
+        }
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense 2 / boost 2, Little Red. With the basket on a WOLF, effect damage to the opposing fighter equal to the PRINTED value of their card (bonuses and a BOOST do not count)."
+  },
+  {
+   "title": "The Wolf's Skin",
+   "copies": 3,
+   "text": "AFTER COMBAT: (wolf) Draw 2 cards.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "plugin",
+       "id": "red:basket",
+       "key": "wolf"
+      },
+      "then": [
+       {
+        "op": "draw",
+        "player": "owner",
+        "amount": 2
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense 2 / boost 2, any fighter. With the basket on a WOLF, draw 2 cards."
+  },
+  {
+   "title": "Never Leave the Path",
+   "copies": 2,
+   "text": "(wolf) Place Little Red in any space. Gain 1 action. (axe) Deal 2 damage to each opposing fighter in Little Red's zone. (rose) Draw 3 cards.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "plugin",
+       "id": "red:basket",
+       "key": "wolf"
+      },
+      "then": [
+       {
+        "op": "place",
+        "target": "this",
+        "where": {
+         "any": true
+        },
+        "chooser": "owner"
+       },
+       {
+        "op": "gain_action",
+        "amount": 1
+       }
+      ]
+     },
+     {
+      "op": "if",
+      "condition": {
+       "test": "plugin",
+       "id": "red:basket",
+       "key": "axe"
+      },
+      "then": [
+       {
+        "op": "damage",
+        "target": {
+         "side": "enemy",
+         "where": {
+          "zone_of": "hero"
+         },
+         "pick": "all"
+        },
+        "amount": 2
+       }
+      ]
+     },
+     {
+      "op": "if",
+      "condition": {
+       "test": "plugin",
+       "id": "red:basket",
+       "key": "rose"
+      },
+      "then": [
+       {
+        "op": "draw",
+        "player": "owner",
+        "amount": 3
+       }
+      ]
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme, boost 1, Little Red. Three lines, each with its own symbol, resolved in order and each checked when it resolves. With a wild basket (the Basket or a star card) ONE symbol is chosen for the whole card, so only one line resolves. The axe line reads Little Red's zone AFTER the wolf line placed her (she is the hero)."
+  },
+  {
+   "title": "Into the Woods",
+   "copies": 3,
+   "text": "Move Little Red up to 3 spaces. Gain 1 action.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "move",
+      "target": "this",
+      "amount": 3,
+      "up_to": true,
+      "chooser": "owner"
+     },
+     {
+      "op": "gain_action",
+      "amount": 1
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme, boost 2, Little Red. No symbol. The three copies print ONE symbol each on the lower left (rose, wolf, axe: idx 25, 26, 27): they only matter when the card lies on top of the discard pile (tags `symbol:rose|wolf|axe`)."
+  },
+  {
+   "title": "A Grimm Tale",
+   "copies": 2,
+   "text": "Little Red recovers 2 health. (wolf) Little Red recovers 4 health instead.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "plugin",
+       "id": "red:basket",
+       "key": "wolf"
+      },
+      "then": [
+       {
+        "op": "heal",
+        "target": "hero",
+        "amount": 4
+       }
+      ],
+      "else": [
+       {
+        "op": "heal",
+        "target": "hero",
+        "amount": 2
+       }
+      ]
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme, boost 3, Huntsman only (the Huntsman plays it; Little Red is the one who heals). 2 health, or 4 instead with the basket on a WOLF; the basket is the player's, the Huntsman's cards use it too."
+  }
+ ],
+ "plugins": [
+  {
+   "id": "red:basket",
+   "why": "A line with a symbol resolves only if the top of the discard pile shows it: the discard ORDER and a chosen wild symbol are not DSL conditions."
+  },
+  {
+   "id": "red:stones",
+   "why": "Stones in the Belly: the opponent discards 1 random card and its BOOST is added to this card (Ambush's flow, `random_discard.discard_random_known`)."
+  }
+ ],
+ "hidden_info": [
+  {
+   "card": "Stones in the Belly",
+   "rule": "The human's hand is hidden: the bot names a position, the human discards that card and the bot reads its BOOST from the table (the Ambush flow)."
+  }
+ ],
+ "open_questions": [],
+ "discrepancies": [
+  {
+   "card": "What Big Eyes You Have",
+   "memory": "value 2",
+   "image": "versatile 3"
+  },
+  {
+   "card": "Stones in the Belly",
+   "memory": "no value",
+   "image": "value 2"
+  }
+ ]
+}

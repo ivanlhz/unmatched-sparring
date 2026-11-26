@@ -41,7 +41,7 @@ from dataclasses import dataclass, field, replace
 from functools import lru_cache
 from math import comb, fsum, prod, sqrt
 
-from .. import ai_achilles, ai_double, ai_mary, enraged, pack, tracks
+from .. import ai_achilles, ai_double, ai_mary, enraged, off_board, pack, tracks, tricks
 from ..ai_hazards import zone_cover_factor, zone_damage, zone_exposed
 from ..ai_medusa import (ATTACKS_PER_TURN, DRAWS_PER_TURN, GAZE, LONG_GAME, MIN_NET, beside_stake, boost_effect_value, bot_may_spend,
                          can_use, discard_cut, exhaustion_owed, held_for_plan, maneuver_may_spend, play_signature, scheme_fighter)
@@ -70,6 +70,7 @@ ROLLOUT_APPROACH_PROB = 0.5   # in the rollout, the hero maneuvering looks for a
 PLACEMENT_KEEP = 6            # maneuver placements in the tree: the best by static evaluation...
 PLACEMENT_STRIKE_KEEP = 2     # ...plus the best ones from which the hero strikes, plus staying still
 LOOKAHEAD_KEEP = 3            # ...plus, with `EvalWeights.lookahead`, the best waypoints of a two-maneuver turn (`EngineState._lookahead`)
+OFF_BOARD_LIFE = 0.85         # the life term of a hero that is off the board but not defeated (Elektra): a fresh hero, a turn behind
 HAND_RESERVE = 3              # the cards of a hand that are its reserve (`EvalWeights.hand_reserve`): two blows to answer next turn and one card to play
 REFERENCE_HP = 16               # the hero hit points that one life is measured in when a card or a deck is priced in hit points (`card_hp`, `deck_hp`), whoever the side is
 GAME_TURNS = 15               # turns of its own that a game can last, for the exhaustion race (`EngineState._exhaustion`): the live games and the duels went 8 to 13
@@ -173,9 +174,15 @@ class Knowledge:
         known, rival = game.players[observer].known, 1 - observer
         st = game.players[rival]
         poss = tuple(known.possible_cards(st))
-        return cls({rival: tuple(known.cards(st))}, {rival: poss},
+        return cls({rival: (*known.cards(st), *known.foreign_cards(game.players[observer]))}, {rival: poss},       # Loki's own TRICKs that lie in the rival's hand are known cards too
                    {rival: (min(known.possible_lo, len(poss)), min(known.possible_hi, len(poss)))},
                    {rival: tuple(known.top(st))})
+
+
+def first_life(hp: float) -> float:
+    """The life term of Elektra with `hp` hit points of her first life left: one pool with the nine she comes back with, in the unit of the
+    resurrected hero (nine of nine is 1.0). 1.0 at 0, 4/3 at 7: every point counts and none reads below the hero she returns as."""
+    return sqrt((off_board.RESURRECTED_HEALTH + hp) / off_board.RESURRECTED_HEALTH)
 
 
 def squash(x: float) -> float:
@@ -552,7 +559,7 @@ class EngineState:
         return (self.observer, self.weights, g.board.key, g.turn, self.phase, self.partial, self.pending[:2] if self.pending else None,
                 g.form(1 - g.turn) if self.phase == "start" else None,
                 tuple((f.fid, f.pos, f.hp) for f in g.fighters.values() if f.alive),
-                tuple(sorted(c.card_id for c in g.players[mover].hand)),
+                tuple(sorted(tricks.zone_id(g.players[mover], c) for c in g.players[mover].hand)),       # a TRICK of Loki's in the hand is a card of its own, whatever CardID a card of the hand's own deck has
                 tuple(f.fid for f in g.fighters.values() if f.alive and not g.fx.can_move(f)),    # pinned by an effect
                 g.maneuver_bonus(g.turn),      # the Maneuver's reach moves with the hero's ability (Sinbad's VOYAGE cards in the pile)
                 g.actions_left if self.weights.lookahead or pack.passive(g, g.turn) else None,    # a pack's last action is spent on a blow, not on a walk (`_generate_moves`)
@@ -725,7 +732,8 @@ class EngineState:
                     and self.pending[2] not in known:
                 known.append(self.pending[2])         # an attack played face up (Witness My Last Battle) is in the hand the defense answers
             top = [c for c in self.knowledge.top_of_deck.get(p, ()) if c not in gone and c not in known]
-            pool = sorted((c for c in st.full_set if c not in gone and c not in known and c not in top),
+            away = [c for c in g.players[observer].hand if c in st.full_set] if tricks.in_game(g) else []     # a TRICK of this deck lies in the observer's hand: it is not in this one
+            pool = sorted((c for c in st.full_set if c not in gone and c not in known and c not in top and c not in away),
                           key=lambda c: c.card_id)
             face_down = self.pending is not None and self.pending[2] is None and g.fighters[self.pending[0]].owner == p
             if face_down and not self.weights.hidden_attack:
@@ -814,6 +822,11 @@ class EngineState:
                 self.apply(("defend", None))
                 return
             p = g.turn
+            if not g.own(p):            # every fighter of the mover is off the board (Elektra removed in her own turn): nothing to do, the turn is over
+                g.end_turn()
+                g.begin_turn()
+                self.phase = "start"
+                continue
             if self.phase == "start":
                 hero = g.hero(p)
                 if hero.name == "Medusa":
@@ -931,7 +944,7 @@ class EngineState:
         g = self.game
         mine, rival = g.players[p], g.players[1 - p]
         ids = lambda cards: tuple(c.card_id for c in cards)
-        return (card.card_id, variant, p, g.turn, g.actions_left, g.board.key, ids(mine.hand), tuple(sorted(ids(mine.deck))),
+        return (tricks.zone_id(mine, card), variant, p, g.turn, g.actions_left, g.board.key, tuple(tricks.zone_id(mine, c) for c in mine.hand), tuple(sorted(ids(mine.deck))),
                 ids(mine.discard), ids(rival.discard), len(rival.hand), len(rival.deck), tuple(g.drawn),
                 tuple((fid, f.hp, f.pos, f.alive) for fid, f in sorted(g.fighters.items())),
                 tuple(g.fx.ongoing_card_id(q) for q in (0, 1)), repr(g.fx.statuses), repr(g.fx.modifiers), repr(g.fx.counters))
@@ -949,13 +962,13 @@ class EngineState:
         after = g.clone()
         after.rng = random.Random(0)        # the clone shares the game's rng: a simulated shuffle must not move it
         after.drawn = list(g.drawn)         # `Game.clone` resets the draw counter the signatures compare
-        played = next(c for c in after.players[p].hand if c.card_id == card.card_id)
+        played = next(c for c in after.players[p].hand if c == card)
         after.play_scheme(p, scheme_fighter(after, p, played), played,
                           choosers={p: SyntheticChooser(policy=variant or "greedy"), 1 - p: SyntheticChooser(policy="greedy")})
         if after.winner is not None or after.actions_left >= g.actions_left:
             return False
-        kept = {c.card_id for c in g.players[p].hand}
-        if any(c.card_id not in kept for c in after.players[p].hand):
+        kept = set(g.players[p].hand)
+        if any(c not in kept for c in after.players[p].hand):
             return False
         # play_signature[0] is the own hand (it may shrink) and [1] the own deck (it may take those cards)
         return play_signature(g, p, card)[2:] == play_signature(after, p, card)[2:]
@@ -1120,9 +1133,9 @@ class EngineState:
             side_hp = 0.0
         else:
             # square root: the first HP are worth more than the last; staying alive at 3 HP is not almost the same as dying
-            life = sqrt(max(hero.hp, 0) / hero.max_hp)
-            side_hp = sum(f.hp for f in side if f.alive) / hero.max_hp      # in hero HP: a Harpy is worth less than Lobster
-        alive = sum(1 for f in side if f.alive) / len(side) if side else 0.0
+            life = self._hero_life(hero)
+            side_hp = sum(f.hp for f in side if f.alive or f.off_board) / hero.max_hp      # in hero HP: a Harpy is worth less than Lobster
+        alive = sum(1 for f in side if f.alive or f.off_board) / len(side) if side else 0.0
         cap = g.hand_cap(p)                                  # a 3-card hero (Michelangelo) is full at 3, not at 7
         held = len(g.players[p].hand)
         hand = min(held, cap) / cap
@@ -1134,6 +1147,22 @@ class EngineState:
         hand += ai_mary.kept_cards_bonus(g, p) / cap       # Bloody Mary: a hand of exactly 3 cards is a third action next turn, worth cards of hand
         return (life + w.sidekicks * side_hp + w.beside * next_to + w.alive * alive + w.hand * hand + w.hand_reserve * reserve + w.pack * self._pack_ready(p)
                 + w.deck * deck + w.ongoing * ongoing.worth(g, p) / hero.max_hp + self._vengeance(p) - self._exposure(p, urgent))
+
+    def _hero_life(self, hero: Fighter, owed: float = 0) -> float:
+        """The hero's life term. A hero taken off the board and not defeated (Elektra's first life) comes back next turn with the flipped dial and
+        all her fighters: worth a fresh hero a turn behind, not a dead one. While she is still in her first life the second one stands behind it:
+        one pool of her hit points and the nine she returns with, in the unit of the resurrected hero (nine of nine is 1.0). So every point she
+        loses counts, and her first life at 1 reads above the away value and above the hero she comes back as: removing her is never a loss
+        for the one who does it."""
+        if hero.off_board:
+            return OFF_BOARD_LIFE
+        left = max(hero.hp - owed, 0)
+        return first_life(left) if self._first_life(hero) else sqrt(left / hero.max_hp)
+
+    def _first_life(self, hero: Fighter) -> bool:
+        """Elektra's hero on the board with her second life still to come: her defeat removes her (`off_board.intercept_defeat`), it ends nothing."""
+        g = self.game
+        return hero.hero and hero.alive and off_board.is_elektra(g, hero.owner) and off_board.life(g, hero.owner) == off_board.FIRST_LIFE
 
     def _side_value_normalized(self, p: int, urgent: bool) -> float:
         return sum(self._side_terms(p, urgent).values())
@@ -1195,12 +1224,12 @@ class EngineState:
             life_hp = sum(f.max_hp for f in everyone)
             life = sqrt(sum(max(f.hp - owed, 0) for f in everyone if f.alive) / life_hp)
         else:
-            life = sqrt(max(hero.hp - owed, 0) / hero.max_hp)
+            life = self._hero_life(hero, owed)
             if side:
                 side_max = sum(f.max_hp for f in side)
                 share = side_max / (side_max + hero.max_hp)
-                life = (1 - share) * life + share * sum(max(f.hp - owed, 0) for f in side if f.alive) / side_max
-        alive = sum(1 for f in side if f.alive) / len(side) if side else 1.0
+                life = (1 - share) * life + share * sum(max(f.hp - owed, 0) for f in side if f.alive or f.off_board) / side_max
+        alive = sum(1 for f in side if f.alive or f.off_board) / len(side) if side else 1.0
         cap = g.hand_cap(p)
         held = len(g.players[p].hand)
         hp_life = 1.0 / (2.0 * REFERENCE_HP)             # a hit point in lives at full health (the slope of the square root there), on one scale for every side: a card is worth the same to a team and to a hero
@@ -1276,10 +1305,27 @@ class EngineState:
         """What the threat on `p`'s hero subtracts from their side (weighted `threat`)."""
         w = self.weights
         expected, lethal = self.threat(p, urgent)
+        hero = self.game.hero(p)
+        if self._first_life(hero):
+            return self._first_life_exposure(hero, expected, lethal)
         if w.lethal_mix and not urgent and getattr(self, "_lethal", None) is not None:
             self._lethal[p] = min(1.0, w.lethal_mix * lethal)      # `_mixed_value` turns it into the chance the game ends
             lethal = 0.0
         return w.threat * expected + w.lethal * lethal + (w.fighter_threat * self._fighters_exposure(p, urgent) if w.fighter_threat else 0.0)
+
+    def _first_life_exposure(self, hero: Fighter, expected: float, lethal: float) -> float:
+        """The threat on Elektra in her first life. The blow that takes her out removes her, it does not kill her: the expected damage costs
+        what `_hero_life` says those hit points are worth, and the removal on top costs the turn she is away (the step from a fresh hero down to
+        `OFF_BOARD_LIFE`), never the game, so nothing is recorded for `_mixed_value`. Her threatened first life therefore never reads below
+        being away, at any health. With `normalize` it is scaled like her life is, by her share of the side's hit points. The Hand are left
+        out: every one of them is back at the Resurrect, also those defeated before it."""
+        w = self.weights
+        loss = first_life(hero.hp) - first_life(hero.hp * (1.0 - min(1.0, expected)))
+        share = 1.0
+        if w.normalize:
+            side_max = sum(f.max_hp for f in self.game.own(hero.owner, alive_only=False) if not f.hero)
+            share = hero.max_hp / (side_max + hero.max_hp)
+        return share * (w.threat * loss + w.lethal * lethal * (1.0 - OFF_BOARD_LIFE))
 
     def _fighters_exposure(self, victim: int, urgent: bool) -> float:
         """The loss, in lives, of the sidekick the rival's next turn hurts most: the hit points it would lose (up to the ones it has) and the
@@ -1317,6 +1363,8 @@ class EngineState:
         them kills while another stands."""
         g, w = self.game, self.weights
         hero = g.hero(victim)
+        if hero.off_board:
+            return 0.0, 0.0              # nothing can be hit while she is away
         if not hero.alive:
             return 0.0, 1.0
         pool = self._life_pool(victim)

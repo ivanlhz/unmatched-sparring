@@ -59,6 +59,10 @@ def tracked(slugs: frozenset) -> frozenset:
     return frozenset(name for name, needles in TRACKS.items() if words & set(needles))
 
 
+# Triggers of the bot's hero the chat says as well, because the table cannot show their result (Blackbeard's doubloons are not read from the tokens).
+SAID_FOR_THE_BOT = frozenset({"doubloon_action", "doubloon_damage"})
+
+
 def default_choosers(game) -> dict:
     return game.fx.choosers or {0: _BOTS, 1: _BOTS}
 
@@ -288,7 +292,7 @@ def _fire(game, owner: int, trig: dict, ev: dict, label: str, card_id: int | Non
         run.flags["attacked"] = list(game.fx.attacked)       # the next turn begins while a choice of this run waits (FATEFUL BARGAINS)
     if "condition" in trig and not condition(game, run, trig["condition"]):
         return None
-    before = narrate.snapshot(game) if table.physical(game, owner) else None     # the human is told what it did
+    before = narrate.snapshot(game) if table.physical(game, owner) or trig["id"] in SAID_FOR_THE_BOT else None     # the human is told what it did
     pending = run.run(game, choosers or default_choosers(game))
     if pending is not None:
         if before is not None:

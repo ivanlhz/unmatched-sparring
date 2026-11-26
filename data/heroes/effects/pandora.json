@@ -1,0 +1,600 @@
+{
+ "schema": 1,
+ "hero": "pandora",
+ "notes": [
+  "Texts read from sheet 176 of the tournament savegame (card images) on 2026-11-22; the seven MISERIES are sheet 177 (Woe, Toil, Pain, Misfortune, Hope, Greed, Confusion). Ivan 2026-11-22 (PA1): the Kakodaemons enter the board only through the Miseries (Woe).",
+  "Pandora's Box is the trigger `pandora_box`: the plugin `pandora:reveal` (the decision to keep revealing, then the next Misery: drawn at random among the unrevealed when it is revealed, so there is no order to peek at; the human's physical Box is ASKED instead), the effect of that Misery, and `pandora:close` (three feathers: stop and 1 damage per revealed Misery; otherwise rewind). The ability counters hold the revealed ones as a bit mask; the trigger `pandora_shuffle` empties them at the end of her turn, so on the rival's turn the revealed count is 0."
+ ],
+ "ability": {
+  "text": "PANDORA'S BOX\nDo not start with any Kakodaemons on the board.\nAt the start of your turn, open Pandora's Box.\n\nThe rulebook: Pandora's Box is a deck of seven cards called MISERIES. When you open it, reveal the top card and resolve its effect if any. You may keep revealing and resolving additional cards, one at a time, until you choose to stop. If there are three or more total feathers on revealed cards, you must stop revealing, then Pandora takes 1 damage for each revealed MISERY. At the end of your turn, shuffle all revealed MISERIES back into Pandora's Box.",
+  "counters": {
+   "box_mask": {
+    "min": 0,
+    "max": 127,
+    "start": 0
+   },
+   "revealed": {
+    "min": 0,
+    "max": 7,
+    "start": 0
+   },
+   "box_top": {
+    "min": 0,
+    "max": 7,
+    "start": 0
+   },
+   "box_done": {
+    "min": 0,
+    "max": 1,
+    "start": 0
+   },
+   "box_current": {
+    "min": 0,
+    "max": 7,
+    "start": 0
+   }
+  },
+  "triggers": [
+   {
+    "id": "pandora_box",
+    "when": {
+     "event": "start_of_turn",
+     "player": "owner"
+    },
+    "ops": [
+     {
+      "op": "plugin",
+      "id": "pandora:reveal"
+     },
+     {
+      "op": "if",
+      "condition": {
+       "test": "counter",
+       "name": "box_current",
+       "min": 1,
+       "max": 1
+      },
+      "then": [
+       {
+        "op": "if",
+        "condition": {
+         "test": "exists",
+         "fighters": {
+          "side": "own",
+          "name": "Kakodaemon",
+          "state": "defeated"
+         }
+        },
+        "then": [
+         {
+          "op": "revive",
+          "target": {
+           "side": "own",
+           "name": "Kakodaemon",
+           "state": "defeated"
+          },
+          "where": {
+           "zone_of": "hero"
+          },
+          "hp": 1,
+          "chooser": "owner"
+         }
+        ],
+        "else": [
+         {
+          "op": "summon",
+          "name": "Kakodaemon",
+          "where": {
+           "zone_of": "hero"
+          }
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "op": "if",
+      "condition": {
+       "test": "counter",
+       "name": "box_current",
+       "min": 2,
+       "max": 2
+      },
+      "then": [
+       {
+        "op": "status",
+        "name": "attack_bonus",
+        "target": "hero",
+        "amount": 1,
+        "until": {
+         "event": "end_of_turn"
+        }
+       }
+      ]
+     },
+     {
+      "op": "if",
+      "condition": {
+       "test": "counter",
+       "name": "box_current",
+       "min": 3,
+       "max": 3
+      },
+      "then": [
+       {
+        "op": "damage",
+        "target": {
+         "side": "enemy",
+         "where": {
+          "adjacent_to": "hero"
+         },
+         "pick": "all"
+        },
+        "amount": 1
+       }
+      ]
+     },
+     {
+      "op": "if",
+      "condition": {
+       "test": "counter",
+       "name": "box_current",
+       "min": 5,
+       "max": 5
+      },
+      "then": [
+       {
+        "op": "plugin",
+        "id": "pandora:look"
+       }
+      ]
+     },
+     {
+      "op": "if",
+      "condition": {
+       "test": "counter",
+       "name": "box_current",
+       "min": 6,
+       "max": 6
+      },
+      "then": [
+       {
+        "op": "draw",
+        "player": "owner",
+        "amount": 1
+       }
+      ]
+     },
+     {
+      "op": "if",
+      "condition": {
+       "test": "counter",
+       "name": "box_current",
+       "min": 7,
+       "max": 7
+      },
+      "then": [
+       {
+        "op": "move",
+        "target": "hero",
+        "amount": 1,
+        "up_to": true
+       }
+      ]
+     },
+     {
+      "op": "plugin",
+      "id": "pandora:close"
+     }
+    ],
+    "notes": "WOE: a defeated Kakodaemon returns with 1 health, else one comes out of the reserve, in Pandora's zone (Ivan 2026-11-22: the only way they enter). TOIL: +1 to Pandora's attacks until the end of the turn. PAIN: 1 damage to each opposing fighter adjacent to Pandora. MISFORTUNE: two feathers, no effect. HOPE: look at the top card (plugin `pandora:look`). GREED: draw 1. CONFUSION: move Pandora up to 1 space. The first reveal is mandatory."
+   },
+   {
+    "id": "pandora_shuffle",
+    "when": {
+     "event": "end_of_turn",
+     "player": "owner"
+    },
+    "ops": [
+     {
+      "op": "counter",
+      "name": "box_mask",
+      "set": 0
+     },
+     {
+      "op": "counter",
+      "name": "revealed",
+      "set": 0
+     },
+     {
+      "op": "counter",
+      "name": "box_top",
+      "set": 0
+     },
+     {
+      "op": "counter",
+      "name": "box_done",
+      "set": 0
+     },
+     {
+      "op": "counter",
+      "name": "box_current",
+      "set": 0
+     }
+    ],
+    "notes": "All revealed MISERIES go back into the Box at the end of her turn."
+   }
+  ],
+  "passives": [],
+  "notes": "The hero card prints only the first two lines; the rest is the rulebook's (the brief of batch 4). unmatched-memory spells Kakodamons and has a missing parenthesis: the real card is used."
+ },
+ "cards": [
+  {
+   "title": "Hera's Curiosity",
+   "copies": 3,
+   "text": "DURING COMBAT: Add +1 to this card's value for each revealed MISERY. AFTER COMBAT: Look at your opponent's hand.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "modify_value",
+      "card": "this",
+      "amount": {
+       "counter": "revealed"
+      }
+     }
+    ],
+    "after": [
+     {
+      "op": "look_hand",
+      "player": "opponent"
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 3 / boost 4, Pandora only. Counts the MISERIES revealed this turn (counter `revealed`, 0 on the rival's turn). The look is the card's own AFTER (hidden information: the bot reads the human's hand only then)."
+  },
+  {
+   "title": "Hindsight",
+   "copies": 3,
+   "text": "AFTER COMBAT: If you won the combat, return a card from your discard pile to the top of your deck.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "combat_result",
+       "result": "won"
+      },
+      "then": [
+       {
+        "op": "return_to_deck",
+        "cards": {
+         "zone": "discard",
+         "player": "owner"
+        },
+        "position": "top"
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 3 / boost 2, Pandora only. The owner chooses the card; with an empty discard pile nothing happens (the card played is not in the pile yet)."
+  },
+  {
+   "title": "Aphrodite's Beauty",
+   "copies": 3,
+   "text": "IMMEDIATELY: Cancel all effects on your opponent's card. AFTER COMBAT: Pandora recovers 1 health for each revealed MISERY.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "cancel_effects",
+      "card": "opponent_card"
+     }
+    ],
+    "during": [],
+    "after": [
+     {
+      "op": "heal",
+      "target": "hero",
+      "amount": {
+       "counter": "revealed"
+      }
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 0 / boost 3 as printed (unmatched-memory says 3 / 2), band ANY. The heal goes to Pandora, whoever played the card, and counts the MISERIES revealed when it resolves."
+  },
+  {
+   "title": "Spite",
+   "copies": 2,
+   "text": "AFTER COMBAT: Deal 1 damage to each fighter adjacent to your fighter.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "damage",
+      "target": {
+       "side": "any",
+       "where": {
+        "adjacent_to": "this"
+       },
+       "other": true,
+       "pick": "all"
+      },
+      "amount": 1
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Attack 3 / boost 2, Kakodaemon only. Every fighter adjacent to the one that played it, friendly ones included."
+  },
+  {
+   "title": "Divine Intervention",
+   "copies": 2,
+   "text": "AFTER COMBAT: Move Pandora up to 5 spaces.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "move",
+      "target": "hero",
+      "amount": 5,
+      "up_to": true
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 3 / boost 1, Pandora only."
+  },
+  {
+   "title": "Feint",
+   "copies": 3,
+   "text": "IMMEDIATELY: Cancel all effects on your opponent's card.",
+   "effects": {
+    "immediately": [
+     {
+      "op": "cancel_effects",
+      "card": "opponent_card"
+     }
+    ],
+    "during": [],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 2 / boost 2, band ANY."
+  },
+  {
+   "title": "Guided by the Fates",
+   "copies": 3,
+   "text": "DURING COMBAT: Discard the top card of your deck. Add its BOOST value to this card's value. AFTER COMBAT: If you won the combat, Pandora recovers 2 health.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "discard",
+      "cards": {
+       "zone": "deck",
+       "player": "owner",
+       "pick": "top",
+       "amount": 1
+      },
+      "as": "fuel"
+     },
+     {
+      "op": "modify_value",
+      "card": "this",
+      "amount": {
+       "attr": "boost",
+       "of": "$fuel"
+      }
+     }
+    ],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "combat_result",
+       "result": "won"
+      },
+      "then": [
+       {
+        "op": "heal",
+        "target": "hero",
+        "amount": 2
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 2 / boost 3, band ANY. The top card goes to the discard pile first and its BOOST is added; with an empty deck it adds 0. The heal is Pandora's whoever played it."
+  },
+  {
+   "title": "Malice",
+   "copies": 2,
+   "text": "AFTER COMBAT: Your opponent discards 1 card.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "discard",
+      "cards": {
+       "zone": "hand",
+       "player": "opponent",
+       "amount": 1,
+       "chooser": "opponent"
+      }
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Versatile 2 / boost 2, Kakodaemon only. The rival chooses the card."
+  },
+  {
+   "title": "Offering to the Gods",
+   "copies": 2,
+   "text": "DURING COMBAT: You may BOOST this card. AFTER COMBAT: If you won the combat, deal 2 damage to the opposing fighter.",
+   "may_boost": true,
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "combat_result",
+       "result": "won"
+      },
+      "then": [
+       {
+        "op": "damage",
+        "target": {
+         "role": "opposing"
+        },
+        "amount": 2
+       }
+      ]
+     }
+    ],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense 2 / boost 1, Pandora only. `may_boost`: the free BOOST of the card (docs/effects-dsl.md section 1; the engine's convention for \"You may BOOST this card\")."
+  },
+  {
+   "title": "Celestial Raiments",
+   "copies": 2,
+   "text": "DURING COMBAT: Ignore the value of your opponent's card.",
+   "effects": {
+    "immediately": [],
+    "during": [
+     {
+      "op": "if",
+      "condition": {
+       "test": "card",
+       "card": "opponent_card",
+       "filter": {}
+      },
+      "then": [
+       {
+        "op": "set_value",
+        "card": "opponent_card",
+        "ignore": true
+       }
+      ]
+     }
+    ],
+    "after": [],
+    "scheme": [],
+    "boost": []
+   },
+   "notes": "Defense 0 / boost 3, Pandora only. `set_value ignore`: the rival's total is 0 at that moment; a later BOOST or effect still adds (engine convention, REGLAS-PENDIENTES section 2)."
+  },
+  {
+   "title": "Zeus's Mischief",
+   "copies": 2,
+   "text": "Draw 1 card for each revealed MISERY.\nMove an opposing fighter up to 1 space.\nGain 1 action.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "draw",
+      "player": "owner",
+      "amount": {
+       "counter": "revealed"
+      }
+     },
+     {
+      "op": "move",
+      "target": {
+       "side": "enemy"
+      },
+      "amount": 1,
+      "up_to": true
+     },
+     {
+      "op": "gain_action",
+      "amount": 1
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme, boost 1, Pandora only. Counts the MISERIES revealed this turn; the owner chooses the opposing fighter and where it goes."
+  },
+  {
+   "title": "Forged by Hephaestus",
+   "copies": 3,
+   "text": "Place your fighter in any space.\nGain 1 action.",
+   "effects": {
+    "immediately": [],
+    "during": [],
+    "after": [],
+    "scheme": [
+     {
+      "op": "place",
+      "target": {
+       "role": "this"
+      },
+      "where": {
+       "any": true
+      }
+     },
+     {
+      "op": "gain_action",
+      "amount": 1
+     }
+    ],
+    "boost": []
+   },
+   "notes": "Scheme, boost 1, band ANY: the fighter that plays it is placed."
+  }
+ ],
+ "plugins": [
+  {
+   "id": "pandora:reveal",
+   "why": "One pass of the Box: the decision to keep revealing and the next Misery (random among the unrevealed, asked of the table player who holds the real cards)."
+  },
+  {
+   "id": "pandora:look",
+   "why": "HOPE: fixes the top card of the Box for the owner who looks at it before deciding."
+  },
+  {
+   "id": "pandora:close",
+   "why": "Three feathers: stop and 1 damage per revealed Misery; otherwise rewinds the run to its first op (the DSL has no loop)."
+  }
+ ],
+ "hidden_info": [
+  {
+   "card": "Hope",
+   "what": "looks at the top card of her own Box",
+   "bot_rule": "The bot may know its own Box's top card (own information); the human looks at the real card. The bot never reads the order of the human's Box: it is asked which Misery came up, once revealed."
+  },
+  {
+   "card": "Hera's Curiosity",
+   "what": "looks at the opponent's hand",
+   "bot_rule": "The card's own AFTER, like every look_hand."
+  }
+ ],
+ "open_questions": [
+  "Do defeated Kakodaemons come back with Woe? Read like Abe Sapien's Agents and Sun Wukong's Clones (revive first, else summon).",
+  "Hope: the look is part of the Misery's effect, so it happens when Hope is resolved, before the decision to keep revealing."
+ ]
+}

@@ -1,7 +1,8 @@
 """Where the pre-game gate leaves each side's objects: one slot per ROLE and SIDE in `layout` of config/table.json (deck,
 character card, hero dial, sidekick dials, counter dials, tokens, pieces), mapped to the GUIDs of whatever hero sits on
 that side through data/tts/<slug>.json, so another pair of heroes lands in the same slots. A hero with more objects than
-slots keeps the extra ones where they were unpacked (`Plan.unplaced`)."""
+slots keeps the extra ones where they were unpacked (`Plan.unplaced`), except the pieces, whose row of slots is extended
+(`_extend_piece_row`)."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -88,6 +89,8 @@ def items(table: HeroTable) -> list[Item]:
     out = [Item("deck", "deck", (table.deck_guid,), "deck")]
     if dials:
         out.append(Item("dial", f"dial:{dials[0][0]}", (dials[0][1],), "dial"))
+    out += [Item("sidekick_dials", f"dial_flipped:{fid}", (f.dial_flipped,), "dial")      # Elektra's 9-dial, beside her 7
+            for fid, f in table.fighters.items() if f.dial_flipped]
     out += [Item("sidekick_dials", f"dial:{fid}", (g,), "dial") for fid, g in dials[1:]]
     out += [Item("counter_dials", f"counter:{name}", (g,), "dial") for name, g in table.counter_dials.items()]
     out += [Item("tokens", f"token:{name}", (g,), "token") for name, g in table.tokens.items()]
@@ -150,11 +153,29 @@ def _extend_sidekick_column(have: dict, wanted: list) -> None:
     have["sidekick_dials"] = sidekicks + [Slot((x, y, z + dz * k), column[-1].rot) for k in range(1, need + 1)]
 
 
+def _extend_piece_row(have: dict, wanted: list) -> None:
+    """A hero with more pieces than piece slots (Elektra and her four Hand, Eredin, Robin Hood: five on a row calibrated for
+    four) lays the extra ones on the row of tokens, one step (between its last two slots) BEFORE its first token slot, then
+    one more each: past the far end the human half's row runs into the cards Golden Bat lays at `order_spot`. Live 23/11: the
+    fourth Hand was left where it came out of the bag. Fewer than three slots give no row to follow (the first is the
+    miniature's)."""
+    pieces = have.get("pieces")
+    if not isinstance(pieces, list) or len(pieces) < 3:
+        return
+    need = sum(1 for i in wanted if i.role == "pieces") - len(pieces)
+    if need <= 0:
+        return
+    (ax, _, az), (bx, _, bz) = pieces[-2].pos, pieces[-1].pos
+    (x, y, z), rot = pieces[1].pos, pieces[1].rot
+    have["pieces"] = pieces + [Slot((x - (bx - ax) * k, y, z - (bz - az) * k), rot) for k in range(1, need + 1)]
+
+
 def plan(raw: dict, side: str, table: HeroTable) -> Plan:
     """The placements of `table`'s hero on `side` (everything but the character card, which the gate lays when it takes it
     out of the deck). A list role with fewer slots on `side` than objects borrows the other side's, mirrored."""
     have = _borrowing(raw, side)
     _extend_sidekick_column(have, items(table))
+    _extend_piece_row(have, items(table))
     out = Plan()
     used: dict[str, int] = {}
     for item in items(table):
